@@ -26,6 +26,8 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt }) 
     hexId,
     count,
     hpTotal: count * Number(creature.stats.hp || 1),
+    wound: 0,
+    effects: [],
     defenseBonus: 0,
     alive: true,
     createdAt,

@@ -1,5 +1,6 @@
 import { abilityBadges, normalizeAbilityText } from "../engine/abilities.js";
 import { resolveCreatureImage } from "../engine/assetResolver.js";
+import { calculateEffectiveStackPower, calculateThreatScore, calculateUnitValue } from "../engine/combatPower.js";
 
 export function renderStackInfo(container, data, state) {
   const stack = state.stacks.find((candidate) => candidate.id === state.selectedStackId);
@@ -13,6 +14,16 @@ export function renderStackInfo(container, data, state) {
   const image = resolveCreatureImage(creature);
   const badges = abilityBadges(creature);
   const rawAbilities = normalizeAbilityText(creature);
+  const evalStack = stack || {
+    creature,
+    count: Number(state.stackCount || 1),
+    wound: 0,
+    effects: [],
+    defenseBonus: 0
+  };
+  const unitValue = calculateUnitValue(evalStack);
+  const stackPower = calculateEffectiveStackPower(evalStack, state);
+  const threat = calculateThreatScore(evalStack, state);
   container.className = "stack-info";
   container.innerHTML = `
     <div class="info-heading">
@@ -29,7 +40,12 @@ export function renderStackInfo(container, data, state) {
       <div><dt>HP</dt><dd>${creature.stats.hp ?? "-"}</dd></div>
       <div><dt>Speed</dt><dd>${creature.stats.speed ?? "-"}</dd></div>
       <div><dt>Shots</dt><dd>${creature.stats.shots ?? 0}</dd></div>
+      <div><dt>Unit Value</dt><dd>${unitValue.rounded}</dd></div>
+      <div><dt>Stack Power</dt><dd>${stackPower.rounded}</dd></div>
+      <div><dt>Threat</dt><dd>${threat.rounded}</dd></div>
+      <div><dt>Confidence</dt><dd>${stackPower.confidence}</dd></div>
     </dl>
+    <p class="evaluation-note">Unit-only evaluation: count, HP/wound, effective Attack/Defense shape. Spellbook and buff/debuff AI scoring are not included in this phase.</p>
     <div class="badge-row">${badges.map((badge) => `<span>${badge}</span>`).join("") || "<span>Passives unresolved</span>"}</div>
     ${stack ? renderStatuses(stack) : ""}
     ${stack && state.phase === "setup" ? renderSetupControls(stack) : ""}
@@ -45,7 +61,7 @@ function renderStatuses(stack) {
   if (stack.statuses.acted) statuses.push("Acted");
   if (stack.statuses.waiting) statuses.push("Wait");
   if (stack.statuses.defending) statuses.push(`Defend +${stack.defenseBonus}`);
-  return `<div class="status-line">${statuses.join(" · ") || "Ready"}</div>`;
+  return `<div class="status-line">${statuses.join(" / ") || "Ready"}</div>`;
 }
 
 function renderSetupControls(stack) {

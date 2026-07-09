@@ -411,6 +411,13 @@ details,
   margin: 12px 0;
 }
 
+.evaluation-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 10px 0 0;
+}
+
 .badge-row span {
   border: 1px solid #465140;
   color: var(--accent);

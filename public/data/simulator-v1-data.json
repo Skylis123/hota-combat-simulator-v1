@@ -345,7 +345,11 @@
                                         "speed":  4,
                                         "shots":  0,
                                         "growth":  14,
-                                        "costGold":  60
+                                        "costGold":  60,
+
+                                        "aiValue":  80,
+
+                                        "fightValue":  100
                                     },
                           "abilities":  [
                                             {
@@ -380,7 +384,11 @@
                                         "speed":  5,
                                         "shots":  0,
                                         "growth":  14,
-                                        "costGold":  75
+                                        "costGold":  75,
+
+                                        "aiValue":  115,
+
+                                        "fightValue":  115
                                     },
                           "abilities":  [
                                             {
@@ -415,7 +423,11 @@
                                         "speed":  4,
                                         "shots":  12,
                                         "growth":  9,
-                                        "costGold":  100
+                                        "costGold":  100,
+
+                                        "aiValue":  126,
+
+                                        "fightValue":  115
                                     },
                           "abilities":  [
                                             {
@@ -450,7 +462,11 @@
                                         "speed":  6,
                                         "shots":  24,
                                         "growth":  9,
-                                        "costGold":  150
+                                        "costGold":  150,
+
+                                        "aiValue":  184,
+
+                                        "fightValue":  115
                                     },
                           "abilities":  [
                                             {
@@ -491,7 +507,11 @@
                                         "speed":  6,
                                         "shots":  0,
                                         "growth":  7,
-                                        "costGold":  200
+                                        "costGold":  200,
+
+                                        "aiValue":  351,
+
+                                        "fightValue":  324
                                     },
                           "abilities":  [
                                             {
@@ -532,7 +552,11 @@
                                         "speed":  9,
                                         "shots":  0,
                                         "growth":  7,
-                                        "costGold":  240
+                                        "costGold":  240,
+
+                                        "aiValue":  448,
+
+                                        "fightValue":  364
                                     },
                           "abilities":  [
                                             {
@@ -567,7 +591,11 @@
                                         "speed":  5,
                                         "shots":  0,
                                         "growth":  4,
-                                        "costGold":  300
+                                        "costGold":  300,
+
+                                        "aiValue":  445,
+
+                                        "fightValue":  445
                                     },
                           "abilities":  [
 
@@ -597,7 +625,11 @@
                                         "speed":  6,
                                         "shots":  0,
                                         "growth":  4,
-                                        "costGold":  400
+                                        "costGold":  400,
+
+                                        "aiValue":  588,
+
+                                        "fightValue":  588
                                     },
                           "abilities":  [
                                             {
@@ -632,7 +664,11 @@
                                         "speed":  5,
                                         "shots":  12,
                                         "growth":  3,
-                                        "costGold":  400
+                                        "costGold":  400,
+
+                                        "aiValue":  582,
+
+                                        "fightValue":  485
                                     },
                           "abilities":  [
                                             {
@@ -667,7 +703,11 @@
                                         "speed":  7,
                                         "shots":  24,
                                         "growth":  3,
-                                        "costGold":  450
+                                        "costGold":  450,
+
+                                        "aiValue":  750,
+
+                                        "fightValue":  500
                                     },
                           "abilities":  [
                                             {
@@ -702,7 +742,11 @@
                                         "speed":  7,
                                         "shots":  0,
                                         "growth":  2,
-                                        "costGold":  1000
+                                        "costGold":  1000,
+
+                                        "aiValue":  1946,
+
+                                        "fightValue":  1668
                                     },
                           "abilities":  [
 
@@ -732,7 +776,11 @@
                                         "speed":  9,
                                         "shots":  0,
                                         "growth":  2,
-                                        "costGold":  1200
+                                        "costGold":  1200,
+
+                                        "aiValue":  2100,
+
+                                        "fightValue":  1800
                                     },
                           "abilities":  [
 
@@ -762,7 +810,11 @@
                                         "speed":  12,
                                         "shots":  0,
                                         "growth":  1,
-                                        "costGold":  3000
+                                        "costGold":  3000,
+
+                                        "aiValue":  5019,
+
+                                        "fightValue":  3585
                                     },
                           "abilities":  [
                                             {
@@ -797,7 +849,11 @@
                                         "speed":  18,
                                         "shots":  0,
                                         "growth":  1,
-                                        "costGold":  5000
+                                        "costGold":  5000,
+
+                                        "aiValue":  8776,
+
+                                        "fightValue":  6033
                                     },
                           "abilities":  [
                                             {

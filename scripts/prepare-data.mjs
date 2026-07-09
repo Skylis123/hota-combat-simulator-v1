@@ -73,7 +73,9 @@ function normalizeCreature(creature, asset) {
       speed: stats.speed ?? null,
       shots: stats.shots ?? stats.ammo ?? 0,
       growth: stats.growth ?? null,
-      costGold: stats.costGold ?? stats.cost?.gold ?? null
+      costGold: stats.costGold ?? stats.cost?.gold ?? null,
+      aiValue: stats.aiValue ?? null,
+      fightValue: stats.fightValue ?? null
     },
     abilities,
     asset: {
