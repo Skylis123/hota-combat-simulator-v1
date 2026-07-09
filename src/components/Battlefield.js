@@ -66,7 +66,8 @@ export function renderBattlefield(container, data, state, handlers) {
       stack.owner,
       stack.id === state.selectedStackId ? "selected" : "",
       stack.id === state.activeStackId ? "active" : "",
-      stack.statuses.acted ? "acted" : ""
+      stack.statuses.acted ? "acted" : "",
+      isPlayerTarget(state, stack) ? "targetable" : ""
     ].join(" ");
     element.style.left = `${hex.centerX}px`;
     element.style.top = `${hex.centerY}px`;
@@ -90,6 +91,11 @@ export function renderBattlefield(container, data, state, handlers) {
     stackLayer.appendChild(element);
   }
   container.appendChild(stackLayer);
+}
+
+function isPlayerTarget(state, stack) {
+  const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
+  return state.phase === "battle" && active?.owner === "player" && stack.owner !== active.owner && stack.alive !== false;
 }
 
 function hexFromPointer(event, container, grid) {

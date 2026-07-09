@@ -147,7 +147,7 @@ export function calculateEffectiveStackPower(stack, battleState = null) {
   };
 }
 
-export function calculateExpectedDamage(attacker, defender, battleState = null) {
+export function calculateExpectedDamage(attacker, defender, battleState = null, options = {}) {
   const attackerEval = applyStatusModifiersToEvaluation(attacker);
   const defenderEval = applyStatusModifiersToEvaluation(defender);
   if (attackerEval.actionDenied) {
@@ -162,7 +162,8 @@ export function calculateExpectedDamage(attacker, defender, battleState = null) 
     ? 1 + Math.min(3, 0.05 * statDelta)
     : Math.max(0.3, 1 - 0.025 * Math.abs(statDelta));
   const abilities = inferAbilityFlags(attacker.creature || attacker);
-  const hitMultiplier = abilities.doubleAttack ? 2 : 1;
+  const includeMultiHit = options.includeMultiHit !== false;
+  const hitMultiplier = includeMultiHit && abilities.doubleAttack ? 2 : 1;
   const damage = Math.max(1, Math.trunc(base * factor * hitMultiplier));
 
   return {

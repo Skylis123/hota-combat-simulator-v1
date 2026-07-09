@@ -10,6 +10,7 @@ export function createInitialState() {
     stacks: [],
     turnQueue: [],
     activeStackId: null,
+    winner: null,
     hoveredStackId: null,
     reachable: new Set(),
     round: 1,
@@ -28,20 +29,35 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt }) 
     hpTotal: count * Number(creature.stats.hp || 1),
     wound: 0,
     effects: [],
+    maxShots: Number(creature.stats.shots || 0),
+    shotsRemaining: Number(creature.stats.shots || 0),
     defenseBonus: 0,
     alive: true,
     createdAt,
     statuses: {
       acted: false,
       waiting: false,
-      defending: false
+      defending: false,
+      retaliated: false
     }
   };
 }
 
 export function startBattle(state) {
   state.phase = "battle";
+  state.winner = null;
   state.round = 1;
+  for (const stack of state.stacks) {
+    stack.alive = stack.count > 0;
+    stack.hpTotal = stack.hpTotal || stack.count * Number(stack.creature.stats.hp || 1);
+    stack.wound = stack.wound || 0;
+    stack.shotsRemaining = Number.isFinite(stack.shotsRemaining) ? stack.shotsRemaining : Number(stack.creature.stats.shots || 0);
+    stack.statuses.acted = false;
+    stack.statuses.waiting = false;
+    stack.statuses.defending = false;
+    stack.statuses.retaliated = false;
+    stack.defenseBonus = 0;
+  }
   state.turnQueue = computeTurnOrder(state.stacks);
   state.activeStackId = state.turnQueue[0] || null;
   state.selectedStackId = state.activeStackId;
@@ -52,6 +68,7 @@ export function resetBattle(state) {
   state.phase = "setup";
   state.turnQueue = [];
   state.activeStackId = null;
+  state.winner = null;
   state.selectedStackId = null;
   state.reachable = new Set();
   state.round = 1;
@@ -60,6 +77,7 @@ export function resetBattle(state) {
     stack.statuses.acted = false;
     stack.statuses.waiting = false;
     stack.statuses.defending = false;
+    stack.statuses.retaliated = false;
     stack.defenseBonus = 0;
   }
 }

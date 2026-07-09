@@ -5,6 +5,7 @@ import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
+import { attackOption, executeAttack, performAiTurn } from "./engine/combat.js";
 import { reachableHexes } from "./engine/movement.js";
 
 const elements = {
@@ -21,6 +22,7 @@ const elements = {
   battleActions: document.querySelector("#battle-actions"),
   waitAction: document.querySelector("#wait-action"),
   defendAction: document.querySelector("#defend-action"),
+  battleLog: document.querySelector("#battle-log"),
   battlefieldTitle: document.querySelector("#battlefield-title")
 };
 
@@ -28,6 +30,7 @@ let data = null;
 let state = createInitialState();
 let createdAtCounter = 0;
 let menuDrag = null;
+let aiTurnPending = false;
 
 async function boot() {
   try {
@@ -243,6 +246,20 @@ function onHexClick(hexId) {
 }
 
 function onStackClick(stackId) {
+  const clicked = state.stacks.find((candidate) => candidate.id === stackId);
+  const active = activePlayerStack();
+  if (state.phase === "battle" && active && clicked && clicked.owner !== active.owner) {
+    const option = attackOption(data.battlefield.grid, state, active, clicked);
+    if (option.canAttack) {
+      executeAttack(state, data.battlefield.grid, active, clicked, option);
+    } else {
+      state.actionLog.unshift(`${active.label} cannot reach ${clicked.label}.`);
+      state.selectedStackId = clicked.id;
+    }
+    updateReachable();
+    render();
+    return;
+  }
   state.selectedStackId = stackId;
   state.selectedCreatureId = null;
   updateReachable();
@@ -305,12 +322,36 @@ function render() {
   updateReachable();
   const canStart = state.phase === "setup" && state.stacks.some((stack) => stack.owner === "player") && state.stacks.some((stack) => stack.owner === "ai");
   elements.startBattle.disabled = !canStart;
-  elements.battleActions.classList.toggle("hidden", !activePlayerStack());
+  elements.battleActions.classList.toggle("hidden", state.phase !== "battle" || !activePlayerStack());
 
   renderCreatureList(elements.creatureList, data, state, onSelectCreature);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
   renderStackInfo(elements.stackInfo, data, state);
   renderTurnOrder(elements.turnOrder, state);
+  renderBattleLog();
+  scheduleAiTurn();
+}
+
+function renderBattleLog() {
+  const entries = state.actionLog.slice(0, 10);
+  elements.battleLog.innerHTML = entries.length
+    ? entries.map((entry) => `<div>${entry}</div>`).join("")
+    : `<span class="empty-turn">Battle events will appear here.</span>`;
+}
+
+function scheduleAiTurn() {
+  const active = state.stacks.find((stack) => stack.id === state.activeStackId);
+  if (aiTurnPending || state.phase !== "battle" || active?.owner !== "ai") return;
+  aiTurnPending = true;
+  setTimeout(() => {
+    aiTurnPending = false;
+    const current = state.stacks.find((stack) => stack.id === state.activeStackId);
+    if (state.phase === "battle" && current?.owner === "ai") {
+      performAiTurn(state, data.battlefield.grid);
+      updateReachable();
+      render();
+    }
+  }, 450);
 }
 
 boot();

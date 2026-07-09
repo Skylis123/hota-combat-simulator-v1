@@ -39,7 +39,9 @@ export function renderStackInfo(container, data, state) {
       <div><dt>Damage</dt><dd>${creature.stats.minDamage ?? "-"}-${creature.stats.maxDamage ?? "-"}</dd></div>
       <div><dt>HP</dt><dd>${creature.stats.hp ?? "-"}</dd></div>
       <div><dt>Speed</dt><dd>${creature.stats.speed ?? "-"}</dd></div>
-      <div><dt>Shots</dt><dd>${creature.stats.shots ?? 0}</dd></div>
+      <div><dt>Shots</dt><dd>${stack ? `${stack.shotsRemaining ?? 0}/${stack.maxShots ?? creature.stats.shots ?? 0}` : creature.stats.shots ?? 0}</dd></div>
+      <div><dt>Stack HP</dt><dd>${stack ? Math.trunc(stack.hpTotal ?? 0) : "-"}</dd></div>
+      <div><dt>Wound</dt><dd>${stack ? Math.trunc(stack.wound ?? 0) : "-"}</dd></div>
       <div><dt>Unit Value</dt><dd>${unitValue.rounded}</dd></div>
       <div><dt>Stack Power</dt><dd>${stackPower.rounded}</dd></div>
       <div><dt>Threat</dt><dd>${threat.rounded}</dd></div>
@@ -61,6 +63,7 @@ function renderStatuses(stack) {
   if (stack.statuses.acted) statuses.push("Acted");
   if (stack.statuses.waiting) statuses.push("Wait");
   if (stack.statuses.defending) statuses.push(`Defend +${stack.defenseBonus}`);
+  if (stack.statuses.retaliated) statuses.push("Retaliated");
   return `<div class="status-line">${statuses.join(" / ") || "Ready"}</div>`;
 }
 

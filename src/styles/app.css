@@ -333,6 +333,14 @@ button.primary {
   opacity: 0.72;
 }
 
+.battle-stack.targetable {
+  cursor: crosshair;
+}
+
+.battle-stack.targetable img {
+  filter: drop-shadow(0 0 8px var(--danger)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+}
+
 .stack-count {
   position: absolute;
   right: 8px;
@@ -427,8 +435,29 @@ details,
 
 .battle-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.battle-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.battle-log {
+  display: grid;
+  gap: 4px;
+  max-height: 120px;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.battle-log div {
+  border-top: 1px solid #303843;
+  padding-top: 4px;
 }
 
 .hidden {
