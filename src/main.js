@@ -5,7 +5,7 @@ import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
-import { attackOption, executeAttack, performAiTurn } from "./engine/combat.js";
+import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { reachableHexes } from "./engine/movement.js";
 
 const elements = {
@@ -20,6 +20,7 @@ const elements = {
   resetBattle: document.querySelector("#reset-battle"),
   clearField: document.querySelector("#clear-field"),
   battleActions: document.querySelector("#battle-actions"),
+  attackBestAction: document.querySelector("#attack-best-action"),
   waitAction: document.querySelector("#wait-action"),
   defendAction: document.querySelector("#defend-action"),
   battleLog: document.querySelector("#battle-log"),
@@ -85,6 +86,20 @@ function bindEvents() {
     render();
   });
 
+  elements.attackBestAction.addEventListener("click", () => {
+    const stack = activePlayerStack();
+    if (!stack) return;
+    const best = chooseBestAttack(data.battlefield.grid, state, stack);
+    if (!best) {
+      state.actionLog.unshift(`${stack.label} has no attack target this turn.`);
+      render();
+      return;
+    }
+    executeAttack(state, data.battlefield.grid, stack, best.target, best.option);
+    updateReachable();
+    render();
+  });
+
   elements.defendAction.addEventListener("click", () => {
     const stack = activePlayerStack();
     if (!stack) return;
@@ -94,6 +109,12 @@ function bindEvents() {
   });
 
   elements.stackInfo.addEventListener("click", (event) => {
+    const attackButton = event.target.closest("[data-attack-selected]");
+    if (attackButton) {
+      onAttackSelectedTarget();
+      return;
+    }
+
     const button = event.target.closest("[data-delete-stack]");
     if (!button || state.phase !== "setup") return;
     const stackId = button.dataset.deleteStack;
@@ -266,6 +287,20 @@ function onStackClick(stackId) {
   render();
 }
 
+function onAttackSelectedTarget() {
+  const active = activePlayerStack();
+  const target = state.stacks.find((candidate) => candidate.id === state.selectedStackId);
+  if (!active || !target || target.owner === active.owner) return;
+  const option = attackOption(data.battlefield.grid, state, active, target);
+  if (option.canAttack) {
+    executeAttack(state, data.battlefield.grid, active, target, option);
+  } else {
+    state.actionLog.unshift(`${active.label} cannot reach ${target.label} this turn.`);
+  }
+  updateReachable();
+  render();
+}
+
 function onStackHover(stackId) {
   state.hoveredStackId = stackId;
   updateReachable();
@@ -316,6 +351,17 @@ function updateReachable() {
   const battlePreview = state.phase === "battle" && active?.owner === "player" ? active : null;
   const previewStack = battlePreview || setupPreview;
   state.reachable = previewStack ? reachableHexes(data.battlefield.grid, state.stacks, previewStack) : new Set();
+  state.enemyTargetIds = new Set();
+  state.attackableTargetIds = new Set();
+  if (state.phase === "battle" && active?.owner === "player") {
+    for (const target of state.stacks) {
+      if (target.owner === active.owner || target.alive === false || target.count <= 0) continue;
+      state.enemyTargetIds.add(target.id);
+      if (attackOption(data.battlefield.grid, state, active, target).canAttack) {
+        state.attackableTargetIds.add(target.id);
+      }
+    }
+  }
 }
 
 function render() {
@@ -323,6 +369,7 @@ function render() {
   const canStart = state.phase === "setup" && state.stacks.some((stack) => stack.owner === "player") && state.stacks.some((stack) => stack.owner === "ai");
   elements.startBattle.disabled = !canStart;
   elements.battleActions.classList.toggle("hidden", state.phase !== "battle" || !activePlayerStack());
+  elements.attackBestAction.disabled = state.phase !== "battle" || !activePlayerStack() || state.attackableTargetIds.size === 0;
 
   renderCreatureList(elements.creatureList, data, state, onSelectCreature);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());

@@ -24,6 +24,7 @@ export function renderStackInfo(container, data, state) {
   const unitValue = calculateUnitValue(evalStack);
   const stackPower = calculateEffectiveStackPower(evalStack, state);
   const threat = calculateThreatScore(evalStack, state);
+  const battleTarget = getSelectedBattleTargetState(state, stack);
   container.className = "stack-info";
   container.innerHTML = `
     <div class="info-heading">
@@ -50,11 +51,35 @@ export function renderStackInfo(container, data, state) {
     <p class="evaluation-note">Unit-only evaluation: count, HP/wound, effective Attack/Defense shape. Spellbook and buff/debuff AI scoring are not included in this phase.</p>
     <div class="badge-row">${badges.map((badge) => `<span>${badge}</span>`).join("") || "<span>Passives unresolved</span>"}</div>
     ${stack ? renderStatuses(stack) : ""}
+    ${renderBattleTargetControls(battleTarget)}
     ${stack && state.phase === "setup" ? renderSetupControls(stack) : ""}
     <details>
       <summary>Raw ability notes</summary>
       <p>${rawAbilities.join("; ") || "No extracted ability notes."}</p>
     </details>
+  `;
+}
+
+function getSelectedBattleTargetState(state, stack) {
+  if (!stack || state.phase !== "battle") return null;
+  const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
+  if (!active || active.owner !== "player" || stack.owner === active.owner) return null;
+  const canAttack = Boolean(state.attackableTargetIds?.has(stack.id));
+  return {
+    canAttack,
+    message: canAttack
+      ? "This enemy can be attacked now."
+      : "This enemy is not reachable this turn."
+  };
+}
+
+function renderBattleTargetControls(targetState) {
+  if (!targetState) return "";
+  return `
+    <div class="target-action-panel ${targetState.canAttack ? "can-attack" : "cannot-attack"}">
+      <p>${targetState.message}</p>
+      <button type="button" data-attack-selected ${targetState.canAttack ? "" : "disabled"}>Attack selected target</button>
+    </div>
   `;
 }
 

@@ -67,11 +67,13 @@ export function renderBattlefield(container, data, state, handlers) {
       stack.id === state.selectedStackId ? "selected" : "",
       stack.id === state.activeStackId ? "active" : "",
       stack.statuses.acted ? "acted" : "",
-      isPlayerTarget(state, stack) ? "targetable" : ""
+      state.attackableTargetIds?.has(stack.id) ? "targetable" : "",
+      state.enemyTargetIds?.has(stack.id) && !state.attackableTargetIds?.has(stack.id) ? "unreachable-target" : ""
     ].join(" ");
     element.style.left = `${hex.centerX}px`;
     element.style.top = `${hex.centerY}px`;
     element.dataset.stackId = stack.id;
+    element.title = stackTitle(state, stack);
     element.draggable = state.phase === "setup";
     element.innerHTML = `
       <img src="${image.src}" alt="${stack.label}" />
@@ -93,9 +95,11 @@ export function renderBattlefield(container, data, state, handlers) {
   container.appendChild(stackLayer);
 }
 
-function isPlayerTarget(state, stack) {
-  const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
-  return state.phase === "battle" && active?.owner === "player" && stack.owner !== active.owner && stack.alive !== false;
+function stackTitle(state, stack) {
+  if (state.attackableTargetIds?.has(stack.id)) return "Attack this stack";
+  if (state.enemyTargetIds?.has(stack.id)) return "Enemy stack is not reachable this turn";
+  if (stack.id === state.activeStackId) return "Active stack";
+  return stack.label;
 }
 
 function hexFromPointer(event, container, grid) {
