@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HotA Combat Simulator V1</title>
+    <link rel="stylesheet" href="./src/styles/app.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <aside class="sidebar" aria-label="Creature setup">
+        <header class="panel-header">
+          <div>
+            <p class="eyebrow">Simulator V1</p>
+            <h1>Castle Combat Setup</h1>
+          </div>
+          <span id="data-status" class="status-pill">Loading</span>
+        </header>
+
+        <section class="control-block">
+          <label class="field-label" for="town-select">Town</label>
+          <select id="town-select" disabled>
+            <option>Castle</option>
+          </select>
+        </section>
+
+        <section class="control-block compact">
+          <span class="field-label">Owner</span>
+          <div class="segmented" role="group" aria-label="Stack owner">
+            <button id="owner-player" type="button" class="segment active" data-owner="player">Player</button>
+            <button id="owner-ai" type="button" class="segment" data-owner="ai">AI</button>
+          </div>
+        </section>
+
+        <section class="control-block compact">
+          <label class="field-label" for="stack-count">Count</label>
+          <input id="stack-count" type="number" min="1" max="9999" value="20" />
+        </section>
+
+        <section>
+          <div class="section-title">Castle Units</div>
+          <div id="creature-list" class="creature-list"></div>
+        </section>
+      </aside>
+
+      <main class="main-stage">
+        <section class="topbar" aria-label="Battle controls">
+          <div>
+            <p class="eyebrow">Battlefield</p>
+            <h2 id="battlefield-title">Grass / Castle-like field</h2>
+          </div>
+          <div class="button-row">
+            <button id="start-battle" type="button" class="primary">Start Battle</button>
+            <button id="reset-battle" type="button">Reset Battle</button>
+            <button id="clear-field" type="button">Clear Battlefield</button>
+          </div>
+        </section>
+
+        <section class="battle-area">
+          <div id="battlefield" class="battlefield" aria-label="Battlefield"></div>
+          <aside class="info-panel" aria-label="Selected stack">
+            <div class="section-title">Selection</div>
+            <div id="stack-info" class="stack-info empty">Select a creature or a placed stack.</div>
+            <div id="battle-actions" class="battle-actions hidden">
+              <button id="wait-action" type="button">Wait</button>
+              <button id="defend-action" type="button">Defend</button>
+            </div>
+          </aside>
+        </section>
+
+        <footer class="turn-footer">
+          <div class="section-title">Turn Order</div>
+          <div id="turn-order" class="turn-order"></div>
+        </footer>
+      </main>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

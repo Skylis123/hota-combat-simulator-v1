@@ -1,0 +1,20 @@
+{
+  "name": "hota-combat-simulator-v1",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "HotA combat AI Simulator V1 web prototype using local reverse-engineered data.",
+  "scripts": {
+    "prepare:data": "node scripts/prepare-data.mjs",
+    "dev": "node scripts/dev-server.mjs",
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "keywords": [
+    "hota",
+    "heroes3",
+    "combat-ai",
+    "simulator"
+  ],
+  "license": "UNLICENSED"
+}
