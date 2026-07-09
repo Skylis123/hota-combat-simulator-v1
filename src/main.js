@@ -27,6 +27,7 @@ const elements = {
 let data = null;
 let state = createInitialState();
 let createdAtCounter = 0;
+let menuDrag = null;
 
 async function boot() {
   try {
@@ -107,6 +108,20 @@ function bindEvents() {
     stack.hpTotal = stack.count * Number(stack.creature.stats.hp || 1);
     render();
   });
+
+  elements.creatureList.addEventListener("pointerdown", (event) => {
+    const card = event.target.closest(".creature-card[data-creature-id]");
+    if (!card || state.phase !== "setup" || event.button !== 0) return;
+    menuDrag = {
+      creatureId: Number(card.dataset.creatureId),
+      startX: event.clientX,
+      startY: event.clientY,
+      dragging: false,
+      ghost: null
+    };
+    document.addEventListener("pointermove", onMenuDragMove);
+    document.addEventListener("pointerup", onMenuDragEnd, { once: true });
+  });
 }
 
 function activePlayerStack() {
@@ -126,6 +141,56 @@ function onSelectCreature(creatureId) {
   state.selectedCreatureId = creatureId;
   state.selectedStackId = null;
   render();
+}
+
+function onMenuDragMove(event) {
+  if (!menuDrag) return;
+  const distance = Math.hypot(event.clientX - menuDrag.startX, event.clientY - menuDrag.startY);
+  if (!menuDrag.dragging && distance > 6) {
+    menuDrag.dragging = true;
+    state.selectedCreatureId = menuDrag.creatureId;
+    state.selectedStackId = null;
+    menuDrag.ghost = createDragGhost(menuDrag.creatureId);
+    document.body.classList.add("menu-dragging");
+  }
+  if (menuDrag.dragging) {
+    event.preventDefault();
+    moveDragGhost(menuDrag.ghost, event.clientX, event.clientY);
+    elements.battlefield.classList.toggle("drag-active", Boolean(hexFromClientPoint(event.clientX, event.clientY)));
+  }
+}
+
+function onMenuDragEnd(event) {
+  document.removeEventListener("pointermove", onMenuDragMove);
+  elements.battlefield.classList.remove("drag-active");
+  document.body.classList.remove("menu-dragging");
+  if (!menuDrag) return;
+
+  if (menuDrag.dragging) {
+    const hex = hexFromClientPoint(event.clientX, event.clientY);
+    if (hex) onDrop({ creatureId: menuDrag.creatureId }, hex.id);
+    menuDrag.ghost?.remove();
+  } else {
+    onSelectCreature(menuDrag.creatureId);
+  }
+
+  menuDrag = null;
+}
+
+function createDragGhost(creatureId) {
+  const creature = data.creatures.find((candidate) => candidate.creatureId === creatureId);
+  const card = document.querySelector(`.creature-card[data-creature-id="${creatureId}"]`);
+  const ghost = document.createElement("div");
+  ghost.className = "drag-ghost";
+  ghost.innerHTML = card?.innerHTML || creature?.name || "Stack";
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function moveDragGhost(ghost, clientX, clientY) {
+  if (!ghost) return;
+  ghost.style.left = `${clientX + 14}px`;
+  ghost.style.top = `${clientY + 14}px`;
 }
 
 function onDrop(payload, hexId) {
@@ -158,6 +223,17 @@ function onDrop(payload, hexId) {
 }
 
 function onHexClick(hexId) {
+  if (state.phase === "setup") {
+    if (state.selectedStackId) {
+      onDrop({ stackId: state.selectedStackId }, hexId);
+      return;
+    }
+    if (state.selectedCreatureId !== null) {
+      onDrop({ creatureId: state.selectedCreatureId }, hexId);
+      return;
+    }
+  }
+
   const active = activePlayerStack();
   if (state.phase === "battle" && active && state.reachable.has(hexId) && !isHexOccupied(hexId, active.id)) {
     moveStack(state, active, hexId);
@@ -181,6 +257,39 @@ function onStackHover(stackId) {
 
 function battlefieldHandlers() {
   return { onDrop, onHexClick, onStackClick, onStackHover };
+}
+
+function hexFromClientPoint(clientX, clientY) {
+  const grid = data.battlefield.grid;
+  const rect = elements.battlefield.getBoundingClientRect();
+  if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+  const x = ((clientX - rect.left) / rect.width) * grid.width;
+  const y = ((clientY - rect.top) / rect.height) * grid.height;
+  const containingHex = grid.hexes.find((hex) => pointInPolygon(x, y, hex.polygonPoints));
+  if (containingHex) return containingHex;
+  let nearest = null;
+  let nearestDistance = Infinity;
+  for (const hex of grid.hexes) {
+    const distance = Math.hypot(hex.centerX - x, hex.centerY - y);
+    if (distance < nearestDistance) {
+      nearest = hex;
+      nearestDistance = distance;
+    }
+  }
+  return nearestDistance <= 28 ? nearest : null;
+}
+
+function pointInPolygon(x, y, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i][0];
+    const yi = points[i][1];
+    const xj = points[j][0];
+    const yj = points[j][1];
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || 1) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
 }
 
 function updateReachable() {

@@ -19,7 +19,7 @@ export function renderCreatureList(container, data, state, onSelect) {
       const card = document.createElement("button");
       card.type = "button";
       card.className = `creature-card ${state.selectedCreatureId === creature.creatureId ? "selected" : ""}`;
-      card.draggable = true;
+      card.draggable = false;
       card.dataset.creatureId = String(creature.creatureId);
 
       const image = resolveCreatureImage(creature);
@@ -30,11 +30,6 @@ export function renderCreatureList(container, data, state, onSelect) {
       `;
       card.title = abilityBadges(creature).join(", ") || "No confirmed passive tags";
       card.addEventListener("click", () => onSelect(creature.creatureId));
-      card.addEventListener("dragstart", (event) => {
-        onSelect(creature.creatureId);
-        event.dataTransfer.setData("text/plain", String(creature.creatureId));
-        event.dataTransfer.effectAllowed = "copy";
-      });
       row.appendChild(card);
     }
 
