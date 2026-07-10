@@ -5,27 +5,28 @@ export function supportsBattleAnimation(stack) {
   return stack?.creature?.creatureId === PIKEMAN_ID;
 }
 
-export async function animateStackMove(container, grid, stack, destinationHexId) {
+export async function animateStackMove(container, grid, stack, path) {
+  const destinationHexId = path?.[path.length - 1];
   if (!supportsBattleAnimation(stack) || stack.hexId === destinationHexId) return;
+  validatePath(grid, stack.hexId, path);
   const origin = findHex(grid, stack.hexId);
-  const destination = findHex(grid, destinationHexId);
-  if (!origin || !destination) return;
+  if (!origin) return;
 
   const actor = createActor(container, stack, origin, "move");
   const original = hideOriginalStack(container, stack.id);
-  setFacing(actor, destination.centerX < origin.centerX);
-  const duration = movementDuration(origin, destination);
 
   try {
-    await moveActor(actor, destination, duration);
+    await moveActorAlongPath(actor, grid, path);
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
   }
 }
 
-export async function animateStackAttack(container, grid, attacker, target, approachHexId) {
+export async function animateStackAttack(container, grid, attacker, target, approachPath) {
   if (!supportsBattleAnimation(attacker)) return;
+  validatePath(grid, attacker.hexId, approachPath);
+  const approachHexId = approachPath[approachPath.length - 1];
   const origin = findHex(grid, attacker.hexId);
   const approach = findHex(grid, approachHexId) || origin;
   const targetHex = findHex(grid, target.hexId);
@@ -36,8 +37,7 @@ export async function animateStackAttack(container, grid, attacker, target, appr
 
   try {
     if (approachHexId !== attacker.hexId) {
-      setFacing(actor, approach.centerX < origin.centerX);
-      await moveActor(actor, approach, movementDuration(origin, approach));
+      await moveActorAlongPath(actor, grid, approachPath);
     }
 
     const animation = attackName(approach, targetHex);
@@ -87,18 +87,30 @@ function findHex(grid, hexId) {
   return grid.hexes.find((hex) => hex.id === hexId);
 }
 
-function movementDuration(origin, destination) {
-  const distance = Math.hypot(destination.centerX - origin.centerX, destination.centerY - origin.centerY);
-  return Math.max(360, Math.min(1100, Math.round(distance * 3.2)));
+function validatePath(grid, originHexId, path) {
+  if (!Array.isArray(path) || path.length === 0 || path[0] !== originHexId) {
+    throw new Error("Battle animation received a path with an invalid origin.");
+  }
+  for (let index = 1; index < path.length; index += 1) {
+    const previous = findHex(grid, path[index - 1]);
+    if (!previous?.neighbors.includes(path[index])) {
+      throw new Error("Battle animation path contains non-adjacent hexes.");
+    }
+  }
 }
 
-async function moveActor(actor, destination, duration) {
-  actor.style.setProperty("--move-duration", `${duration}ms`);
+async function moveActorAlongPath(actor, grid, path) {
+  actor.style.setProperty("--move-duration", "170ms");
   await nextFrame();
   actor.classList.add("moving");
-  actor.style.left = `${destination.centerX}px`;
-  actor.style.top = `${destination.centerY}px`;
-  await waitForTransition(actor, duration);
+  for (let index = 1; index < path.length; index += 1) {
+    const previous = findHex(grid, path[index - 1]);
+    const destination = findHex(grid, path[index]);
+    setFacing(actor, destination.centerX < previous.centerX);
+    actor.style.left = `${destination.centerX}px`;
+    actor.style.top = `${destination.centerY}px`;
+    await waitForTransition(actor, 170);
+  }
 }
 
 function nextFrame() {

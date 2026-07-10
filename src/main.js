@@ -7,7 +7,7 @@ import { animateStackAttack, animateStackMove } from "./components/BattleAnimato
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
-import { reachableHexes } from "./engine/movement.js";
+import { findMovementPath, reachableHexes } from "./engine/movement.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
@@ -100,7 +100,7 @@ function bindEvents() {
       return;
     }
     await runAnimatedAction(
-      () => animateStackAttack(elements.battlefield, data.battlefield.grid, stack, best.target, best.option.approachHex),
+      () => animateStackAttack(elements.battlefield, data.battlefield.grid, stack, best.target, best.option.approachPath),
       () => executeAttack(state, data.battlefield.grid, stack, best.target, best.option)
     );
   });
@@ -289,8 +289,10 @@ async function onHexClick(hexId) {
 
   const active = activePlayerStack();
   if (state.phase === "battle" && active && !battleAnimationPending && state.reachable.has(hexId) && !isHexOccupied(hexId, active.id)) {
+    const path = findMovementPath(data.battlefield.grid, state.stacks, active, hexId);
+    if (!path) return;
     await runAnimatedAction(
-      () => animateStackMove(elements.battlefield, data.battlefield.grid, active, hexId),
+      () => animateStackMove(elements.battlefield, data.battlefield.grid, active, path),
       () => moveStack(state, active, hexId)
     );
   }
@@ -304,7 +306,7 @@ async function onStackClick(stackId) {
     const option = attackOption(data.battlefield.grid, state, active, clicked);
     if (option.canAttack) {
       await runAnimatedAction(
-        () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option.approachHex),
+        () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option.approachPath),
         () => executeAttack(state, data.battlefield.grid, active, clicked, option)
       );
       return;
@@ -330,7 +332,7 @@ async function onAttackSelectedTarget() {
   const option = attackOption(data.battlefield.grid, state, active, target);
   if (option.canAttack) {
     await runAnimatedAction(
-      () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, target, option.approachHex),
+      () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, target, option.approachPath),
       () => executeAttack(state, data.battlefield.grid, active, target, option)
     );
     return;
@@ -452,8 +454,8 @@ function scheduleAiTurn() {
     if (state.phase === "battle" && current?.owner === "ai") {
       await runAnimatedAction(
         () => performAiTurn(state, data.battlefield.grid, {
-          beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option.approachHex),
-          beforeMove: (stack, hexId) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, hexId)
+          beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option.approachPath),
+          beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path)
         }),
         () => {}
       );

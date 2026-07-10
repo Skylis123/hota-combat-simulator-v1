@@ -58,7 +58,7 @@ export function renderBattlefield(container, data, state, handlers) {
   for (const stack of state.stacks) {
     const hex = grid.hexes.find((candidate) => candidate.id === stack.hexId);
     if (!hex) continue;
-    const image = resolveCreatureImage(stack.creature);
+    const image = resolveCreatureImage(stack.creature, stack.creature.creatureId === 0 ? "animation" : "preview");
     const element = document.createElement("button");
     element.type = "button";
     element.className = [

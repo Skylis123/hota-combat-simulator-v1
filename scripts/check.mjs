@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "../src/engine/battleState.js";
+import { attackOption, chooseAdvanceOption } from "../src/engine/combat.js";
+import { findMovementPath } from "../src/engine/movement.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -46,6 +48,39 @@ if (
   resetState.stacks[1].alive !== true
 ) {
   failures.push("Reset Battle must restore starting positions and complete stack state.");
+}
+
+const pathGrid = {
+  hexes: [
+    { id: 0, neighbors: [1, 2] },
+    { id: 1, neighbors: [0, 3] },
+    { id: 2, neighbors: [0, 4] },
+    { id: 3, neighbors: [1, 4] },
+    { id: 4, neighbors: [2, 3] }
+  ]
+};
+const pathCreature = { creatureId: 0, name: "Pikeman", stats: { hp: 10, speed: 4, shots: 0 } };
+const mover = createBattleStack({ creature: pathCreature, owner: "player", hexId: 0, count: 20, createdAt: 0 });
+const blocker = createBattleStack({ creature: pathCreature, owner: "player", hexId: 1, count: 20, createdAt: 1 });
+const enemy = createBattleStack({ creature: pathCreature, owner: "ai", hexId: 3, count: 20, createdAt: 2 });
+const detour = findMovementPath(pathGrid, [mover, blocker], mover, 3);
+if (JSON.stringify(detour) !== JSON.stringify([0, 2, 4, 3])) {
+  failures.push("Movement path must detour around occupied hexes.");
+}
+if (findMovementPath(pathGrid, [mover, blocker], mover, 1) !== null) {
+  failures.push("Movement path must reject an occupied destination.");
+}
+const meleeRoute = attackOption(pathGrid, { stacks: [mover, blocker, enemy] }, mover, enemy);
+if (!meleeRoute.canAttack || JSON.stringify(meleeRoute.approachPath) !== JSON.stringify([0, 2, 4])) {
+  failures.push("Melee approach path must avoid occupied hexes.");
+}
+const slowAiCreature = { creatureId: 0, name: "Pikeman", stats: { hp: 10, speed: 1, shots: 0 } };
+const aiMover = createBattleStack({ creature: slowAiCreature, owner: "ai", hexId: 0, count: 20, createdAt: 0 });
+const aiBlocker = createBattleStack({ creature: pathCreature, owner: "ai", hexId: 1, count: 20, createdAt: 1 });
+const playerTarget = createBattleStack({ creature: pathCreature, owner: "player", hexId: 3, count: 20, createdAt: 2 });
+const aiAdvance = chooseAdvanceOption(pathGrid, { stacks: [aiMover, aiBlocker, playerTarget] }, aiMover);
+if (aiAdvance.hexId !== 2 || JSON.stringify(aiAdvance.path) !== JSON.stringify([0, 2])) {
+  failures.push("AI advance must follow the collision-free route around occupied hexes.");
 }
 
 if (failures.length) {
