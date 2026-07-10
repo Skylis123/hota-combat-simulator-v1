@@ -39,9 +39,11 @@ export function findApproachHex(grid, state, attacker, target) {
 }
 
 function findApproachOptions(grid, state, attacker, target) {
-  if (stacksAreAdjacent(grid, attacker, target)) return [{ hexId: attacker.hexId, path: [attacker.hexId] }];
-  const options = [];
+  const options = stacksAreAdjacent(grid, attacker, target)
+    ? [{ hexId: attacker.hexId, path: [attacker.hexId] }]
+    : [];
   for (const candidate of grid.hexes) {
+    if (candidate.id === attacker.hexId) continue;
     if (!stacksAreAdjacent(grid, attacker, target, candidate.id)) continue;
     const path = findMovementPath(grid, state.stacks, attacker, candidate.id);
     if (!path) continue;

@@ -152,6 +152,18 @@ const minimumImmuneSteps = Math.min(...immuneOptions.map((option) => option.appr
 if (!selectedImmuneJoust || selectedImmuneJoust.option.approachPath.length - 1 !== minimumImmuneSteps) {
   failures.push("Champion AI must prefer the shortest approach when the target is immune to Jousting.");
 }
+const adjacentNormalTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 77, count: 100, createdAt: 1 });
+const adjacentNormalState = { stacks: [joustingChampion, adjacentNormalTarget] };
+const adjacentJoust = chooseBestAttack(data.battlefield.grid, adjacentNormalState, joustingChampion);
+if (!adjacentJoust || adjacentJoust.option.approachPath.length <= 1) {
+  failures.push("An adjacent Champion must consider moving to a better legal Jousting approach hex.");
+}
+const adjacentImmuneTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "ai", hexId: 77, count: 100, createdAt: 1 });
+const adjacentImmuneState = { stacks: [joustingChampion, adjacentImmuneTarget] };
+const adjacentImmuneJoust = chooseBestAttack(data.battlefield.grid, adjacentImmuneState, joustingChampion);
+if (!adjacentImmuneJoust || adjacentImmuneJoust.option.approachPath.length !== 1) {
+  failures.push("An adjacent Champion must stay in place when Jousting is suppressed by immunity.");
+}
 
 const damageCreature = (creatureId, damage = 100) => ({ creatureId, stats: { attack: 0, defense: 0, minDamage: damage, maxDamage: damage, hp: 100, speed: 9, shots: creatureId === 2 || creatureId === 9 ? 12 : 0 } });
 const championDamage = calculateExpectedDamage(
