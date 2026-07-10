@@ -292,6 +292,18 @@ button.primary {
   stroke: rgba(240, 211, 107, 0.9);
 }
 
+.hex.placement-preview.placement-valid {
+  fill: rgba(86, 205, 117, 0.34);
+  stroke: #80ef9c;
+  stroke-width: 2;
+}
+
+.hex.placement-preview.placement-invalid {
+  fill: rgba(207, 78, 78, 0.34);
+  stroke: #ff7b70;
+  stroke-width: 2;
+}
+
 .stack-layer {
   position: absolute;
   inset: 0;
@@ -339,6 +351,19 @@ button.primary {
 
 .battle-stack.acted {
   opacity: 0.72;
+}
+
+.battle-stack.dead {
+  height: 54px;
+  transform: translate(-50%, -45%);
+  opacity: 0.92;
+}
+
+.battle-stack.dead img {
+  width: 92px;
+  height: 54px;
+  object-position: center bottom;
+  filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.7));
 }
 
 .battle-stack.targetable {

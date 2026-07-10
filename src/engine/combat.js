@@ -1,8 +1,9 @@
 import { inferAbilityFlags } from "./abilities.js";
-import { calculateExpectedDamage, calculateHpLossValue, calculateTargetPriority } from "./combatPower.js";
+import { calculateExpectedDamage, calculateHpLossValue, calculateRolledDamage, calculateTargetPriority } from "./combatPower.js";
 import { findMovementPath, findStackPath, reachableHexes } from "./movement.js";
 import { canStackOccupy, stacksAreAdjacent } from "./footprint.js";
 import { chooseBestResurrection, executeResurrection } from "./creatureAbilities.js";
+import { distanceByBreadthFirst } from "./hexGrid.js";
 import { nextActiveStack } from "./turnOrder.js";
 
 export function livingStacks(state, owner = null) {
@@ -68,7 +69,7 @@ export function chooseBestAttack(grid, state, attacker) {
   for (const target of livingEnemies(state, attacker)) {
     const option = attackOption(grid, state, attacker, target);
     if (!option.canAttack) continue;
-    const score = scoreAttackOption(attacker, target, option);
+    const score = scoreAttackOption(grid, attacker, target, option);
     if (!best || score > best.score || (score === best.score && target.hexId > best.target.hexId)) {
       best = { target, option, score };
     }
@@ -109,6 +110,7 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
   if (moved) attacker.hexId = option.approachHex;
 
   const mode = option.mode === "ranged" ? "ranged" : "melee";
+  const rangePenalty = mode === "ranged" && distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
   const abilities = inferAbilityFlags(attacker.creature);
   const requestedStrikes = abilities.doubleAttack ? 2 : 1;
   const strikes = mode === "ranged" ? Math.min(requestedStrikes, Math.max(1, Number(attacker.shotsRemaining || 0))) : requestedStrikes;
@@ -120,13 +122,13 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
 
   for (let strike = 1; strike <= strikes; strike += 1) {
     if (attacker.alive === false || target.alive === false) break;
-    const damage = calculateExpectedDamage(attacker, target, state, { includeMultiHit: false, mode, movementSteps }).damage;
+    const damage = calculateRolledDamage(attacker, target, state, { mode, movementSteps, rangePenalty, rng: state.rng }).damage;
     const before = snapshotHp(target);
     applyDamage(target, damage);
     attackLog.push({ strike, attacker: attacker.id, target: target.id, damage, before, after: snapshotHp(target) });
 
     if (strike === 1 && mode === "melee" && target.alive !== false && canRetaliate(target, attacker)) {
-      const retaliationDamage = calculateExpectedDamage(target, attacker, state, { includeMultiHit: false, mode: "melee", movementSteps: 0 }).damage;
+      const retaliationDamage = calculateRolledDamage(target, attacker, state, { mode: "melee", movementSteps: 0, rng: state.rng }).damage;
       const retaliationBefore = snapshotHp(attacker);
       applyDamage(attacker, retaliationDamage);
       target.statuses.retaliated = true;
@@ -161,7 +163,8 @@ export async function performAiTurn(state, grid, hooks = {}) {
   }
   if (attack) {
     await hooks.beforeAttack?.(stack, attack.target, attack.option);
-    executeAttack(state, grid, stack, attack.target, attack.option);
+    const result = executeAttack(state, grid, stack, attack.target, attack.option);
+    await hooks.afterAttack?.(stack, attack.target, result);
     return;
   }
 
@@ -175,6 +178,7 @@ export async function performAiTurn(state, grid, hooks = {}) {
     return;
   }
 
+  await hooks.beforeDefend?.(stack);
   stack.statuses.defending = true;
   stack.defenseBonus = Math.max(1, Math.floor(Number(stack.creature.stats.defense || 0) * 0.2));
   stack.statuses.acted = true;
@@ -182,9 +186,10 @@ export async function performAiTurn(state, grid, hooks = {}) {
   finishAction(state);
 }
 
-function scoreAttackOption(attacker, target, option) {
+function scoreAttackOption(grid, attacker, target, option) {
   if (option.mode === "ranged") {
-    const damage = calculateExpectedDamage(attacker, target, null, { mode: "ranged" }).damage;
+    const rangePenalty = distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
+    const damage = calculateExpectedDamage(attacker, target, null, { mode: "ranged", rangePenalty }).damage;
     return calculateHpLossValue(target, damage).value;
   }
   const exchange = calculateTargetPriority(attacker, target, null, {

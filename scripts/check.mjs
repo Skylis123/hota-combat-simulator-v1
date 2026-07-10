@@ -5,8 +5,8 @@ import { createBattleStack, createInitialState, resetBattle, startBattle } from 
 import { attackOption, chooseAdvanceOption, executeAttack } from "../src/engine/combat.js";
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
-import { calculateExpectedDamage } from "../src/engine/combatPower.js";
-import { canStackOccupy, footprintHexes } from "../src/engine/footprint.js";
+import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
+import { canStackOccupy, footprintHexes, placementPreview } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,9 +27,13 @@ for (const creature of data.creatures || []) {
   }
 }
 
-for (const animation of ["move.gif", "attack-up.gif", "attack-front.gif", "attack-down.gif"]) {
-  if (!fs.existsSync(path.join(root, "public", "assets", "creatures", "animations", "0", animation))) {
-    failures.push(`Missing Pikeman battle animation: ${animation}`);
+for (const creature of data.creatures) {
+  const requiredAnimations = ["idle.gif", "move.gif", "hit.gif", "defend.gif", "death.gif", "corpse.png", "attack-up.gif", "attack-front.gif", "attack-down.gif"];
+  if (inferAbilityFlags(creature).ranged) requiredAnimations.push("shoot-up.gif", "shoot-front.gif", "shoot-down.gif");
+  for (const animation of requiredAnimations) {
+    if (!fs.existsSync(path.join(root, "public", "assets", "creatures", "animations", String(creature.creatureId), animation))) {
+      failures.push(`Missing ${creature.name} battle animation: ${animation}`);
+    }
   }
 }
 
@@ -113,6 +117,10 @@ if (JSON.stringify(footprintHexes(footprintGrid, championStack)) !== JSON.string
 if (canStackOccupy(footprintGrid, [], championStack, 0)) {
   failures.push("Two-hex stack must not fit at an edge without its rear hex.");
 }
+const championHoverPreview = placementPreview(footprintGrid, [], championStack, 1);
+if (!championHoverPreview.valid || JSON.stringify(championHoverPreview.hexIds) !== JSON.stringify([1, 0])) {
+  failures.push("Two-hex setup hover must preview both primary and rear hexes.");
+}
 
 const damageCreature = (creatureId, damage = 100) => ({ creatureId, stats: { attack: 0, defense: 0, minDamage: damage, maxDamage: damage, hp: 100, speed: 9, shots: creatureId === 2 || creatureId === 9 ? 12 : 0 } });
 const championDamage = calculateExpectedDamage(
@@ -134,6 +142,17 @@ const archerMelee = calculateExpectedDamage({ creature: damageCreature(2, 10), c
 const zealotMelee = calculateExpectedDamage({ creature: damageCreature(9, 10), count: 1 }, { creature: damageCreature(6), count: 1 }, null, { mode: "melee" }).damage;
 if (archerMelee !== 5 || zealotMelee !== 10) {
   failures.push(`Shooter melee penalty mismatch: Archer=${archerMelee}, Zealot=${zealotMelee}.`);
+}
+const variableArcher = { creature: { creatureId: 2, stats: { attack: 6, defense: 3, minDamage: 2, maxDamage: 3, hp: 10, speed: 4, shots: 12 } }, count: 20 };
+const neutralDefender = { creature: { creatureId: 6, stats: { attack: 6, defense: 6, minDamage: 1, maxDamage: 1, hp: 100, speed: 5, shots: 0 } }, count: 20 };
+const minimumRoll = calculateRolledDamage(variableArcher, neutralDefender, null, { mode: "ranged", rng: () => 0 }).damage;
+const maximumRoll = calculateRolledDamage(variableArcher, neutralDefender, null, { mode: "ranged", rng: () => 0.999999 }).damage;
+if (minimumRoll !== 40 || maximumRoll !== 60) {
+  failures.push(`Runtime damage roll must span the full inclusive range: ${minimumRoll}..${maximumRoll}.`);
+}
+const longRangeMaximum = calculateRolledDamage(variableArcher, neutralDefender, null, { mode: "ranged", rangePenalty: 0.5, rng: () => 0.999999 }).damage;
+if (longRangeMaximum !== 30) {
+  failures.push(`Long-range damage penalty must halve ranged damage: ${longRangeMaximum}.`);
 }
 
 const archangel = createBattleStack({ creature: byCreatureId.get(13), owner: "player", hexId: 1, count: 2, createdAt: 0 });

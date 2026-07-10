@@ -1,8 +1,9 @@
-const PIKEMAN_ID = 0;
-const ASSET_ROOT = "./public/assets/creatures/animations/0";
+const CASTLE_MIN_ID = 0;
+const CASTLE_MAX_ID = 13;
 
 export function supportsBattleAnimation(stack) {
-  return stack?.creature?.creatureId === PIKEMAN_ID;
+  const creatureId = Number(stack?.creature?.creatureId);
+  return creatureId >= CASTLE_MIN_ID && creatureId <= CASTLE_MAX_ID;
 }
 
 export async function animateStackMove(container, grid, stack, path) {
@@ -11,10 +12,8 @@ export async function animateStackMove(container, grid, stack, path) {
   validatePath(grid, stack.hexId, path);
   const origin = findHex(grid, stack.hexId);
   if (!origin) return;
-
   const actor = createActor(container, stack, origin, "move");
   const original = hideOriginalStack(container, stack.id);
-
   try {
     await moveActorAlongPath(actor, grid, path);
   } finally {
@@ -23,8 +22,9 @@ export async function animateStackMove(container, grid, stack, path) {
   }
 }
 
-export async function animateStackAttack(container, grid, attacker, target, approachPath) {
+export async function animateStackAttack(container, grid, attacker, target, option) {
   if (!supportsBattleAnimation(attacker)) return;
+  const approachPath = option.approachPath;
   validatePath(grid, attacker.hexId, approachPath);
   const approachHexId = approachPath[approachPath.length - 1];
   const origin = findHex(grid, attacker.hexId);
@@ -32,38 +32,66 @@ export async function animateStackAttack(container, grid, attacker, target, appr
   const targetHex = findHex(grid, target.hexId);
   if (!origin || !approach || !targetHex) return;
 
-  const actor = createActor(container, attacker, origin, approachHexId === attacker.hexId ? attackName(approach, targetHex) : "move");
+  const firstAnimation = approachHexId === attacker.hexId ? attackName(approach, targetHex, option.mode) : "move";
+  const actor = createActor(container, attacker, origin, firstAnimation);
   const original = hideOriginalStack(container, attacker.id);
-
   try {
-    if (approachHexId !== attacker.hexId) {
-      await moveActorAlongPath(actor, grid, approachPath);
-    }
-
-    const animation = attackName(approach, targetHex);
+    if (approachHexId !== attacker.hexId) await moveActorAlongPath(actor, grid, approachPath);
+    const animation = attackName(approach, targetHex, option.mode);
     setFacing(actor, targetHex.centerX < approach.centerX);
-    setAnimation(actor, animation);
-    await wait(animation === "attack-down" ? 880 : 800);
+    setAnimation(actor, attacker, animation);
+    await wait(animation.endsWith("down") ? 900 : 820);
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
   }
 }
 
-function createActor(container, stack, hex, animation) {
+export async function animateAttackResult(container, grid, attacker, target, result) {
+  if (!result?.ok) return;
+  await animateReaction(container, grid, target, target.alive === false ? "death" : "hit");
+  if (result.retaliation) {
+    await animateReaction(container, grid, attacker, attacker.alive === false ? "death" : "hit");
+  }
+}
+
+export async function animateStackDefend(container, grid, stack) {
+  await animateReaction(container, grid, stack, "defend");
+}
+
+async function animateReaction(container, grid, stack, animation) {
+  if (!supportsBattleAnimation(stack)) return;
+  const hex = findHex(grid, stack.hexId);
+  if (!hex) return;
+  const actor = createActor(container, stack, hex, animation, animation !== "death");
+  const original = hideOriginalStack(container, stack.id);
+  try {
+    await wait(animation === "death" ? 900 : animation === "defend" ? 800 : 520);
+  } finally {
+    actor.remove();
+    if (original) original.style.visibility = "";
+  }
+}
+
+function createActor(container, stack, hex, animation, showCount = true) {
   const actor = document.createElement("div");
   actor.className = `battle-animation ${stack.owner}`;
   actor.style.left = `${hex.centerX}px`;
   actor.style.top = `${hex.centerY}px`;
-  actor.innerHTML = `<img alt="" /><span class="stack-count">${stack.count}</span>`;
-  setAnimation(actor, animation);
+  actor.innerHTML = `<img alt="" />${showCount ? `<span class="stack-count">${stack.count}</span>` : ""}`;
+  setFacing(actor, stack.owner === "ai");
+  setAnimation(actor, stack, animation);
   container.appendChild(actor);
   return actor;
 }
 
-function setAnimation(actor, animation) {
+function setAnimation(actor, stack, animation) {
   const image = actor.querySelector("img");
-  image.src = `${ASSET_ROOT}/${animation}.gif?play=${Date.now()}`;
+  image.src = `${assetRoot(stack)}/${animation}.gif?play=${Date.now()}`;
+}
+
+function assetRoot(stack) {
+  return `./public/assets/creatures/animations/${stack.creature.creatureId}`;
 }
 
 function setFacing(actor, facingLeft) {
@@ -76,11 +104,12 @@ function hideOriginalStack(container, stackId) {
   return original;
 }
 
-function attackName(attackerHex, targetHex) {
+function attackName(attackerHex, targetHex, mode) {
+  const prefix = mode === "ranged" ? "shoot" : "attack";
   const deltaY = targetHex.centerY - attackerHex.centerY;
-  if (deltaY < -20) return "attack-up";
-  if (deltaY > 20) return "attack-down";
-  return "attack-front";
+  if (deltaY < -20) return `${prefix}-up`;
+  if (deltaY > 20) return `${prefix}-down`;
+  return `${prefix}-front`;
 }
 
 function findHex(grid, hexId) {

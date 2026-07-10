@@ -3,12 +3,12 @@ import { renderCreatureList } from "./components/CreatureList.js";
 import { renderBattlefield } from "./components/Battlefield.js";
 import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
-import { animateStackAttack, animateStackMove } from "./components/BattleAnimator.js";
+import { animateAttackResult, animateStackAttack, animateStackDefend, animateStackMove } from "./components/BattleAnimator.js";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
-import { canStackOccupy, occupiedHexesForStacks } from "./engine/footprint.js";
+import { canStackOccupy, occupiedHexesForStacks, placementPreview } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 
 const elements = {
@@ -103,17 +103,19 @@ function bindEvents() {
       return;
     }
     await runAnimatedAction(
-      () => animateStackAttack(elements.battlefield, data.battlefield.grid, stack, best.target, best.option.approachPath),
-      () => executeAttack(state, data.battlefield.grid, stack, best.target, best.option)
+      () => animateStackAttack(elements.battlefield, data.battlefield.grid, stack, best.target, best.option),
+      () => executeAttack(state, data.battlefield.grid, stack, best.target, best.option),
+      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, stack, best.target, result)
     );
   });
 
-  elements.defendAction.addEventListener("click", () => {
+  elements.defendAction.addEventListener("click", async () => {
     const stack = activePlayerStack();
     if (!stack || battleAnimationPending) return;
-    defendStack(state, stack);
-    updateReachable();
-    render();
+    await runAnimatedAction(
+      () => animateStackDefend(elements.battlefield, data.battlefield.grid, stack),
+      () => defendStack(state, stack)
+    );
   });
 
   elements.resurrectAction.addEventListener("click", () => {
@@ -264,6 +266,7 @@ function moveDragGhost(ghost, clientX, clientY) {
 
 function onDrop(payload, hexId) {
   if (state.phase !== "setup") return;
+  state.setupPreview = null;
   if (payload.stackId) {
     const stack = state.stacks.find((candidate) => candidate.id === payload.stackId);
     if (!stack || !canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId)) return;
@@ -323,8 +326,9 @@ async function onStackClick(stackId) {
     const option = attackOption(data.battlefield.grid, state, active, clicked);
     if (option.canAttack) {
       await runAnimatedAction(
-        () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option.approachPath),
-        () => executeAttack(state, data.battlefield.grid, active, clicked, option)
+        () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option),
+        () => executeAttack(state, data.battlefield.grid, active, clicked, option),
+        (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, clicked, result)
       );
       return;
     } else {
@@ -349,8 +353,9 @@ async function onAttackSelectedTarget() {
   const option = attackOption(data.battlefield.grid, state, active, target);
   if (option.canAttack) {
     await runAnimatedAction(
-      () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, target, option.approachPath),
-      () => executeAttack(state, data.battlefield.grid, active, target, option)
+      () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, target, option),
+      () => executeAttack(state, data.battlefield.grid, active, target, option),
+      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, target, result)
     );
     return;
   } else {
@@ -367,8 +372,25 @@ function onStackHover(stackId) {
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
 }
 
+function onSetupHover(hexId) {
+  if (state.phase !== "setup") return;
+  let preview = null;
+  if (hexId !== null) {
+    const selectedStack = state.stacks.find((stack) => stack.id === state.selectedStackId);
+    const creature = selectedStack?.creature || selectedCreature();
+    if (creature) {
+      const stack = selectedStack || { id: "setup-preview", creature, owner: state.owner, hexId };
+      preview = placementPreview(data.battlefield.grid, state.stacks, stack, hexId);
+    }
+  }
+  const previousKey = JSON.stringify(state.setupPreview);
+  if (JSON.stringify(preview) === previousKey) return;
+  state.setupPreview = preview;
+  renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
+}
+
 function battlefieldHandlers() {
-  return { onDrop, onHexClick, onStackClick, onStackHover };
+  return { onDrop, onHexClick, onStackClick, onStackHover, onSetupHover };
 }
 
 function hexFromClientPoint(clientX, clientY) {
@@ -444,13 +466,14 @@ function render() {
   scheduleAiTurn();
 }
 
-async function runAnimatedAction(animation, action) {
+async function runAnimatedAction(animation, action, afterAction = null) {
   if (battleAnimationPending) return;
   battleAnimationPending = true;
   document.body.classList.add("battle-animation-running");
   try {
     await animation();
-    action();
+    const result = action();
+    if (afterAction) await afterAction(result);
   } finally {
     battleAnimationPending = false;
     document.body.classList.remove("battle-animation-running");
@@ -476,8 +499,10 @@ function scheduleAiTurn() {
     if (state.phase === "battle" && current?.owner === "ai") {
       await runAnimatedAction(
         () => performAiTurn(state, data.battlefield.grid, {
-          beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option.approachPath),
-          beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path)
+          beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option),
+          afterAttack: (attacker, target, result) => animateAttackResult(elements.battlefield, data.battlefield.grid, attacker, target, result),
+          beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path),
+          beforeDefend: (stack) => animateStackDefend(elements.battlefield, data.battlefield.grid, stack)
         }),
         () => {}
       );

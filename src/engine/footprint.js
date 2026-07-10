@@ -27,6 +27,14 @@ export function canStackOccupy(grid, stacks, stack, primaryHexId) {
   return footprint.every((hexId) => !occupied.has(hexId));
 }
 
+export function placementPreview(grid, stacks, stack, primaryHexId) {
+  const hexIds = footprintHexes(grid, stack, primaryHexId);
+  return {
+    hexIds: hexIds || [primaryHexId],
+    valid: Boolean(hexIds && canStackOccupy(grid, stacks, stack, primaryHexId))
+  };
+}
+
 export function stacksAreAdjacent(grid, first, second, firstPrimaryHexId = first.hexId, secondPrimaryHexId = second.hexId) {
   const firstFootprint = footprintHexes(grid, first, firstPrimaryHexId) || [];
   const secondFootprint = new Set(footprintHexes(grid, second, secondPrimaryHexId) || []);

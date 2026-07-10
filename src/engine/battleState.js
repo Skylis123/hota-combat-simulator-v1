@@ -15,6 +15,7 @@ export function createInitialState() {
     reachable: new Set(),
     enemyTargetIds: new Set(),
     attackableTargetIds: new Set(),
+    setupPreview: null,
     battleSetupSnapshot: null,
     round: 1,
     actionLog: []

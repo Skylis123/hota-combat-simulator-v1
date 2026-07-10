@@ -28,6 +28,13 @@ export function renderBattlefield(container, data, state, handlers) {
     const stackId = event.dataTransfer.getData("application/x-stack-id");
     handlers.onDrop({ creatureId, stackId }, hex.id);
   };
+  container.onpointermove = (event) => {
+    if (state.phase !== "setup") return;
+    handlers.onSetupHover(hexFromPointer(event, container, grid)?.id ?? null);
+  };
+  container.onpointerleave = () => {
+    if (state.phase === "setup") handlers.onSetupHover(null);
+  };
   container.onclick = (event) => {
     if (event.target.closest(".battle-stack")) return;
     const hex = hexFromPointer(event, container, grid);
@@ -50,6 +57,9 @@ export function renderBattlefield(container, data, state, handlers) {
     const classes = ["hex"];
     if (state.reachable.has(hex.id)) classes.push("reachable");
     if (occupied.has(hex.id)) classes.push("occupied");
+    if (state.setupPreview?.hexIds?.includes(hex.id)) {
+      classes.push("placement-preview", state.setupPreview.valid ? "placement-valid" : "placement-invalid");
+    }
     polygon.setAttribute("class", classes.join(" "));
     polygon.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -66,7 +76,10 @@ export function renderBattlefield(container, data, state, handlers) {
   for (const stack of state.stacks) {
     const hex = grid.hexes.find((candidate) => candidate.id === stack.hexId);
     if (!hex) continue;
-    const image = resolveCreatureImage(stack.creature, stack.creature.creatureId === 0 ? "animation" : "preview");
+    const castleCreature = stack.creature.creatureId >= 0 && stack.creature.creatureId <= 13;
+    const image = stack.alive === false && castleCreature
+      ? { src: `./public/assets/creatures/animations/${stack.creature.creatureId}/corpse.png` }
+      : resolveCreatureImage(stack.creature, castleCreature ? "animation" : "preview");
     const element = document.createElement("button");
     element.type = "button";
     element.className = [
@@ -76,6 +89,7 @@ export function renderBattlefield(container, data, state, handlers) {
       stack.id === state.selectedStackId ? "selected" : "",
       stack.id === state.activeStackId ? "active" : "",
       stack.statuses.acted ? "acted" : "",
+      stack.alive === false ? "dead" : "",
       state.attackableTargetIds?.has(stack.id) ? "targetable" : "",
       state.enemyTargetIds?.has(stack.id) && !state.attackableTargetIds?.has(stack.id) ? "unreachable-target" : ""
     ].join(" ");
@@ -86,7 +100,7 @@ export function renderBattlefield(container, data, state, handlers) {
     element.draggable = state.phase === "setup";
     element.innerHTML = `
       <img src="${image.src}" alt="${stack.label}" />
-      <span class="stack-count">${stack.count}</span>
+      ${stack.alive === false ? "" : `<span class="stack-count">${stack.count}</span>`}
     `;
     element.addEventListener("click", (event) => {
       event.stopPropagation();

@@ -165,13 +165,14 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
   const includeMultiHit = options.includeMultiHit !== false;
   const hitMultiplier = includeMultiHit && abilities.doubleAttack ? 2 : 1;
   const meleePenalty = options.mode === "melee" && abilities.ranged && !abilities.noMeleePenalty ? 0.5 : 1;
+  const rangePenalty = options.mode === "ranged" ? Number(options.rangePenalty ?? 1) : 1;
   const joustingPercent = options.mode === "melee" && abilities.jousting && !inferAbilityFlags(defender.creature || defender).joustingImmune
     ? 100 + Math.max(0, Number(options.movementSteps || 0)) * 5
     : 100;
   const joustingMultiplier = joustingPercent / 100;
   const defenderId = Number((defender.creature || defender).creatureId);
   const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
-  const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * joustingPercent * hateMultiplier) / 100));
+  const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * rangePenalty * joustingPercent * hateMultiplier) / 100));
 
   return {
     damage,
@@ -179,10 +180,52 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
     factor,
     hitMultiplier,
     meleePenalty,
+    rangePenalty,
     joustingMultiplier,
     hateMultiplier,
     confidence: CONFIDENCE.CONFIRMED,
     evidence: "Uses confirmed deterministic AI damage shape: mean min/max * count, attack/defense factor, double attack where flagged."
+  };
+}
+
+export function calculateRolledDamage(attacker, defender, battleState = null, options = {}) {
+  const attackerEval = applyStatusModifiersToEvaluation(attacker);
+  const defenderEval = applyStatusModifiersToEvaluation(defender);
+  if (attackerEval.actionDenied) {
+    return { damage: 0, confidence: CONFIDENCE.APPROXIMATION, evidence: "Attacker action denied by status." };
+  }
+
+  const count = Number(attacker.count || 0);
+  const minimumBase = Math.max(0, Math.trunc(attackerEval.damageMin * count));
+  const maximumBase = Math.max(minimumBase, Math.trunc(attackerEval.damageMax * count));
+  const rng = typeof options.rng === "function" ? options.rng : Math.random;
+  const roll = Math.min(0.999999999999, Math.max(0, Number(rng())));
+  const base = minimumBase + Math.floor(roll * (maximumBase - minimumBase + 1));
+  const statDelta = attackerEval.attack - defenderEval.defense;
+  const factor = statDelta >= 0
+    ? 1 + Math.min(3, 0.05 * statDelta)
+    : Math.max(0.3, 1 - 0.025 * Math.abs(statDelta));
+  const abilities = inferAbilityFlags(attacker.creature || attacker);
+  const meleePenalty = options.mode === "melee" && abilities.ranged && !abilities.noMeleePenalty ? 0.5 : 1;
+  const rangePenalty = options.mode === "ranged" ? Number(options.rangePenalty ?? 1) : 1;
+  const joustingPercent = options.mode === "melee" && abilities.jousting && !inferAbilityFlags(defender.creature || defender).joustingImmune
+    ? 100 + Math.max(0, Number(options.movementSteps || 0)) * 5
+    : 100;
+  const defenderId = Number((defender.creature || defender).creatureId);
+  const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
+  const damage = Math.max(1, Math.trunc((base * factor * meleePenalty * rangePenalty * joustingPercent * hateMultiplier) / 100));
+  return {
+    damage,
+    base,
+    minimumBase,
+    maximumBase,
+    factor,
+    meleePenalty,
+    rangePenalty,
+    joustingMultiplier: joustingPercent / 100,
+    hateMultiplier,
+    confidence: CONFIDENCE.CONFIRMED,
+    evidence: "Execution roll is inclusive across count*minDamage..count*maxDamage; AI scoring remains deterministic expected damage."
   };
 }
 
