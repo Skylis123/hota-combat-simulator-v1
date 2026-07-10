@@ -1,5 +1,7 @@
 import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver.js";
 import { polygonPointsToString } from "../engine/hexGrid.js";
+import { footprintHexes } from "../engine/footprint.js";
+import { inferAbilityFlags } from "../engine/abilities.js";
 
 export function renderBattlefield(container, data, state, handlers) {
   const battlefield = data.battlefield;
@@ -36,7 +38,11 @@ export function renderBattlefield(container, data, state, handlers) {
   svg.setAttribute("viewBox", `0 0 ${grid.width} ${grid.height}`);
   svg.classList.add("hex-layer");
 
-  const occupied = new Map(state.stacks.map((stack) => [stack.hexId, stack]));
+  const occupied = new Map();
+  for (const stack of state.stacks) {
+    if (stack.alive === false) continue;
+    for (const hexId of footprintHexes(grid, stack) || []) occupied.set(hexId, stack);
+  }
   for (const hex of grid.hexes) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     polygon.setAttribute("points", polygonPointsToString(hex.polygonPoints));
@@ -47,7 +53,9 @@ export function renderBattlefield(container, data, state, handlers) {
     polygon.setAttribute("class", classes.join(" "));
     polygon.addEventListener("click", (event) => {
       event.stopPropagation();
-      handlers.onHexClick(hex.id);
+      const occupyingStack = occupied.get(hex.id);
+      if (occupyingStack) handlers.onStackClick(occupyingStack.id);
+      else handlers.onHexClick(hex.id);
     });
     svg.appendChild(polygon);
   }
@@ -63,6 +71,7 @@ export function renderBattlefield(container, data, state, handlers) {
     element.type = "button";
     element.className = [
       "battle-stack",
+      inferAbilityFlags(stack.creature).twoHex ? "two-hex" : "",
       stack.owner,
       stack.id === state.selectedStackId ? "selected" : "",
       stack.id === state.activeStackId ? "active" : "",

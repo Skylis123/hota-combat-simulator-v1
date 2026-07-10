@@ -29,12 +29,15 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt }) 
     label: `${owner === "ai" ? "AI" : "Player"} ${creature.name}`,
     hexId,
     count,
+    initialCount: count,
     hpTotal: count * Number(creature.stats.hp || 1),
     wound: 0,
     effects: [],
     maxShots: Number(creature.stats.shots || 0),
     shotsRemaining: Number(creature.stats.shots || 0),
     defenseBonus: 0,
+    retaliationsUsed: 0,
+    resurrectionUsed: false,
     alive: true,
     createdAt,
     statuses: {
@@ -60,6 +63,8 @@ export function startBattle(state) {
     stack.statuses.waiting = false;
     stack.statuses.defending = false;
     stack.statuses.retaliated = false;
+    stack.retaliationsUsed = 0;
+    stack.resurrectionUsed = false;
     stack.defenseBonus = 0;
   }
   state.turnQueue = computeTurnOrder(state.stacks);

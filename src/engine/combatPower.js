@@ -164,13 +164,23 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
   const abilities = inferAbilityFlags(attacker.creature || attacker);
   const includeMultiHit = options.includeMultiHit !== false;
   const hitMultiplier = includeMultiHit && abilities.doubleAttack ? 2 : 1;
-  const damage = Math.max(1, Math.trunc(base * factor * hitMultiplier));
+  const meleePenalty = options.mode === "melee" && abilities.ranged && !abilities.noMeleePenalty ? 0.5 : 1;
+  const joustingPercent = options.mode === "melee" && abilities.jousting && !inferAbilityFlags(defender.creature || defender).joustingImmune
+    ? 100 + Math.max(0, Number(options.movementSteps || 0)) * 5
+    : 100;
+  const joustingMultiplier = joustingPercent / 100;
+  const defenderId = Number((defender.creature || defender).creatureId);
+  const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
+  const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * joustingPercent * hateMultiplier) / 100));
 
   return {
     damage,
     base,
     factor,
     hitMultiplier,
+    meleePenalty,
+    joustingMultiplier,
+    hateMultiplier,
     confidence: CONFIDENCE.CONFIRMED,
     evidence: "Uses confirmed deterministic AI damage shape: mean min/max * count, attack/defense factor, double attack where flagged."
   };
@@ -194,15 +204,15 @@ export function calculateHpLossValue(stack, hpAmount) {
   };
 }
 
-export function calculateTargetPriority(attacker, defender, battleState = null) {
-  const outgoing = calculateExpectedDamage(attacker, defender, battleState);
+export function calculateTargetPriority(attacker, defender, battleState = null, options = {}) {
+  const outgoing = calculateExpectedDamage(attacker, defender, battleState, options);
   const targetLoss = calculateHpLossValue(defender, outgoing.damage);
   const abilities = inferAbilityFlags(attacker.creature || attacker);
   let retaliationDamage = 0;
   let retaliationLoss = { value: 0, rounded: 0 };
 
   if (!abilities.noRetaliation) {
-    const incoming = calculateExpectedDamage(defender, attacker, battleState);
+    const incoming = calculateExpectedDamage(defender, attacker, battleState, { mode: "melee" });
     retaliationDamage = incoming.damage;
     retaliationLoss = calculateHpLossValue(attacker, retaliationDamage);
   }

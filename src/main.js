@@ -8,6 +8,8 @@ import { createBattleStack, createInitialState, resetBattle, startBattle } from 
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
+import { canStackOccupy, occupiedHexesForStacks } from "./engine/footprint.js";
+import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
@@ -22,6 +24,7 @@ const elements = {
   clearField: document.querySelector("#clear-field"),
   battleActions: document.querySelector("#battle-actions"),
   attackBestAction: document.querySelector("#attack-best-action"),
+  resurrectAction: document.querySelector("#resurrect-action"),
   waitAction: document.querySelector("#wait-action"),
   defendAction: document.querySelector("#defend-action"),
   battleLog: document.querySelector("#battle-log"),
@@ -113,6 +116,18 @@ function bindEvents() {
     render();
   });
 
+  elements.resurrectAction.addEventListener("click", () => {
+    const archangel = activePlayerStack();
+    if (!archangel || battleAnimationPending) return;
+    const selected = state.stacks.find((stack) => stack.id === state.selectedStackId);
+    const validTargets = resurrectionCandidates(state, archangel);
+    const target = validTargets.find((candidate) => candidate.id === selected?.id) || chooseBestResurrection(state, archangel)?.target;
+    if (!target) return;
+    executeResurrection(state, archangel, target);
+    updateReachable();
+    render();
+  });
+
   elements.stackInfo.addEventListener("click", (event) => {
     const attackButton = event.target.closest("[data-attack-selected]");
     if (attackButton) {
@@ -134,6 +149,7 @@ function bindEvents() {
     const stack = state.stacks.find((candidate) => candidate.id === input.dataset.stackCount);
     if (!stack) return;
     stack.count = Math.max(1, Number(input.value || 1));
+    stack.initialCount = stack.count;
     stack.hpTotal = stack.count * Number(stack.creature.stats.hp || 1);
     render();
   });
@@ -171,7 +187,7 @@ function selectedCreature() {
 }
 
 function isHexOccupied(hexId, exceptStackId = null) {
-  return state.stacks.some((stack) => stack.id !== exceptStackId && stack.hexId === hexId && stack.alive !== false);
+  return occupiedHexesForStacks(data.battlefield.grid, state.stacks, exceptStackId).has(hexId);
 }
 
 function onSelectCreature(creatureId) {
@@ -250,7 +266,7 @@ function onDrop(payload, hexId) {
   if (state.phase !== "setup") return;
   if (payload.stackId) {
     const stack = state.stacks.find((candidate) => candidate.id === payload.stackId);
-    if (!stack || isHexOccupied(hexId, stack.id)) return;
+    if (!stack || !canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId)) return;
     stack.hexId = hexId;
     state.selectedStackId = stack.id;
     state.selectedCreatureId = null;
@@ -259,7 +275,7 @@ function onDrop(payload, hexId) {
   }
 
   const creatureId = payload.creatureId;
-  if (state.phase !== "setup" || isHexOccupied(hexId)) return;
+  if (state.phase !== "setup") return;
   const creature = data.creatures.find((candidate) => candidate.creatureId === creatureId);
   if (!creature) return;
   const stack = createBattleStack({
@@ -269,6 +285,7 @@ function onDrop(payload, hexId) {
     count: Math.max(1, Number(elements.stackCount.value || state.stackCount)),
     createdAt: createdAtCounter++
   });
+  if (!canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId)) return;
   state.stacks.push(stack);
   state.selectedStackId = stack.id;
   state.selectedCreatureId = creature.creatureId;
@@ -413,6 +430,11 @@ function render() {
   elements.startBattle.disabled = !canStart;
   elements.battleActions.classList.toggle("hidden", state.phase !== "battle" || !activePlayerStack());
   elements.attackBestAction.disabled = state.phase !== "battle" || !activePlayerStack() || state.attackableTargetIds.size === 0;
+  const active = activePlayerStack();
+  const resurrectionTargets = active ? resurrectionCandidates(state, active) : [];
+  elements.resurrectAction.classList.toggle("hidden", resurrectionTargets.length === 0 && !active?.resurrectionUsed);
+  elements.resurrectAction.disabled = resurrectionTargets.length === 0;
+  elements.resurrectAction.textContent = active?.resurrectionUsed ? "Resurrection Used" : "Resurrect Ally";
 
   renderCreatureList(elements.creatureList, data, state, onSelectCreature);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());

@@ -2,8 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "../src/engine/battleState.js";
-import { attackOption, chooseAdvanceOption } from "../src/engine/combat.js";
+import { attackOption, chooseAdvanceOption, executeAttack } from "../src/engine/combat.js";
 import { findMovementPath } from "../src/engine/movement.js";
+import { inferAbilityFlags } from "../src/engine/abilities.js";
+import { calculateExpectedDamage } from "../src/engine/combatPower.js";
+import { canStackOccupy, footprintHexes } from "../src/engine/footprint.js";
+import { executeResurrection } from "../src/engine/creatureAbilities.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -81,6 +85,90 @@ const playerTarget = createBattleStack({ creature: pathCreature, owner: "player"
 const aiAdvance = chooseAdvanceOption(pathGrid, { stacks: [aiMover, aiBlocker, playerTarget] }, aiMover);
 if (aiAdvance.hexId !== 2 || JSON.stringify(aiAdvance.path) !== JSON.stringify([0, 2])) {
   failures.push("AI advance must follow the collision-free route around occupied hexes.");
+}
+
+const byCreatureId = new Map(data.creatures.map((creature) => [creature.creatureId, creature]));
+const twoHexIds = data.creatures.filter((creature) => inferAbilityFlags(creature).twoHex).map((creature) => creature.creatureId);
+if (JSON.stringify(twoHexIds) !== JSON.stringify([4, 5, 10, 11, 13])) {
+  failures.push(`Castle two-hex mapping is incorrect: ${twoHexIds.join(", ")}`);
+}
+if (inferAbilityFlags(byCreatureId.get(4)).doubleAttack || inferAbilityFlags(byCreatureId.get(4)).retaliationLimit !== 2) {
+  failures.push("Griffin must have two retaliations, not double attack.");
+}
+if (inferAbilityFlags(byCreatureId.get(5)).retaliationLimit !== Infinity) {
+  failures.push("Royal Griffin must have unlimited retaliations.");
+}
+
+const footprintGrid = {
+  hexes: [
+    { id: 0, row: 0, col: 0, neighbors: [1] },
+    { id: 1, row: 0, col: 1, neighbors: [0, 2] },
+    { id: 2, row: 0, col: 2, neighbors: [1] }
+  ]
+};
+const championStack = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 1, count: 1, createdAt: 0 });
+if (JSON.stringify(footprintHexes(footprintGrid, championStack)) !== JSON.stringify([1, 0])) {
+  failures.push("Player two-hex footprint must occupy its primary and rear-left hex.");
+}
+if (canStackOccupy(footprintGrid, [], championStack, 0)) {
+  failures.push("Two-hex stack must not fit at an edge without its rear hex.");
+}
+
+const damageCreature = (creatureId, damage = 100) => ({ creatureId, stats: { attack: 0, defense: 0, minDamage: damage, maxDamage: damage, hp: 100, speed: 9, shots: creatureId === 2 || creatureId === 9 ? 12 : 0 } });
+const championDamage = calculateExpectedDamage(
+  { creature: damageCreature(11), count: 1 },
+  { creature: damageCreature(6), count: 1 },
+  null,
+  { mode: "melee", movementSteps: 3 }
+).damage;
+const immuneDamage = calculateExpectedDamage(
+  { creature: damageCreature(11), count: 1 },
+  { creature: damageCreature(0), count: 1 },
+  null,
+  { mode: "melee", movementSteps: 3 }
+).damage;
+if (championDamage !== 115 || immuneDamage !== 100) {
+  failures.push(`Jousting damage mismatch: normal=${championDamage}, immune=${immuneDamage}.`);
+}
+const archerMelee = calculateExpectedDamage({ creature: damageCreature(2, 10), count: 1 }, { creature: damageCreature(6), count: 1 }, null, { mode: "melee" }).damage;
+const zealotMelee = calculateExpectedDamage({ creature: damageCreature(9, 10), count: 1 }, { creature: damageCreature(6), count: 1 }, null, { mode: "melee" }).damage;
+if (archerMelee !== 5 || zealotMelee !== 10) {
+  failures.push(`Shooter melee penalty mismatch: Archer=${archerMelee}, Zealot=${zealotMelee}.`);
+}
+
+const archangel = createBattleStack({ creature: byCreatureId.get(13), owner: "player", hexId: 1, count: 2, createdAt: 0 });
+const fallenAlly = createBattleStack({ creature: byCreatureId.get(6), owner: "player", hexId: 2, count: 50, createdAt: 1 });
+fallenAlly.count = 0;
+fallenAlly.hpTotal = 0;
+fallenAlly.alive = false;
+const resurrectionState = { stacks: [archangel, fallenAlly], actionLog: [], turnQueue: [archangel.id, fallenAlly.id], activeStackId: archangel.id, selectedStackId: archangel.id };
+const resurrection = executeResurrection(resurrectionState, archangel, fallenAlly);
+if (!resurrection.ok || resurrection.restoredHp !== 200 || fallenAlly.count !== 6 || !fallenAlly.alive || !archangel.resurrectionUsed) {
+  failures.push("Archangel Resurrection must restore 100 HP per Archangel once per battle.");
+}
+if (executeResurrection(resurrectionState, archangel, fallenAlly).ok) {
+  failures.push("Archangel Resurrection must be limited to one use per battle.");
+}
+
+const retaliationGrid = {
+  hexes: [
+    { id: 0, row: 0, col: 0, neighbors: [1] },
+    { id: 1, row: 0, col: 1, neighbors: [0, 2] },
+    { id: 2, row: 0, col: 2, neighbors: [1] }
+  ]
+};
+const durableAttackerCreature = { creatureId: 6, name: "Swordsman", stats: { attack: 0, defense: 0, minDamage: 1, maxDamage: 1, hp: 1000, speed: 5, shots: 0 } };
+const durableGriffinCreature = { creatureId: 4, name: "Griffin", stats: { attack: 0, defense: 0, minDamage: 1, maxDamage: 1, hp: 1000, speed: 6, shots: 0 } };
+const retaliationAttacker = createBattleStack({ creature: durableAttackerCreature, owner: "player", hexId: 0, count: 1, createdAt: 0 });
+const retaliationGriffin = createBattleStack({ creature: durableGriffinCreature, owner: "ai", hexId: 1, count: 1, createdAt: 1 });
+const retaliationState = { phase: "battle", stacks: [retaliationAttacker, retaliationGriffin], actionLog: [], turnQueue: [retaliationAttacker.id, retaliationGriffin.id], activeStackId: retaliationAttacker.id, selectedStackId: retaliationAttacker.id, winner: null };
+executeAttack(retaliationState, retaliationGrid, retaliationAttacker, retaliationGriffin);
+retaliationAttacker.statuses.acted = false;
+executeAttack(retaliationState, retaliationGrid, retaliationAttacker, retaliationGriffin);
+retaliationAttacker.statuses.acted = false;
+executeAttack(retaliationState, retaliationGrid, retaliationAttacker, retaliationGriffin);
+if (retaliationGriffin.retaliationsUsed !== 2) {
+  failures.push(`Griffin retaliation limit mismatch: ${retaliationGriffin.retaliationsUsed}.`);
 }
 
 if (failures.length) {

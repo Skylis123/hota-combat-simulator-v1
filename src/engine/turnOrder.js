@@ -21,6 +21,7 @@ export function nextActiveStack(state) {
     stack.statuses.waiting = false;
     stack.statuses.defending = false;
     stack.statuses.retaliated = false;
+    stack.retaliationsUsed = 0;
     stack.defenseBonus = 0;
   }
   state.round += 1;

@@ -1,6 +1,8 @@
 import { inferAbilityFlags } from "./abilities.js";
 import { calculateExpectedDamage, calculateHpLossValue, calculateTargetPriority } from "./combatPower.js";
-import { findMovementPath, findPath, occupiedHexes, reachableHexes } from "./movement.js";
+import { findMovementPath, findStackPath, reachableHexes } from "./movement.js";
+import { canStackOccupy, stacksAreAdjacent } from "./footprint.js";
+import { chooseBestResurrection, executeResurrection } from "./creatureAbilities.js";
 import { nextActiveStack } from "./turnOrder.js";
 
 export function livingStacks(state, owner = null) {
@@ -21,13 +23,14 @@ export function battleWinner(state) {
 }
 
 export function isAdjacent(grid, a, b) {
+  if (typeof a === "object" && typeof b === "object") return stacksAreAdjacent(grid, a, b);
   const hex = grid.hexes.find((candidate) => candidate.id === a);
   return Boolean(hex?.neighbors.includes(b));
 }
 
 export function canUseRangedAttack(attacker, grid, target) {
   const abilities = inferAbilityFlags(attacker.creature);
-  return abilities.ranged && Number(attacker.shotsRemaining || 0) > 0 && !isAdjacent(grid, attacker.hexId, target.hexId);
+  return abilities.ranged && Number(attacker.shotsRemaining || 0) > 0 && !stacksAreAdjacent(grid, attacker, target);
 }
 
 export function findApproachHex(grid, state, attacker, target) {
@@ -35,17 +38,14 @@ export function findApproachHex(grid, state, attacker, target) {
 }
 
 function findApproachOption(grid, state, attacker, target) {
-  if (isAdjacent(grid, attacker.hexId, target.hexId)) return { hexId: attacker.hexId, path: [attacker.hexId] };
-  const targetHex = grid.hexes.find((hex) => hex.id === target.hexId);
-  if (!targetHex) return null;
-  const occupied = occupiedHexes(state.stacks, attacker.id);
+  if (stacksAreAdjacent(grid, attacker, target)) return { hexId: attacker.hexId, path: [attacker.hexId] };
   let best = null;
-  for (const neighbor of targetHex.neighbors) {
-    if (occupied.has(neighbor)) continue;
-    const path = findMovementPath(grid, state.stacks, attacker, neighbor);
+  for (const candidate of grid.hexes) {
+    if (!stacksAreAdjacent(grid, attacker, target, candidate.id)) continue;
+    const path = findMovementPath(grid, state.stacks, attacker, candidate.id);
     if (!path) continue;
-    if (!best || path.length < best.path.length || (path.length === best.path.length && neighbor < best.hexId)) {
-      best = { hexId: neighbor, path };
+    if (!best || path.length < best.path.length || (path.length === best.path.length && candidate.id < best.hexId)) {
+      best = { hexId: candidate.id, path };
     }
   }
   return best;
@@ -83,12 +83,10 @@ export function chooseAdvanceHex(grid, state, stack) {
 export function chooseAdvanceOption(grid, state, stack) {
   const enemies = livingEnemies(state, stack);
   const reachable = reachableHexes(grid, state.stacks, stack);
-  const blocked = occupiedHexes(state.stacks, stack.id);
   let bestHex = stack.hexId;
-  let bestDistance = nearestEnemyContactDistance(grid, stack.hexId, enemies, blocked);
+  let bestDistance = nearestEnemyContactDistance(grid, state.stacks, stack, stack.hexId, enemies);
   for (const hexId of reachable) {
-    if (blocked.has(hexId)) continue;
-    const distance = nearestEnemyContactDistance(grid, hexId, enemies, blocked);
+    const distance = nearestEnemyContactDistance(grid, state.stacks, stack, hexId, enemies);
     if (distance < bestDistance || (Number.isFinite(distance) && distance === bestDistance && hexId > bestHex)) {
       bestDistance = distance;
       bestHex = hexId;
@@ -107,29 +105,32 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
   }
 
   const moved = option.approachHex !== attacker.hexId;
+  const movementSteps = Math.max(0, Number(option.approachPath?.length || 1) - 1);
   if (moved) attacker.hexId = option.approachHex;
 
   const mode = option.mode === "ranged" ? "ranged" : "melee";
-  if (mode === "ranged") attacker.shotsRemaining = Math.max(0, Number(attacker.shotsRemaining || 0) - 1);
+  const abilities = inferAbilityFlags(attacker.creature);
+  const requestedStrikes = abilities.doubleAttack ? 2 : 1;
+  const strikes = mode === "ranged" ? Math.min(requestedStrikes, Math.max(1, Number(attacker.shotsRemaining || 0))) : requestedStrikes;
+  if (mode === "ranged") attacker.shotsRemaining = Math.max(0, Number(attacker.shotsRemaining || 0) - strikes);
 
   attacker.statuses.defending = false;
   const attackLog = [];
-  const abilities = inferAbilityFlags(attacker.creature);
-  const strikes = abilities.doubleAttack ? 2 : 1;
   let retaliation = null;
 
   for (let strike = 1; strike <= strikes; strike += 1) {
     if (attacker.alive === false || target.alive === false) break;
-    const damage = calculateExpectedDamage(attacker, target, state, { includeMultiHit: false }).damage;
+    const damage = calculateExpectedDamage(attacker, target, state, { includeMultiHit: false, mode, movementSteps }).damage;
     const before = snapshotHp(target);
     applyDamage(target, damage);
     attackLog.push({ strike, attacker: attacker.id, target: target.id, damage, before, after: snapshotHp(target) });
 
     if (strike === 1 && mode === "melee" && target.alive !== false && canRetaliate(target, attacker)) {
-      const retaliationDamage = calculateExpectedDamage(target, attacker, state, { includeMultiHit: false }).damage;
+      const retaliationDamage = calculateExpectedDamage(target, attacker, state, { includeMultiHit: false, mode: "melee", movementSteps: 0 }).damage;
       const retaliationBefore = snapshotHp(attacker);
       applyDamage(attacker, retaliationDamage);
       target.statuses.retaliated = true;
+      target.retaliationsUsed = Number(target.retaliationsUsed || 0) + 1;
       retaliation = {
         attacker: target.id,
         target: attacker.id,
@@ -152,6 +153,12 @@ export async function performAiTurn(state, grid, hooks = {}) {
   if (!stack || stack.owner !== "ai" || stack.alive === false) return;
 
   const attack = chooseBestAttack(grid, state, stack);
+  const resurrection = chooseBestResurrection(state, stack);
+  if (resurrection && (!attack || resurrection.score > attack.score)) {
+    await hooks.beforeAbility?.(stack, resurrection.target, "resurrection");
+    executeResurrection(state, stack, resurrection.target);
+    return;
+  }
   if (attack) {
     await hooks.beforeAttack?.(stack, attack.target, attack.option);
     executeAttack(state, grid, stack, attack.target, attack.option);
@@ -177,18 +184,23 @@ export async function performAiTurn(state, grid, hooks = {}) {
 
 function scoreAttackOption(attacker, target, option) {
   if (option.mode === "ranged") {
-    const damage = calculateExpectedDamage(attacker, target).damage;
+    const damage = calculateExpectedDamage(attacker, target, null, { mode: "ranged" }).damage;
     return calculateHpLossValue(target, damage).value;
   }
-  const exchange = calculateTargetPriority(attacker, target);
+  const exchange = calculateTargetPriority(attacker, target, null, {
+    mode: "melee",
+    movementSteps: Math.max(0, Number(option.approachPath?.length || 1) - 1)
+  });
   const movePenalty = option.approachHex === attacker.hexId ? 0 : 5;
   return exchange.score - movePenalty;
 }
 
 function canRetaliate(defender, attacker) {
-  if (defender.statuses.retaliated) return false;
   const attackerAbilities = inferAbilityFlags(attacker.creature);
   if (attackerAbilities.noRetaliation) return false;
+  const defenderAbilities = inferAbilityFlags(defender.creature);
+  const limit = defenderAbilities.retaliationLimit ?? 1;
+  if (Number(defender.retaliationsUsed || 0) >= limit) return false;
   return defender.alive !== false && defender.count > 0;
 }
 
@@ -233,14 +245,13 @@ function snapshotHp(stack) {
   };
 }
 
-function nearestEnemyContactDistance(grid, hexId, enemies, blocked) {
+function nearestEnemyContactDistance(grid, stacks, stack, fromHexId, enemies) {
   let best = Infinity;
   for (const enemy of enemies) {
-    const enemyHex = grid.hexes.find((candidate) => candidate.id === enemy.hexId);
-    if (!enemyHex) continue;
-    for (const contactHexId of enemyHex.neighbors) {
-      if (blocked.has(contactHexId) && contactHexId !== hexId) continue;
-      const path = findPath(grid, hexId, contactHexId, blocked);
+    for (const candidate of grid.hexes) {
+      if (!canStackOccupy(grid, stacks, stack, candidate.id)) continue;
+      if (!stacksAreAdjacent(grid, stack, enemy, candidate.id)) continue;
+      const path = findStackPath(grid, stacks, stack, fromHexId, candidate.id);
       if (path) best = Math.min(best, path.length - 1);
     }
   }
