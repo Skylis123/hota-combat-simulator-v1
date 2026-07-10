@@ -15,6 +15,7 @@ export function createInitialState() {
     reachable: new Set(),
     enemyTargetIds: new Set(),
     attackableTargetIds: new Set(),
+    battleSetupSnapshot: null,
     round: 1,
     actionLog: []
   };
@@ -46,6 +47,7 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt }) 
 }
 
 export function startBattle(state) {
+  state.battleSetupSnapshot = state.stacks.map(cloneStack);
   state.phase = "battle";
   state.winner = null;
   state.round = 1;
@@ -67,6 +69,9 @@ export function startBattle(state) {
 }
 
 export function resetBattle(state) {
+  if (state.battleSetupSnapshot) {
+    state.stacks = state.battleSetupSnapshot.map(cloneStack);
+  }
   state.phase = "setup";
   state.turnQueue = [];
   state.activeStackId = null;
@@ -77,11 +82,12 @@ export function resetBattle(state) {
   state.attackableTargetIds = new Set();
   state.round = 1;
   state.actionLog.unshift("Battle reset to setup.");
-  for (const stack of state.stacks) {
-    stack.statuses.acted = false;
-    stack.statuses.waiting = false;
-    stack.statuses.defending = false;
-    stack.statuses.retaliated = false;
-    stack.defenseBonus = 0;
-  }
+}
+
+function cloneStack(stack) {
+  return {
+    ...stack,
+    effects: (stack.effects || []).map((effect) => ({ ...effect })),
+    statuses: { ...stack.statuses }
+  };
 }

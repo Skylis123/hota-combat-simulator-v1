@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createBattleStack, createInitialState, resetBattle, startBattle } from "../src/engine/battleState.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -18,6 +19,27 @@ for (const creature of data.creatures || []) {
   if (!image || !fs.existsSync(path.join(root, "public", image))) {
     failures.push(`Missing display image for creature ${creature.creatureId} ${creature.name}`);
   }
+}
+
+const resetCreature = { name: "Reset test", stats: { hp: 30, shots: 12, speed: 5 } };
+const resetState = createInitialState();
+resetState.stacks = [
+  createBattleStack({ creature: resetCreature, owner: "player", hexId: 12, count: 20, createdAt: 0 }),
+  createBattleStack({ creature: resetCreature, owner: "ai", hexId: 99, count: 15, createdAt: 1 })
+];
+startBattle(resetState);
+Object.assign(resetState.stacks[0], { hexId: 55, count: 3, hpTotal: 61, shotsRemaining: 2 });
+Object.assign(resetState.stacks[1], { count: 0, hpTotal: 0, alive: false });
+resetBattle(resetState);
+if (
+  resetState.stacks[0].hexId !== 12 ||
+  resetState.stacks[0].count !== 20 ||
+  resetState.stacks[0].hpTotal !== 600 ||
+  resetState.stacks[0].shotsRemaining !== 12 ||
+  resetState.stacks[1].count !== 15 ||
+  resetState.stacks[1].alive !== true
+) {
+  failures.push("Reset Battle must restore starting positions and complete stack state.");
 }
 
 if (failures.length) {
