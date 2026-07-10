@@ -136,15 +136,23 @@ function bindEvents() {
   elements.creatureList.addEventListener("pointerdown", (event) => {
     const card = event.target.closest(".creature-card[data-creature-id]");
     if (!card || state.phase !== "setup" || event.button !== 0) return;
+    cancelMenuDrag();
     menuDrag = {
       creatureId: Number(card.dataset.creatureId),
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
       ghost: null
     };
     document.addEventListener("pointermove", onMenuDragMove);
-    document.addEventListener("pointerup", onMenuDragEnd, { once: true });
+    document.addEventListener("pointerup", onMenuDragEnd);
+    document.addEventListener("pointercancel", onMenuDragCancel);
+  });
+
+  window.addEventListener("blur", cancelMenuDrag);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cancelMenuDrag();
   });
 }
 
@@ -168,7 +176,7 @@ function onSelectCreature(creatureId) {
 }
 
 function onMenuDragMove(event) {
-  if (!menuDrag) return;
+  if (!menuDrag || event.pointerId !== menuDrag.pointerId) return;
   const distance = Math.hypot(event.clientX - menuDrag.startX, event.clientY - menuDrag.startY);
   if (!menuDrag.dragging && distance > 6) {
     menuDrag.dragging = true;
@@ -185,19 +193,35 @@ function onMenuDragMove(event) {
 }
 
 function onMenuDragEnd(event) {
+  if (!menuDrag || event.pointerId !== menuDrag.pointerId) return;
+  const drag = menuDrag;
+  cleanupMenuDrag();
+
+  if (drag.dragging) {
+    const hex = hexFromClientPoint(event.clientX, event.clientY);
+    if (hex) onDrop({ creatureId: drag.creatureId }, hex.id);
+  } else {
+    onSelectCreature(drag.creatureId);
+  }
+}
+
+function onMenuDragCancel(event) {
+  if (!menuDrag || event.pointerId !== menuDrag.pointerId) return;
+  cancelMenuDrag();
+}
+
+function cancelMenuDrag() {
+  if (!menuDrag && !document.querySelector(".drag-ghost")) return;
+  cleanupMenuDrag();
+}
+
+function cleanupMenuDrag() {
   document.removeEventListener("pointermove", onMenuDragMove);
+  document.removeEventListener("pointerup", onMenuDragEnd);
+  document.removeEventListener("pointercancel", onMenuDragCancel);
   elements.battlefield.classList.remove("drag-active");
   document.body.classList.remove("menu-dragging");
-  if (!menuDrag) return;
-
-  if (menuDrag.dragging) {
-    const hex = hexFromClientPoint(event.clientX, event.clientY);
-    if (hex) onDrop({ creatureId: menuDrag.creatureId }, hex.id);
-    menuDrag.ghost?.remove();
-  } else {
-    onSelectCreature(menuDrag.creatureId);
-  }
-
+  document.querySelectorAll(".drag-ghost").forEach((ghost) => ghost.remove());
   menuDrag = null;
 }
 
