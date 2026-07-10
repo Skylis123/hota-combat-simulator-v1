@@ -25,14 +25,6 @@
         </section>
 
         <section class="control-block compact">
-          <span class="field-label">Owner</span>
-          <div class="segmented" role="group" aria-label="Stack owner">
-            <button id="owner-player" type="button" class="segment active" data-owner="player">Player</button>
-            <button id="owner-ai" type="button" class="segment" data-owner="ai">AI</button>
-          </div>
-        </section>
-
-        <section class="control-block compact">
           <label class="field-label" for="stack-count">Count</label>
           <input id="stack-count" type="number" min="1" max="9999" value="20" />
         </section>
@@ -70,6 +62,8 @@
             </div>
           </aside>
         </section>
+
+        <section id="army-setup" class="army-setup" aria-label="Player and AI armies"></section>
 
         <footer class="turn-footer">
           <div class="section-title">Turn Order</div>

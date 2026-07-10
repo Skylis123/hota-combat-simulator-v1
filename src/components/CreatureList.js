@@ -22,7 +22,7 @@ export function renderCreatureList(container, data, state, onSelect) {
       card.draggable = false;
       card.dataset.creatureId = String(creature.creatureId);
 
-      const image = resolveCreatureImage(creature);
+      const image = resolveCreatureImage(creature, "animation");
       card.innerHTML = `
         <img src="${image.src}" alt="${creature.name}" />
         <span class="creature-name">${creature.name}</span>

@@ -22,7 +22,7 @@ export function createInitialState() {
   };
 }
 
-export function createBattleStack({ creature, owner, hexId, count, createdAt }) {
+export function createBattleStack({ creature, owner, hexId, count, createdAt, armySlot = null }) {
   return {
     id: `stack_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     creature,
@@ -41,6 +41,7 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt }) 
     resurrectionUsed: false,
     alive: true,
     createdAt,
+    armySlot,
     statuses: {
       acted: false,
       waiting: false,

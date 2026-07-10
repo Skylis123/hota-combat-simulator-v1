@@ -8,6 +8,8 @@ import { inferAbilityFlags } from "../src/engine/abilities.js";
 import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
 import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
+import { computeTurnOrder } from "../src/engine/turnOrder.js";
+import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -92,6 +94,35 @@ if (aiAdvance.hexId !== 2 || JSON.stringify(aiAdvance.path) !== JSON.stringify([
 }
 
 const byCreatureId = new Map(data.creatures.map((creature) => [creature.creatureId, creature]));
+if (JSON.stringify(deploymentRows(7)) !== JSON.stringify([0, 2, 4, 5, 6, 8, 10])) {
+  failures.push("Seven-stack deployment rows must preserve the classic top-to-bottom formation.");
+}
+if (JSON.stringify(deploymentRows(4)) !== JSON.stringify([0, 4, 6, 10])) {
+  failures.push("Four-stack deployment must match the classic loose formation.");
+}
+const armyOrderStacks = [
+  createBattleStack({ creature: byCreatureId.get(0), owner: "player", armySlot: 2, hexId: 0, count: 10, createdAt: 0 }),
+  createBattleStack({ creature: byCreatureId.get(0), owner: "player", armySlot: 0, hexId: 0, count: 10, createdAt: 2 }),
+  createBattleStack({ creature: byCreatureId.get(0), owner: "player", armySlot: 1, hexId: 0, count: 10, createdAt: 1 })
+];
+deployAllArmies(data.battlefield.grid, armyOrderStacks);
+const deployedCoordinates = armyOrderStacks
+  .sort((first, second) => first.armySlot - second.armySlot)
+  .map((stack) => {
+    const hex = data.battlefield.grid.hexes.find((candidate) => candidate.id === stack.hexId);
+    return [hex.row, hex.col];
+  });
+if (JSON.stringify(deployedCoordinates) !== JSON.stringify([[2, 1], [5, 1], [8, 1]])) {
+  failures.push(`Player army slots must deploy top-to-bottom on the predefined flank: ${JSON.stringify(deployedCoordinates)}`);
+}
+const equalSpeedOrder = computeTurnOrder(armyOrderStacks);
+const expectedArmyOrder = armyOrderStacks
+  .slice()
+  .sort((first, second) => first.armySlot - second.armySlot)
+  .map((stack) => stack.id);
+if (JSON.stringify(equalSpeedOrder) !== JSON.stringify(expectedArmyOrder)) {
+  failures.push("Equal-speed stacks from the same army must act in army-slot order.");
+}
 const twoHexIds = data.creatures.filter((creature) => inferAbilityFlags(creature).twoHex).map((creature) => creature.creatureId);
 if (JSON.stringify(twoHexIds) !== JSON.stringify([4, 5, 10, 11, 13])) {
   failures.push(`Castle two-hex mapping is incorrect: ${twoHexIds.join(", ")}`);
@@ -128,6 +159,14 @@ if (/\.battle-stack\.selected\s+img\s*\{[^}]*outline/s.test(appCss)) {
 const animatorSource = fs.readFileSync(path.join(root, "src", "components", "BattleAnimator.js"), "utf8");
 if (!animatorSource.includes("syncStackElement(container, grid, attacker)")) {
   failures.push("Move-attack animation must synchronize the attacker's DOM position before retaliation.");
+}
+const creatureListSource = fs.readFileSync(path.join(root, "src", "components", "CreatureList.js"), "utf8");
+if (!creatureListSource.includes('resolveCreatureImage(creature, "animation")')) {
+  failures.push("Castle roster cards must use the sanitized idle animation.");
+}
+const battlefieldSource = fs.readFileSync(path.join(root, "src", "components", "Battlefield.js"), "utf8");
+if (battlefieldSource.includes("application/x-creature-id")) {
+  failures.push("The battlefield must not accept creatures directly from the roster.");
 }
 
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });

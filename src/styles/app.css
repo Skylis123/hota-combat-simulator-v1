@@ -259,7 +259,7 @@ button.primary {
 }
 
 .battlefield.setup-mode {
-  cursor: crosshair;
+  cursor: default;
 }
 
 .battlefield.drag-active {
@@ -647,6 +647,142 @@ details,
   padding: 12px 14px;
 }
 
+.army-setup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(330px, 1fr));
+  gap: 16px;
+}
+
+.army-panel {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 190px;
+  padding: 14px;
+  border: 1px solid #604b30;
+  background:
+    linear-gradient(rgba(35, 24, 15, 0.91), rgba(26, 19, 14, 0.95)),
+    repeating-linear-gradient(45deg, #4b3421 0 8px, #3e2b1d 8px 16px);
+  box-shadow: inset 0 0 0 2px #2b1d13, 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.army-panel.player {
+  border-left: 4px solid var(--player);
+}
+
+.army-panel.ai {
+  border-left: 4px solid var(--ai);
+}
+
+.army-heading {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.army-heading .section-title {
+  display: block;
+  margin: 0;
+  color: #e7d7b7;
+}
+
+.army-heading small {
+  display: block;
+  margin-top: 4px;
+  color: #ad987a;
+  font-size: 10px;
+}
+
+.army-emblem {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 2px ridge #9a7847;
+  background: #21170f;
+  color: #e5c76d;
+  font-size: 30px;
+}
+
+.army-slots {
+  display: grid;
+  gap: 8px;
+  justify-content: center;
+}
+
+.army-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.army-slot {
+  position: relative;
+  width: 68px;
+  height: 72px;
+  overflow: hidden;
+  padding: 0;
+  border: 2px ridge #82633e;
+  background: radial-gradient(circle at center, #3b2a1b 0, #22170f 72%);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8);
+}
+
+.army-slot.empty {
+  display: grid;
+  place-items: center;
+}
+
+.army-slot:hover:not(:disabled),
+.army-slot.drop-target,
+.army-slot.pointer-drop-target {
+  border-color: var(--accent-strong);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7), 0 0 9px rgba(240, 211, 107, 0.7);
+}
+
+.army-slot.selected {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.army-slot img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.72));
+}
+
+.army-panel.ai .army-slot img {
+  transform: scaleX(-1);
+}
+
+.army-slot-number {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  top: 2px;
+  color: #bba582;
+  font-size: 10px;
+}
+
+.army-stack-count {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 22px;
+  border: 1px solid #d8cbe7;
+  background: #673092;
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.army-slot-empty {
+  color: #705a3e;
+  font-size: 28px;
+}
+
 .turn-order {
   display: flex;
   gap: 8px;
@@ -693,5 +829,9 @@ details,
   .battle-area {
     grid-template-columns: 1fr;
     overflow-x: auto;
+  }
+
+  .army-setup {
+    grid-template-columns: 1fr;
   }
 }

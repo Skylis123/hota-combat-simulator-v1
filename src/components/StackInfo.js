@@ -11,7 +11,7 @@ export function renderStackInfo(container, data, state) {
     return;
   }
 
-  const image = resolveCreatureImage(creature);
+  const image = resolveCreatureImage(creature, "animation");
   const badges = abilityBadges(creature);
   const rawAbilities = normalizeAbilityText(creature);
   const evalStack = stack || {
@@ -31,7 +31,7 @@ export function renderStackInfo(container, data, state) {
       <img src="${image.src}" alt="${creature.name}" />
       <div>
         <h3>${creature.name}</h3>
-        <p>${stack ? `${stack.owner.toUpperCase()} stack on hex ${stack.hexId}` : "Ready to place"}</p>
+        <p>${stack ? `${stack.owner.toUpperCase()} army slot ${(stack.armySlot ?? 0) + 1} · hex ${stack.hexId}` : "Choose a Player or AI army slot"}</p>
       </div>
     </div>
     <dl class="stats-grid">

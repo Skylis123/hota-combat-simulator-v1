@@ -3,13 +3,15 @@ import { renderCreatureList } from "./components/CreatureList.js";
 import { renderBattlefield } from "./components/Battlefield.js";
 import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
+import { renderArmySetup } from "./components/ArmySetup.js";
 import { animateAttackResult, animateStackAttack, animateStackDefend, animateStackMove } from "./components/BattleAnimator.js";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
-import { canStackOccupy, occupiedHexesForStacks, placementPreview } from "./engine/footprint.js";
+import { canStackOccupy, occupiedHexesForStacks } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
+import { deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
@@ -17,7 +19,7 @@ const elements = {
   battlefield: document.querySelector("#battlefield"),
   stackInfo: document.querySelector("#stack-info"),
   turnOrder: document.querySelector("#turn-order"),
-  ownerButtons: [...document.querySelectorAll(".segment")],
+  armySetup: document.querySelector("#army-setup"),
   stackCount: document.querySelector("#stack-count"),
   startBattle: document.querySelector("#start-battle"),
   resetBattle: document.querySelector("#reset-battle"),
@@ -54,13 +56,6 @@ async function boot() {
 }
 
 function bindEvents() {
-  elements.ownerButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      state.owner = button.dataset.owner;
-      elements.ownerButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
-    });
-  });
-
   elements.stackCount.addEventListener("change", () => {
     state.stackCount = Math.max(1, Number(elements.stackCount.value || 1));
   });
@@ -141,6 +136,7 @@ function bindEvents() {
     if (!button || state.phase !== "setup") return;
     const stackId = button.dataset.deleteStack;
     state.stacks = state.stacks.filter((stack) => stack.id !== stackId);
+    deployAllArmies(data.battlefield.grid, state.stacks);
     state.selectedStackId = null;
     render();
   });
@@ -184,10 +180,6 @@ function activePlayerStack() {
   return stack?.owner === "player" ? stack : null;
 }
 
-function selectedCreature() {
-  return data.creatures.find((creature) => creature.creatureId === state.selectedCreatureId);
-}
-
 function isHexOccupied(hexId, exceptStackId = null) {
   return occupiedHexesForStacks(data.battlefield.grid, state.stacks, exceptStackId).has(hexId);
 }
@@ -211,7 +203,8 @@ function onMenuDragMove(event) {
   if (menuDrag.dragging) {
     event.preventDefault();
     moveDragGhost(menuDrag.ghost, event.clientX, event.clientY);
-    elements.battlefield.classList.toggle("drag-active", Boolean(hexFromClientPoint(event.clientX, event.clientY)));
+    document.querySelectorAll(".army-slot.pointer-drop-target").forEach((slot) => slot.classList.remove("pointer-drop-target"));
+    armySlotFromClientPoint(event.clientX, event.clientY)?.classList.add("pointer-drop-target");
   }
 }
 
@@ -221,8 +214,14 @@ function onMenuDragEnd(event) {
   cleanupMenuDrag();
 
   if (drag.dragging) {
-    const hex = hexFromClientPoint(event.clientX, event.clientY);
-    if (hex) onDrop({ creatureId: drag.creatureId }, hex.id);
+    const slot = armySlotFromClientPoint(event.clientX, event.clientY);
+    if (slot) {
+      onArmySlotDrop(
+        { creatureId: drag.creatureId },
+        slot.dataset.armyOwner,
+        Number(slot.dataset.armySlot)
+      );
+    }
   } else {
     onSelectCreature(drag.creatureId);
   }
@@ -242,7 +241,7 @@ function cleanupMenuDrag() {
   document.removeEventListener("pointermove", onMenuDragMove);
   document.removeEventListener("pointerup", onMenuDragEnd);
   document.removeEventListener("pointercancel", onMenuDragCancel);
-  elements.battlefield.classList.remove("drag-active");
+  document.querySelectorAll(".army-slot.pointer-drop-target").forEach((slot) => slot.classList.remove("pointer-drop-target"));
   document.body.classList.remove("menu-dragging");
   document.querySelectorAll(".drag-ghost").forEach((ghost) => ghost.remove());
   menuDrag = null;
@@ -274,38 +273,11 @@ function onDrop(payload, hexId) {
     state.selectedStackId = stack.id;
     state.selectedCreatureId = null;
     render();
-    return;
   }
-
-  const creatureId = payload.creatureId;
-  if (state.phase !== "setup") return;
-  const creature = data.creatures.find((candidate) => candidate.creatureId === creatureId);
-  if (!creature) return;
-  const stack = createBattleStack({
-    creature,
-    owner: state.owner,
-    hexId,
-    count: Math.max(1, Number(elements.stackCount.value || state.stackCount)),
-    createdAt: createdAtCounter++
-  });
-  if (!canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId)) return;
-  state.stacks.push(stack);
-  state.selectedStackId = stack.id;
-  state.selectedCreatureId = creature.creatureId;
-  render();
 }
 
 async function onHexClick(hexId) {
-  if (state.phase === "setup") {
-    if (state.selectedStackId) {
-      onDrop({ stackId: state.selectedStackId }, hexId);
-      return;
-    }
-    if (state.selectedCreatureId !== null) {
-      onDrop({ creatureId: state.selectedCreatureId }, hexId);
-      return;
-    }
-  }
+  if (state.phase === "setup") return;
 
   const active = activePlayerStack();
   if (state.phase === "battle" && active && !battleAnimationPending && state.reachable.has(hexId) && !isHexOccupied(hexId, active.id)) {
@@ -372,67 +344,82 @@ function onStackHover(stackId) {
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
 }
 
-function onSetupHover(hexId) {
-  if (state.phase !== "setup") return;
-  let preview = null;
-  if (hexId !== null) {
-    const selectedStack = state.stacks.find((stack) => stack.id === state.selectedStackId);
-    const creature = selectedStack?.creature || selectedCreature();
-    if (creature) {
-      const stack = selectedStack || { id: "setup-preview", creature, owner: state.owner, hexId };
-      preview = placementPreview(data.battlefield.grid, state.stacks, stack, hexId);
-    }
-  }
-  const previousKey = JSON.stringify(state.setupPreview);
-  if (JSON.stringify(preview) === previousKey) return;
-  state.setupPreview = preview;
-  renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
-}
-
 function battlefieldHandlers() {
-  return { onDrop, onHexClick, onStackClick, onStackHover, onSetupHover };
+  return { onDrop, onHexClick, onStackClick, onStackHover };
 }
 
-function hexFromClientPoint(clientX, clientY) {
-  const grid = data.battlefield.grid;
-  const rect = elements.battlefield.getBoundingClientRect();
-  if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
-  const x = ((clientX - rect.left) / rect.width) * grid.width;
-  const y = ((clientY - rect.top) / rect.height) * grid.height;
-  const containingHex = grid.hexes.find((hex) => pointInPolygon(x, y, hex.polygonPoints));
-  if (containingHex) return containingHex;
-  let nearest = null;
-  let nearestDistance = Infinity;
-  for (const hex of grid.hexes) {
-    const distance = Math.hypot(hex.centerX - x, hex.centerY - y);
-    if (distance < nearestDistance) {
-      nearest = hex;
-      nearestDistance = distance;
+function armySlotFromClientPoint(clientX, clientY) {
+  const element = document.elementFromPoint(clientX, clientY);
+  return element?.closest?.(".army-slot[data-army-owner][data-army-slot]") || null;
+}
+
+function onArmySlotClick(owner, armySlot, stackId) {
+  if (state.phase !== "setup") return;
+  if (stackId) {
+    state.selectedStackId = stackId;
+    state.selectedCreatureId = null;
+    render();
+    return;
+  }
+  const selectedStack = state.stacks.find((stack) => stack.id === state.selectedStackId);
+  if (selectedStack) {
+    onArmySlotDrop({ stackId: selectedStack.id }, owner, armySlot);
+    return;
+  }
+  if (state.selectedCreatureId !== null) {
+    onArmySlotDrop({ creatureId: state.selectedCreatureId }, owner, armySlot);
+  }
+}
+
+function onArmySlotDrop(payload, owner, armySlot) {
+  if (state.phase !== "setup" || !["player", "ai"].includes(owner)) return;
+  const destination = stackInArmySlot(state.stacks, owner, armySlot);
+  if (payload.stackId) {
+    const stack = state.stacks.find((candidate) => candidate.id === payload.stackId);
+    if (!stack || destination?.id === stack.id) return;
+    const previousOwner = stack.owner;
+    const previousSlot = stack.armySlot;
+    if (destination) {
+      destination.owner = previousOwner;
+      destination.armySlot = previousSlot;
+      updateStackOwnerLabel(destination);
     }
+    stack.owner = owner;
+    stack.armySlot = armySlot;
+    updateStackOwnerLabel(stack);
+    deployAllArmies(data.battlefield.grid, state.stacks);
+    state.selectedStackId = stack.id;
+    state.selectedCreatureId = null;
+    render();
+    return;
   }
-  return nearestDistance <= 28 ? nearest : null;
+
+  if (destination) return;
+  const creature = data.creatures.find((candidate) => candidate.creatureId === payload.creatureId);
+  if (!creature) return;
+  const stack = createBattleStack({
+    creature,
+    owner,
+    armySlot,
+    hexId: 0,
+    count: Math.max(1, Number(elements.stackCount.value || state.stackCount)),
+    createdAt: createdAtCounter++
+  });
+  state.stacks.push(stack);
+  deployAllArmies(data.battlefield.grid, state.stacks);
+  state.selectedStackId = stack.id;
+  state.selectedCreatureId = null;
+  render();
 }
 
-function pointInPolygon(x, y, points) {
-  let inside = false;
-  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-    const xi = points[i][0];
-    const yi = points[i][1];
-    const xj = points[j][0];
-    const yj = points[j][1];
-    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || 1) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
+function updateStackOwnerLabel(stack) {
+  stack.label = `${stack.owner === "ai" ? "AI" : "Player"} ${stack.creature.name}`;
 }
 
 function updateReachable() {
   const active = state.stacks.find((stack) => stack.id === state.activeStackId);
-  const hover = state.stacks.find((stack) => stack.id === state.hoveredStackId);
-  const setupPreview = state.phase === "setup" ? hover : null;
   const battlePreview = state.phase === "battle" && active?.owner === "player" ? active : null;
-  const previewStack = battlePreview || setupPreview;
-  state.reachable = previewStack ? reachableHexes(data.battlefield.grid, state.stacks, previewStack) : new Set();
+  state.reachable = battlePreview ? reachableHexes(data.battlefield.grid, state.stacks, battlePreview) : new Set();
   state.enemyTargetIds = new Set();
   state.attackableTargetIds = new Set();
   if (state.phase === "battle" && active?.owner === "player") {
@@ -460,6 +447,7 @@ function render() {
 
   renderCreatureList(elements.creatureList, data, state, onSelectCreature);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
+  renderArmySetup(elements.armySetup, state, { onSlotClick: onArmySlotClick, onSlotDrop: onArmySlotDrop });
   renderStackInfo(elements.stackInfo, data, state);
   renderTurnOrder(elements.turnOrder, state);
   renderBattleLog();

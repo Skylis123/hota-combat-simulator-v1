@@ -5,6 +5,8 @@ export function computeTurnOrder(stacks) {
       const speedDiff = (b.creature.stats.speed || 0) - (a.creature.stats.speed || 0);
       if (speedDiff) return speedDiff;
       if (a.owner !== b.owner) return a.owner === "player" ? -1 : 1;
+      const slotDiff = (a.armySlot ?? 99) - (b.armySlot ?? 99);
+      if (slotDiff) return slotDiff;
       return a.createdAt - b.createdAt;
     })
     .map((stack) => stack.id);

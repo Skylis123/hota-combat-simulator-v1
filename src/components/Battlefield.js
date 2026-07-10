@@ -1,6 +1,6 @@
 import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver.js";
 import { polygonPointsToString } from "../engine/hexGrid.js";
-import { footprintHexes, stackVisualPosition } from "../engine/footprint.js";
+import { footprintHexes, placementPreview, stackVisualPosition } from "../engine/footprint.js";
 import { inferAbilityFlags } from "../engine/abilities.js";
 
 export function renderBattlefield(container, data, state, handlers) {
@@ -10,31 +10,32 @@ export function renderBattlefield(container, data, state, handlers) {
   container.innerHTML = "";
   container.classList.toggle("setup-mode", state.phase === "setup");
   container.ondragover = (event) => {
-    if (state.phase !== "setup") return;
+    if (state.phase !== "setup" || !event.dataTransfer.types.includes("application/x-stack-id")) return;
     event.preventDefault();
-    event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/x-stack-id") ? "move" : "copy";
+    event.dataTransfer.dropEffect = "move";
     container.classList.add("drag-active");
+    const stack = state.stacks.find((candidate) => candidate.id === container.dataset.dragStackId);
+    const hex = hexFromPointer(event, container, grid);
+    showPlacementPreview(container, grid, state, stack, hex?.id ?? null);
   };
   container.ondragleave = (event) => {
-    if (!container.contains(event.relatedTarget)) container.classList.remove("drag-active");
+    if (!container.contains(event.relatedTarget)) {
+      container.classList.remove("drag-active");
+      clearPlacementPreview(container);
+    }
   };
   container.ondrop = (event) => {
-    if (state.phase !== "setup") return;
+    if (state.phase !== "setup" || !event.dataTransfer.types.includes("application/x-stack-id")) return;
     event.preventDefault();
     container.classList.remove("drag-active");
+    clearPlacementPreview(container);
     const hex = hexFromPointer(event, container, grid);
     if (!hex) return;
-    const creatureId = Number(event.dataTransfer.getData("application/x-creature-id") || event.dataTransfer.getData("text/plain"));
     const stackId = event.dataTransfer.getData("application/x-stack-id");
-    handlers.onDrop({ creatureId, stackId }, hex.id);
+    handlers.onDrop({ stackId }, hex.id);
   };
-  container.onpointermove = (event) => {
-    if (state.phase !== "setup") return;
-    handlers.onSetupHover(hexFromPointer(event, container, grid)?.id ?? null);
-  };
-  container.onpointerleave = () => {
-    if (state.phase === "setup") handlers.onSetupHover(null);
-  };
+  container.onpointermove = null;
+  container.onpointerleave = () => clearPlacementPreview(container);
   container.onclick = (event) => {
     if (event.target.closest(".battle-stack")) return;
     const hex = hexFromPointer(event, container, grid);
@@ -117,12 +118,39 @@ export function renderBattlefield(container, data, state, handlers) {
     element.addEventListener("mouseleave", () => handlers.onStackHover(null));
     element.addEventListener("dragstart", (event) => {
       if (state.phase !== "setup") return;
+      container.dataset.dragStackId = stack.id;
       event.dataTransfer.setData("application/x-stack-id", stack.id);
       event.dataTransfer.effectAllowed = "move";
+    });
+    element.addEventListener("dragend", () => {
+      delete container.dataset.dragStackId;
+      container.classList.remove("drag-active");
+      clearPlacementPreview(container);
     });
     stackLayer.appendChild(element);
   }
   container.appendChild(stackLayer);
+}
+
+function clearPlacementPreview(container) {
+  container.querySelectorAll(".hex.placement-preview").forEach((hex) => {
+    hex.classList.remove("placement-preview", "placement-primary", "placement-rear", "placement-valid", "placement-invalid");
+  });
+}
+
+function showPlacementPreview(container, grid, state, stack, hexId) {
+  clearPlacementPreview(container);
+  if (!stack || hexId === null) return;
+  const preview = placementPreview(grid, state.stacks, stack, hexId);
+  for (const previewHexId of preview.hexIds) {
+    const polygon = container.querySelector(`.hex[data-hex-id="${previewHexId}"]`);
+    if (!polygon) continue;
+    polygon.classList.add(
+      "placement-preview",
+      previewHexId === preview.primaryHexId ? "placement-primary" : "placement-rear",
+      preview.valid ? "placement-valid" : "placement-invalid"
+    );
+  }
 }
 
 function stackTitle(state, stack) {
