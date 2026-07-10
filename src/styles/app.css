@@ -354,14 +354,16 @@ button.primary {
 }
 
 .battle-stack.dead {
-  height: 54px;
-  transform: translate(-50%, -45%);
-  opacity: 0.92;
+  z-index: 4;
+  width: 128px;
+  height: 76px;
+  transform: translate(-50%, -38%);
+  opacity: 1;
 }
 
 .battle-stack.dead img {
-  width: 92px;
-  height: 54px;
+  width: 120px;
+  height: 72px;
   object-position: center bottom;
   filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.7));
 }
@@ -402,6 +404,29 @@ button.primary {
   object-fit: contain;
   transform-origin: center;
   filter: drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+}
+
+.battle-animation[data-animation="move"] {
+  width: 86px;
+  height: 86px;
+}
+
+.battle-animation[data-animation="move"] img {
+  width: 78px;
+  height: 78px;
+}
+
+.battle-animation.two-hex[data-animation="move"] {
+  width: 112px;
+}
+
+.battle-animation.two-hex[data-animation="move"] img {
+  width: 104px;
+}
+
+.battle-animation[data-animation="move"] .stack-count {
+  right: 8px;
+  bottom: 8px;
 }
 
 .battle-animation.facing-left img {

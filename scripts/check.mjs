@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBattleStack, createInitialState, resetBattle, startBattle } from "../src/engine/battleState.js";
-import { attackOption, chooseAdvanceOption, executeAttack } from "../src/engine/combat.js";
+import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, executeAttack } from "../src/engine/combat.js";
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
 import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
@@ -120,6 +120,24 @@ if (canStackOccupy(footprintGrid, [], championStack, 0)) {
 const championHoverPreview = placementPreview(footprintGrid, [], championStack, 1);
 if (!championHoverPreview.valid || JSON.stringify(championHoverPreview.hexIds) !== JSON.stringify([1, 0])) {
   failures.push("Two-hex setup hover must preview both primary and rear hexes.");
+}
+
+const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });
+const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
+const joustingState = { stacks: [joustingChampion, normalJoustTarget] };
+const joustingOptions = attackOptions(data.battlefield.grid, joustingState, joustingChampion, normalJoustTarget);
+const selectedJoust = chooseBestAttack(data.battlefield.grid, joustingState, joustingChampion);
+const maximumJoustSteps = Math.max(...joustingOptions.map((option) => option.approachPath.length - 1));
+if (!selectedJoust || selectedJoust.option.approachPath.length - 1 !== maximumJoustSteps) {
+  failures.push("Champion AI must jointly score target and approach hex to preserve the best Jousting bonus.");
+}
+const immuneJoustTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
+const immuneJoustState = { stacks: [joustingChampion, immuneJoustTarget] };
+const immuneOptions = attackOptions(data.battlefield.grid, immuneJoustState, joustingChampion, immuneJoustTarget);
+const selectedImmuneJoust = chooseBestAttack(data.battlefield.grid, immuneJoustState, joustingChampion);
+const minimumImmuneSteps = Math.min(...immuneOptions.map((option) => option.approachPath.length - 1));
+if (!selectedImmuneJoust || selectedImmuneJoust.option.approachPath.length - 1 !== minimumImmuneSteps) {
+  failures.push("Champion AI must prefer the shortest approach when the target is immune to Jousting.");
 }
 
 const damageCreature = (creatureId, damage = 100) => ({ creatureId, stats: { attack: 0, defense: 0, minDamage: damage, maxDamage: damage, hp: 100, speed: 9, shots: creatureId === 2 || creatureId === 9 ? 12 : 0 } });

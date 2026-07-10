@@ -1,3 +1,5 @@
+import { inferAbilityFlags } from "../engine/abilities.js";
+
 const CASTLE_MIN_ID = 0;
 const CASTLE_MAX_ID = 13;
 
@@ -66,7 +68,7 @@ async function animateReaction(container, grid, stack, animation) {
   const actor = createActor(container, stack, hex, animation, animation !== "death");
   const original = hideOriginalStack(container, stack.id);
   try {
-    await wait(animation === "death" ? 900 : animation === "defend" ? 800 : 520);
+    await wait(animation === "death" ? 1400 : animation === "defend" ? 800 : 520);
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
@@ -75,7 +77,7 @@ async function animateReaction(container, grid, stack, animation) {
 
 function createActor(container, stack, hex, animation, showCount = true) {
   const actor = document.createElement("div");
-  actor.className = `battle-animation ${stack.owner}`;
+  actor.className = `battle-animation ${stack.owner} ${inferAbilityFlags(stack.creature).twoHex ? "two-hex" : ""}`;
   actor.style.left = `${hex.centerX}px`;
   actor.style.top = `${hex.centerY}px`;
   actor.innerHTML = `<img alt="" />${showCount ? `<span class="stack-count">${stack.count}</span>` : ""}`;
@@ -87,6 +89,7 @@ function createActor(container, stack, hex, animation, showCount = true) {
 
 function setAnimation(actor, stack, animation) {
   const image = actor.querySelector("img");
+  actor.dataset.animation = animation;
   image.src = `${assetRoot(stack)}/${animation}.gif?play=${Date.now()}`;
 }
 

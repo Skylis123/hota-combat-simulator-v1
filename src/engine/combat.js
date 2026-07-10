@@ -35,43 +35,56 @@ export function canUseRangedAttack(attacker, grid, target) {
 }
 
 export function findApproachHex(grid, state, attacker, target) {
-  return findApproachOption(grid, state, attacker, target)?.hexId ?? null;
+  return attackOption(grid, state, attacker, target).approachHex ?? null;
 }
 
-function findApproachOption(grid, state, attacker, target) {
-  if (stacksAreAdjacent(grid, attacker, target)) return { hexId: attacker.hexId, path: [attacker.hexId] };
-  let best = null;
+function findApproachOptions(grid, state, attacker, target) {
+  if (stacksAreAdjacent(grid, attacker, target)) return [{ hexId: attacker.hexId, path: [attacker.hexId] }];
+  const options = [];
   for (const candidate of grid.hexes) {
     if (!stacksAreAdjacent(grid, attacker, target, candidate.id)) continue;
     const path = findMovementPath(grid, state.stacks, attacker, candidate.id);
     if (!path) continue;
-    if (!best || path.length < best.path.length || (path.length === best.path.length && candidate.id < best.hexId)) {
-      best = { hexId: candidate.id, path };
-    }
+    options.push({ hexId: candidate.id, path });
   }
-  return best;
+  return options;
+}
+
+export function attackOptions(grid, state, attacker, target) {
+  if (!attacker || !target || attacker.owner === target.owner || target.alive === false) {
+    return [];
+  }
+  if (canUseRangedAttack(attacker, grid, target)) {
+    return [{ canAttack: true, mode: "ranged", approachHex: attacker.hexId, approachPath: [attacker.hexId] }];
+  }
+  return findApproachOptions(grid, state, attacker, target).map((approach) => ({
+    canAttack: true,
+    mode: "melee",
+    approachHex: approach.hexId,
+    approachPath: approach.path
+  }));
 }
 
 export function attackOption(grid, state, attacker, target) {
-  if (!attacker || !target || attacker.owner === target.owner || target.alive === false) {
-    return { canAttack: false, reason: "invalid_target" };
-  }
-  if (canUseRangedAttack(attacker, grid, target)) {
-    return { canAttack: true, mode: "ranged", approachHex: attacker.hexId, approachPath: [attacker.hexId] };
-  }
-  const approach = findApproachOption(grid, state, attacker, target);
-  if (!approach) return { canAttack: false, reason: "no_reachable_contact_hex" };
-  return { canAttack: true, mode: "melee", approachHex: approach.hexId, approachPath: approach.path };
+  const options = attackOptions(grid, state, attacker, target);
+  if (!options.length) return { canAttack: false, reason: "no_reachable_contact_hex" };
+  return options.reduce((best, option) => {
+    const score = scoreAttackOption(grid, attacker, target, option);
+    if (!best || score > best.score || (score === best.score && option.approachHex > best.option.approachHex)) {
+      return { option, score };
+    }
+    return best;
+  }, null).option;
 }
 
 export function chooseBestAttack(grid, state, attacker) {
   let best = null;
   for (const target of livingEnemies(state, attacker)) {
-    const option = attackOption(grid, state, attacker, target);
-    if (!option.canAttack) continue;
-    const score = scoreAttackOption(grid, attacker, target, option);
-    if (!best || score > best.score || (score === best.score && target.hexId > best.target.hexId)) {
-      best = { target, option, score };
+    for (const option of attackOptions(grid, state, attacker, target)) {
+      const score = scoreAttackOption(grid, attacker, target, option);
+      if (!best || score > best.score || (score === best.score && (target.hexId > best.target.hexId || (target.hexId === best.target.hexId && option.approachHex > best.option.approachHex)))) {
+        best = { target, option, score };
+      }
     }
   }
   return best;
@@ -196,7 +209,7 @@ function scoreAttackOption(grid, attacker, target, option) {
     mode: "melee",
     movementSteps: Math.max(0, Number(option.approachPath?.length || 1) - 1)
   });
-  const movePenalty = option.approachHex === attacker.hexId ? 0 : 5;
+  const movePenalty = Math.max(0, Number(option.approachPath?.length || 1) - 1) * 5;
   return exchange.score - movePenalty;
 }
 

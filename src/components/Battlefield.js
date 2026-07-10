@@ -99,7 +99,7 @@ export function renderBattlefield(container, data, state, handlers) {
     element.title = stackTitle(state, stack);
     element.draggable = state.phase === "setup";
     element.innerHTML = `
-      <img src="${image.src}" alt="${stack.label}" />
+      <img src="${image.src}" alt="${stack.alive === false ? `${stack.label} corpse` : stack.label}" />
       ${stack.alive === false ? "" : `<span class="stack-count">${stack.count}</span>`}
     `;
     element.addEventListener("click", (event) => {
