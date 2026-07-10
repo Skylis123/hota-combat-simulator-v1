@@ -40,11 +40,15 @@
             <button id="start-battle" type="button" class="primary">Start Battle</button>
             <button id="reset-battle" type="button">Reset Battle</button>
             <button id="clear-field" type="button">Clear Battlefield</button>
+            <button id="fullscreen-battlefield" type="button">Full Screen</button>
           </div>
         </section>
 
         <section class="battle-area">
-          <div id="battlefield" class="battlefield" aria-label="Battlefield"></div>
+          <div id="battlefield-viewport" class="battlefield-viewport">
+            <div id="battlefield" class="battlefield" aria-label="Battlefield"></div>
+            <span class="fullscreen-hint">Press ESC to exit full screen</span>
+          </div>
           <aside class="info-panel" aria-label="Selected stack">
             <div class="section-title">Selection</div>
             <div id="stack-info" class="stack-info empty">Select a creature or a placed stack.</div>

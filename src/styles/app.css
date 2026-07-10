@@ -248,6 +248,43 @@ button.primary {
   align-items: start;
 }
 
+.battlefield-viewport {
+  position: relative;
+  display: grid;
+  width: 800px;
+  height: 556px;
+  place-items: center;
+}
+
+.battlefield-viewport:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #080b0f;
+}
+
+.battlefield-viewport:fullscreen .battlefield {
+  transform-origin: center center;
+}
+
+.fullscreen-hint {
+  display: none;
+}
+
+.battlefield-viewport:fullscreen .fullscreen-hint {
+  position: fixed;
+  z-index: 20;
+  top: 18px;
+  right: 20px;
+  display: block;
+  padding: 7px 10px;
+  border: 1px solid rgba(240, 211, 107, 0.5);
+  background: rgba(8, 11, 15, 0.78);
+  color: #e9dfbd;
+  font-size: 12px;
+  pointer-events: none;
+}
+
 .battlefield {
   position: relative;
   width: 800px;

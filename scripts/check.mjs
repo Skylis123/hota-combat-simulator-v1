@@ -16,6 +16,16 @@ const root = path.resolve(__dirname, "..");
 const dataPath = path.join(root, "public", "data", "simulator-v1-data.json");
 const data = JSON.parse(fs.readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
 
+function pngDimensions(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  return [buffer.readUInt32BE(16), buffer.readUInt32BE(20)];
+}
+
+function gifDimensions(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  return [buffer.readUInt16LE(6), buffer.readUInt16LE(8)];
+}
+
 const failures = [];
 if (createInitialState().stackCount !== 1) failures.push("New stacks must default to a count of one.");
 if (data.scope?.town !== "Castle") failures.push("V1 data is not Castle-scoped.");
@@ -37,6 +47,12 @@ for (const creature of data.creatures) {
     if (!fs.existsSync(path.join(root, "public", "assets", "creatures", "animations", String(creature.creatureId), animation))) {
       failures.push(`Missing ${creature.name} battle animation: ${animation}`);
     }
+  }
+  const animationRoot = path.join(root, "public", "assets", "creatures", "animations", String(creature.creatureId));
+  const corpseSize = pngDimensions(path.join(animationRoot, "corpse.png"));
+  const deathSize = gifDimensions(path.join(animationRoot, "death.gif"));
+  if (JSON.stringify(corpseSize) !== JSON.stringify(deathSize)) {
+    failures.push(`${creature.name} corpse must retain the shared death canvas instead of being enlarged from a tight crop.`);
   }
 }
 
@@ -195,6 +211,10 @@ if (!armySetupSource.includes("armySlot < 3") || !armySetupSource.includes('addE
 const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
 if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack-count-dialog"')) {
   failures.push("The legacy global count field must be replaced by the stack count dialog.");
+}
+const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
+if (!indexSource.includes('id="fullscreen-battlefield"') || !mainSource.includes("requestFullscreen") || !mainSource.includes('addEventListener("fullscreenchange"')) {
+  failures.push("Battlefield full screen must use the native Fullscreen API and react to ESC-driven fullscreen changes.");
 }
 const stackInfoSource = fs.readFileSync(path.join(root, "src", "components", "StackInfo.js"), "utf8");
 if (stackInfoSource.includes("data-stack-count")) {

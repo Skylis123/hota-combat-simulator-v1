@@ -16,6 +16,7 @@ import { deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 const elements = {
   dataStatus: document.querySelector("#data-status"),
   creatureList: document.querySelector("#creature-list"),
+  battlefieldViewport: document.querySelector("#battlefield-viewport"),
   battlefield: document.querySelector("#battlefield"),
   stackInfo: document.querySelector("#stack-info"),
   turnOrder: document.querySelector("#turn-order"),
@@ -31,6 +32,7 @@ const elements = {
   startBattle: document.querySelector("#start-battle"),
   resetBattle: document.querySelector("#reset-battle"),
   clearField: document.querySelector("#clear-field"),
+  fullscreenBattlefield: document.querySelector("#fullscreen-battlefield"),
   battleActions: document.querySelector("#battle-actions"),
   attackBestAction: document.querySelector("#attack-best-action"),
   resurrectAction: document.querySelector("#resurrect-action"),
@@ -64,6 +66,11 @@ async function boot() {
 }
 
 function bindEvents() {
+  elements.fullscreenBattlefield.disabled = typeof elements.battlefieldViewport.requestFullscreen !== "function";
+  elements.fullscreenBattlefield.addEventListener("click", toggleBattlefieldFullscreen);
+  document.addEventListener("fullscreenchange", updateBattlefieldFullscreen);
+  window.addEventListener("resize", updateBattlefieldFullscreen);
+
   elements.startBattle.addEventListener("click", () => {
     if (state.stacks.length < 2 || battleAnimationPending) return;
     startBattle(state);
@@ -177,6 +184,30 @@ function bindEvents() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) cancelMenuDrag();
   });
+}
+
+async function toggleBattlefieldFullscreen() {
+  try {
+    if (document.fullscreenElement === elements.battlefieldViewport) {
+      await document.exitFullscreen();
+    } else {
+      await elements.battlefieldViewport.requestFullscreen();
+    }
+  } catch (error) {
+    state.actionLog.unshift(`Full screen could not be opened: ${error.message}`);
+    renderBattleLog();
+  }
+}
+
+function updateBattlefieldFullscreen() {
+  const active = document.fullscreenElement === elements.battlefieldViewport;
+  elements.fullscreenBattlefield.textContent = active ? "Exit Full Screen" : "Full Screen";
+  if (!active) {
+    elements.battlefield.style.transform = "";
+    return;
+  }
+  const scale = Math.min(window.innerWidth / 800, window.innerHeight / 556);
+  elements.battlefield.style.transform = `scale(${scale})`;
 }
 
 function activePlayerStack() {
