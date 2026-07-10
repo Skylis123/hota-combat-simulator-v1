@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBattleStack, createInitialState, resetBattle, startBattle } from "../src/engine/battleState.js";
+import { createBattleStack, createInitialState, resetBattle, setSetupStackCount, startBattle } from "../src/engine/battleState.js";
 import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, executeAttack } from "../src/engine/combat.js";
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
@@ -17,6 +17,7 @@ const dataPath = path.join(root, "public", "data", "simulator-v1-data.json");
 const data = JSON.parse(fs.readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
 
 const failures = [];
+if (createInitialState().stackCount !== 1) failures.push("New stacks must default to a count of one.");
 if (data.scope?.town !== "Castle") failures.push("V1 data is not Castle-scoped.");
 if ((data.creatures || []).length !== 14) failures.push("Castle creature subset must contain 14 base/upgraded units.");
 if (data.battlefield?.grid?.hexCount !== 165) failures.push("Visible grid must contain 165 hexes.");
@@ -40,6 +41,13 @@ for (const creature of data.creatures) {
 }
 
 const resetCreature = { name: "Reset test", stats: { hp: 30, shots: 12, speed: 5 } };
+const countEditorStack = createBattleStack({ creature: resetCreature, owner: "player", hexId: 0, count: 1, createdAt: 0 });
+setSetupStackCount(countEditorStack, 27);
+if (countEditorStack.count !== 27 || countEditorStack.initialCount !== 27 || countEditorStack.hpTotal !== 810) {
+  failures.push("Stack count editing must synchronize count, initial count and total HP.");
+}
+setSetupStackCount(countEditorStack, 0);
+if (countEditorStack.count !== 1) failures.push("Stack count editing must clamp the minimum to one.");
 const resetState = createInitialState();
 resetState.stacks = [
   createBattleStack({ creature: resetCreature, owner: "player", hexId: 12, count: 20, createdAt: 0 }),
@@ -112,8 +120,20 @@ const deployedCoordinates = armyOrderStacks
     const hex = data.battlefield.grid.hexes.find((candidate) => candidate.id === stack.hexId);
     return [hex.row, hex.col];
   });
-if (JSON.stringify(deployedCoordinates) !== JSON.stringify([[2, 1], [5, 1], [8, 1]])) {
+if (JSON.stringify(deployedCoordinates) !== JSON.stringify([[2, 0], [5, 0], [8, 0]])) {
   failures.push(`Player army slots must deploy top-to-bottom on the predefined flank: ${JSON.stringify(deployedCoordinates)}`);
+}
+const wideDeploymentStacks = [
+  createBattleStack({ creature: byCreatureId.get(11), owner: "player", armySlot: 0, hexId: 0, count: 1, createdAt: 0 }),
+  createBattleStack({ creature: byCreatureId.get(11), owner: "ai", armySlot: 0, hexId: 0, count: 1, createdAt: 1 })
+];
+deployAllArmies(data.battlefield.grid, wideDeploymentStacks);
+const wideCoordinates = wideDeploymentStacks.map((stack) => {
+  const hex = data.battlefield.grid.hexes.find((candidate) => candidate.id === stack.hexId);
+  return [hex.row, hex.col];
+});
+if (JSON.stringify(wideCoordinates) !== JSON.stringify([[5, 1], [5, 13]])) {
+  failures.push(`Two-hex stacks must shift inward while retaining the outer rear hex: ${JSON.stringify(wideCoordinates)}`);
 }
 const equalSpeedOrder = computeTurnOrder(armyOrderStacks);
 const expectedArmyOrder = armyOrderStacks
@@ -167,6 +187,18 @@ if (!creatureListSource.includes('resolveCreatureImage(creature, "animation")'))
 const battlefieldSource = fs.readFileSync(path.join(root, "src", "components", "Battlefield.js"), "utf8");
 if (battlefieldSource.includes("application/x-creature-id")) {
   failures.push("The battlefield must not accept creatures directly from the roster.");
+}
+const armySetupSource = fs.readFileSync(path.join(root, "src", "components", "ArmySetup.js"), "utf8");
+if (!armySetupSource.includes("armySlot < 3") || !armySetupSource.includes('addEventListener("contextmenu"')) {
+  failures.push("Army setup must render 3+4 slots and expose the right-click stack editor.");
+}
+const indexSource = fs.readFileSync(path.join(root, "index.html"), "utf8");
+if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack-count-dialog"')) {
+  failures.push("The legacy global count field must be replaced by the stack count dialog.");
+}
+const stackInfoSource = fs.readFileSync(path.join(root, "src", "components", "StackInfo.js"), "utf8");
+if (stackInfoSource.includes("data-stack-count")) {
+  failures.push("Selection details must not expose the legacy inline count field.");
 }
 
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });

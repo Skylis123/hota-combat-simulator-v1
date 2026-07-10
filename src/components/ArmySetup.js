@@ -43,6 +43,10 @@ export function renderArmySetup(container, state, handlers) {
           event.dataTransfer.setData("application/x-army-stack-id", stack.id);
           event.dataTransfer.effectAllowed = "move";
         });
+        slot.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          handlers.onStackContextMenu(stack.id);
+        });
       } else {
         slot.innerHTML = `<span class="army-slot-number">${armySlot + 1}</span><span class="army-slot-empty">+</span>`;
       }
@@ -61,7 +65,7 @@ export function renderArmySetup(container, state, handlers) {
         slot.classList.remove("drop-target");
         handlers.onSlotDrop({ stackId: event.dataTransfer.getData("application/x-army-stack-id") }, owner, armySlot);
       });
-      (armySlot < 4 ? topRow : bottomRow).appendChild(slot);
+      (armySlot < 3 ? topRow : bottomRow).appendChild(slot);
     }
 
     slots.append(topRow, bottomRow);

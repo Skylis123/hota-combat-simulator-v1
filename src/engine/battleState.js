@@ -6,7 +6,7 @@ export function createInitialState() {
     owner: "player",
     selectedCreatureId: null,
     selectedStackId: null,
-    stackCount: 20,
+    stackCount: 1,
     stacks: [],
     turnQueue: [],
     activeStackId: null,
@@ -49,6 +49,16 @@ export function createBattleStack({ creature, owner, hexId, count, createdAt, ar
       retaliated: false
     }
   };
+}
+
+export function setSetupStackCount(stack, requestedCount) {
+  const count = Math.max(1, Math.min(9999, Math.trunc(Number(requestedCount) || 1)));
+  stack.count = count;
+  stack.initialCount = count;
+  stack.hpTotal = count * Number(stack.creature.stats.hp || 1);
+  stack.wound = 0;
+  stack.alive = true;
+  return count;
 }
 
 export function startBattle(state) {

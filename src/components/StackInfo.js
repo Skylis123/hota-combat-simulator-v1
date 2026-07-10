@@ -95,8 +95,6 @@ function renderStatuses(stack) {
 function renderSetupControls(stack) {
   return `
     <div class="setup-stack-controls">
-      <label class="field-label" for="selected-stack-count">Stack count</label>
-      <input id="selected-stack-count" data-stack-count="${stack.id}" type="number" min="1" max="9999" value="${stack.count}" />
       <button type="button" data-delete-stack="${stack.id}">Delete Stack</button>
     </div>
   `;

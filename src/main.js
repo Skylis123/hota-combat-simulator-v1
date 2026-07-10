@@ -5,7 +5,7 @@ import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
 import { renderArmySetup } from "./components/ArmySetup.js";
 import { animateAttackResult, animateStackAttack, animateStackDefend, animateStackMove } from "./components/BattleAnimator.js";
-import { createBattleStack, createInitialState, resetBattle, startBattle } from "./engine/battleState.js";
+import { createBattleStack, createInitialState, resetBattle, setSetupStackCount, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
@@ -20,7 +20,14 @@ const elements = {
   stackInfo: document.querySelector("#stack-info"),
   turnOrder: document.querySelector("#turn-order"),
   armySetup: document.querySelector("#army-setup"),
-  stackCount: document.querySelector("#stack-count"),
+  stackCountDialog: document.querySelector("#stack-count-dialog"),
+  stackCountForm: document.querySelector("#stack-count-form"),
+  stackCountEditor: document.querySelector("#stack-count-editor"),
+  stackCountCreature: document.querySelector("#stack-count-creature"),
+  stackCountMinus: document.querySelector("#stack-count-minus"),
+  stackCountPlus: document.querySelector("#stack-count-plus"),
+  stackCountCancel: document.querySelector("#stack-count-cancel"),
+  stackCountClose: document.querySelector("#stack-count-close"),
   startBattle: document.querySelector("#start-battle"),
   resetBattle: document.querySelector("#reset-battle"),
   clearField: document.querySelector("#clear-field"),
@@ -39,6 +46,7 @@ let createdAtCounter = 0;
 let menuDrag = null;
 let aiTurnPending = false;
 let battleAnimationPending = false;
+let editingStackId = null;
 
 async function boot() {
   try {
@@ -56,10 +64,6 @@ async function boot() {
 }
 
 function bindEvents() {
-  elements.stackCount.addEventListener("change", () => {
-    state.stackCount = Math.max(1, Number(elements.stackCount.value || 1));
-  });
-
   elements.startBattle.addEventListener("click", () => {
     if (state.stacks.length < 2 || battleAnimationPending) return;
     startBattle(state);
@@ -76,8 +80,19 @@ function bindEvents() {
   elements.clearField.addEventListener("click", () => {
     if (battleAnimationPending) return;
     state = createInitialState();
-    elements.stackCount.value = String(state.stackCount);
     render();
+  });
+
+  elements.stackCountMinus.addEventListener("click", () => stepStackCount(-1));
+  elements.stackCountPlus.addEventListener("click", () => stepStackCount(1));
+  elements.stackCountCancel.addEventListener("click", closeStackCountEditor);
+  elements.stackCountClose.addEventListener("click", closeStackCountEditor);
+  elements.stackCountForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    applyStackCountEditor();
+  });
+  elements.stackCountDialog.addEventListener("close", () => {
+    editingStackId = null;
   });
 
   elements.waitAction.addEventListener("click", () => {
@@ -138,17 +153,6 @@ function bindEvents() {
     state.stacks = state.stacks.filter((stack) => stack.id !== stackId);
     deployAllArmies(data.battlefield.grid, state.stacks);
     state.selectedStackId = null;
-    render();
-  });
-
-  elements.stackInfo.addEventListener("change", (event) => {
-    const input = event.target.closest("[data-stack-count]");
-    if (!input || state.phase !== "setup") return;
-    const stack = state.stacks.find((candidate) => candidate.id === input.dataset.stackCount);
-    if (!stack) return;
-    stack.count = Math.max(1, Number(input.value || 1));
-    stack.initialCount = stack.count;
-    stack.hpTotal = stack.count * Number(stack.creature.stats.hp || 1);
     render();
   });
 
@@ -402,7 +406,7 @@ function onArmySlotDrop(payload, owner, armySlot) {
     owner,
     armySlot,
     hexId: 0,
-    count: Math.max(1, Number(elements.stackCount.value || state.stackCount)),
+    count: 1,
     createdAt: createdAtCounter++
   });
   state.stacks.push(stack);
@@ -414,6 +418,41 @@ function onArmySlotDrop(payload, owner, armySlot) {
 
 function updateStackOwnerLabel(stack) {
   stack.label = `${stack.owner === "ai" ? "AI" : "Player"} ${stack.creature.name}`;
+}
+
+function openStackCountEditor(stackId) {
+  if (state.phase !== "setup") return;
+  const stack = state.stacks.find((candidate) => candidate.id === stackId);
+  if (!stack) return;
+  editingStackId = stack.id;
+  state.selectedStackId = stack.id;
+  state.selectedCreatureId = null;
+  elements.stackCountCreature.textContent = `${stack.owner === "ai" ? "AI" : "Player"} · ${stack.creature.name} · slot ${stack.armySlot + 1}`;
+  elements.stackCountEditor.value = String(stack.count);
+  elements.stackCountDialog.showModal();
+  elements.stackCountEditor.focus();
+  elements.stackCountEditor.select();
+}
+
+function closeStackCountEditor() {
+  if (elements.stackCountDialog.open) elements.stackCountDialog.close();
+  editingStackId = null;
+}
+
+function stepStackCount(delta) {
+  const next = Math.max(1, Math.min(9999, Number(elements.stackCountEditor.value || 1) + delta));
+  elements.stackCountEditor.value = String(next);
+}
+
+function applyStackCountEditor() {
+  const stack = state.stacks.find((candidate) => candidate.id === editingStackId);
+  if (!stack) {
+    closeStackCountEditor();
+    return;
+  }
+  setSetupStackCount(stack, elements.stackCountEditor.value);
+  closeStackCountEditor();
+  render();
 }
 
 function updateReachable() {
@@ -447,7 +486,11 @@ function render() {
 
   renderCreatureList(elements.creatureList, data, state, onSelectCreature);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
-  renderArmySetup(elements.armySetup, state, { onSlotClick: onArmySlotClick, onSlotDrop: onArmySlotDrop });
+  renderArmySetup(elements.armySetup, state, {
+    onSlotClick: onArmySlotClick,
+    onSlotDrop: onArmySlotDrop,
+    onStackContextMenu: openStackCountEditor
+  });
   renderStackInfo(elements.stackInfo, data, state);
   renderTurnOrder(elements.turnOrder, state);
   renderBattleLog();

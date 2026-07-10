@@ -1,3 +1,5 @@
+import { inferAbilityFlags } from "./abilities.js";
+
 export const ARMY_SLOT_COUNT = 7;
 
 const DEPLOYMENT_ROWS = {
@@ -23,8 +25,11 @@ export function armyStacks(stacks, owner) {
 export function deployArmy(grid, stacks, owner) {
   const ordered = armyStacks(stacks, owner);
   const rows = deploymentRows(ordered.length);
-  const primaryCol = owner === "player" ? 1 : 13;
   ordered.forEach((stack, index) => {
+    const twoHex = inferAbilityFlags(stack.creature).twoHex;
+    const primaryCol = owner === "player"
+      ? (twoHex ? 1 : 0)
+      : (twoHex ? 13 : 14);
     const hex = grid.hexes.find((candidate) => candidate.row === rows[index] && candidate.col === primaryCol);
     if (hex) stack.hexId = hex.id;
   });

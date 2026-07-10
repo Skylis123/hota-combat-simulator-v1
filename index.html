@@ -24,11 +24,6 @@
           </select>
         </section>
 
-        <section class="control-block compact">
-          <label class="field-label" for="stack-count">Count</label>
-          <input id="stack-count" type="number" min="1" max="9999" value="20" />
-        </section>
-
         <section>
           <div class="section-title">Castle Units</div>
           <div id="creature-list" class="creature-list"></div>
@@ -73,6 +68,28 @@
         </footer>
       </main>
     </div>
+
+    <dialog id="stack-count-dialog" class="stack-count-dialog" aria-labelledby="stack-count-dialog-title">
+      <form id="stack-count-form">
+        <div class="stack-count-dialog-header">
+          <div>
+            <p class="eyebrow">Stack size</p>
+            <h3 id="stack-count-dialog-title">Set unit count</h3>
+          </div>
+          <button id="stack-count-close" type="button" class="dialog-close" aria-label="Close">x</button>
+        </div>
+        <p id="stack-count-creature" class="stack-count-creature"></p>
+        <div class="stack-count-stepper">
+          <button id="stack-count-minus" type="button" aria-label="Decrease unit count">-1</button>
+          <input id="stack-count-editor" type="number" min="1" max="9999" value="1" aria-label="Unit count" />
+          <button id="stack-count-plus" type="button" aria-label="Increase unit count">+1</button>
+        </div>
+        <div class="dialog-actions">
+          <button id="stack-count-cancel" type="button">Cancel</button>
+          <button type="submit" class="primary">Apply</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="./src/main.js"></script>
   </body>
