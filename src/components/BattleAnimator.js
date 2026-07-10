@@ -52,11 +52,24 @@ export async function animateStackAttack(container, grid, attacker, target, opti
 
 export async function animateAttackResult(container, grid, attacker, target, result) {
   if (!result?.ok) return;
+  syncStackElement(container, grid, attacker);
+  syncStackElement(container, grid, target);
   await animateReaction(container, grid, target, target.alive === false ? "death" : "hit");
   if (result.retaliation) {
     await animateRetaliation(container, grid, target, attacker);
     await animateReaction(container, grid, attacker, attacker.alive === false ? "death" : "hit");
   }
+}
+
+function syncStackElement(container, grid, stack) {
+  const element = container.querySelector(`[data-stack-id="${stack.id}"]`);
+  const position = stackVisualPosition(grid, stack);
+  if (!element || !position) return;
+  element.style.left = `${position.centerX}px`;
+  element.style.top = `${position.centerY}px`;
+  element.dataset.hexId = String(stack.hexId);
+  const count = element.querySelector(".stack-count");
+  if (count) count.textContent = String(stack.count);
 }
 
 async function animateRetaliation(container, grid, defender, attacker) {

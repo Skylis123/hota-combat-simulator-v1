@@ -125,6 +125,10 @@ const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf
 if (/\.battle-stack\.selected\s+img\s*\{[^}]*outline/s.test(appCss)) {
   failures.push("Selected stack styling must not draw a rectangular image outline.");
 }
+const animatorSource = fs.readFileSync(path.join(root, "src", "components", "BattleAnimator.js"), "utf8");
+if (!animatorSource.includes("syncStackElement(container, grid, attacker)")) {
+  failures.push("Move-attack animation must synchronize the attacker's DOM position before retaliation.");
+}
 
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });
 const playerChampionVisual = stackVisualPosition(data.battlefield.grid, joustingChampion);

@@ -102,6 +102,7 @@ export function renderBattlefield(container, data, state, handlers) {
     element.style.left = `${visualPosition.centerX}px`;
     element.style.top = `${visualPosition.centerY}px`;
     element.dataset.stackId = stack.id;
+    element.dataset.hexId = String(stack.hexId);
     element.title = stackTitle(state, stack);
     element.draggable = state.phase === "setup";
     element.innerHTML = `
