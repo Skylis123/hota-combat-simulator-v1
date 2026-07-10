@@ -31,7 +31,18 @@ export function placementPreview(grid, stacks, stack, primaryHexId) {
   const hexIds = footprintHexes(grid, stack, primaryHexId);
   return {
     hexIds: hexIds || [primaryHexId],
+    primaryHexId,
     valid: Boolean(hexIds && canStackOccupy(grid, stacks, stack, primaryHexId))
+  };
+}
+
+export function stackVisualPosition(grid, stack, primaryHexId = stack?.hexId) {
+  const footprint = footprintHexes(grid, stack, primaryHexId) || [primaryHexId];
+  const hexes = footprint.map((hexId) => grid.hexes.find((hex) => hex.id === hexId)).filter(Boolean);
+  if (!hexes.length) return null;
+  return {
+    centerX: hexes.reduce((sum, hex) => sum + hex.centerX, 0) / hexes.length,
+    centerY: hexes.reduce((sum, hex) => sum + hex.centerY, 0) / hexes.length
   };
 }
 

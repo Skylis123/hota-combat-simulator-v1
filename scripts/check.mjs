@@ -6,7 +6,7 @@ import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, exe
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
 import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
-import { canStackOccupy, footprintHexes, placementPreview } from "../src/engine/footprint.js";
+import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -121,8 +121,17 @@ const championHoverPreview = placementPreview(footprintGrid, [], championStack, 
 if (!championHoverPreview.valid || JSON.stringify(championHoverPreview.hexIds) !== JSON.stringify([1, 0])) {
   failures.push("Two-hex setup hover must preview both primary and rear hexes.");
 }
+const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
+if (/\.battle-stack\.selected\s+img\s*\{[^}]*outline/s.test(appCss)) {
+  failures.push("Selected stack styling must not draw a rectangular image outline.");
+}
 
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });
+const playerChampionVisual = stackVisualPosition(data.battlefield.grid, joustingChampion);
+const aiChampionVisual = stackVisualPosition(data.battlefield.grid, { ...joustingChampion, owner: "ai" });
+if (playerChampionVisual?.centerX !== 132 || aiChampionVisual?.centerX !== 176) {
+  failures.push(`Two-hex visual anchor mismatch: Player=${playerChampionVisual?.centerX}, AI=${aiChampionVisual?.centerX}.`);
+}
 const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const joustingState = { stacks: [joustingChampion, normalJoustTarget] };
 const joustingOptions = attackOptions(data.battlefield.grid, joustingState, joustingChampion, normalJoustTarget);

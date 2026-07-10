@@ -1,4 +1,5 @@
 import { inferAbilityFlags } from "../engine/abilities.js";
+import { stackVisualPosition } from "../engine/footprint.js";
 
 const CASTLE_MIN_ID = 0;
 const CASTLE_MAX_ID = 13;
@@ -12,7 +13,7 @@ export async function animateStackMove(container, grid, stack, path) {
   const destinationHexId = path?.[path.length - 1];
   if (!supportsBattleAnimation(stack) || stack.hexId === destinationHexId) return;
   validatePath(grid, stack.hexId, path);
-  const origin = findHex(grid, stack.hexId);
+  const origin = stackVisualPosition(grid, stack);
   if (!origin) return;
   const actor = createActor(container, stack, origin, "move");
   const original = hideOriginalStack(container, stack.id);
@@ -29,9 +30,9 @@ export async function animateStackAttack(container, grid, attacker, target, opti
   const approachPath = option.approachPath;
   validatePath(grid, attacker.hexId, approachPath);
   const approachHexId = approachPath[approachPath.length - 1];
-  const origin = findHex(grid, attacker.hexId);
-  const approach = findHex(grid, approachHexId) || origin;
-  const targetHex = findHex(grid, target.hexId);
+  const origin = stackVisualPosition(grid, attacker);
+  const approach = stackVisualPosition(grid, attacker, approachHexId) || origin;
+  const targetHex = stackVisualPosition(grid, target);
   if (!origin || !approach || !targetHex) return;
 
   const firstAnimation = approachHexId === attacker.hexId ? attackName(approach, targetHex, option.mode) : "move";
@@ -53,7 +54,25 @@ export async function animateAttackResult(container, grid, attacker, target, res
   if (!result?.ok) return;
   await animateReaction(container, grid, target, target.alive === false ? "death" : "hit");
   if (result.retaliation) {
+    await animateRetaliation(container, grid, target, attacker);
     await animateReaction(container, grid, attacker, attacker.alive === false ? "death" : "hit");
+  }
+}
+
+async function animateRetaliation(container, grid, defender, attacker) {
+  if (!supportsBattleAnimation(defender) || defender.alive === false) return;
+  const defenderPosition = stackVisualPosition(grid, defender);
+  const attackerPosition = stackVisualPosition(grid, attacker);
+  if (!defenderPosition || !attackerPosition) return;
+  const animation = attackName(defenderPosition, attackerPosition, "melee");
+  const actor = createActor(container, defender, defenderPosition, animation);
+  const original = hideOriginalStack(container, defender.id);
+  setFacing(actor, attackerPosition.centerX < defenderPosition.centerX);
+  try {
+    await wait(animation.endsWith("down") ? 900 : 820);
+  } finally {
+    actor.remove();
+    if (original) original.style.visibility = "";
   }
 }
 
@@ -63,9 +82,9 @@ export async function animateStackDefend(container, grid, stack) {
 
 async function animateReaction(container, grid, stack, animation) {
   if (!supportsBattleAnimation(stack)) return;
-  const hex = findHex(grid, stack.hexId);
-  if (!hex) return;
-  const actor = createActor(container, stack, hex, animation, animation !== "death");
+  const position = stackVisualPosition(grid, stack);
+  if (!position) return;
+  const actor = createActor(container, stack, position, animation, animation !== "death");
   const original = hideOriginalStack(container, stack.id);
   try {
     await wait(animation === "death" ? 1400 : animation === "defend" ? 800 : 520);
@@ -78,6 +97,8 @@ async function animateReaction(container, grid, stack, animation) {
 function createActor(container, stack, hex, animation, showCount = true) {
   const actor = document.createElement("div");
   actor.className = `battle-animation ${stack.owner} ${inferAbilityFlags(stack.creature).twoHex ? "two-hex" : ""}`;
+  actor.dataset.owner = stack.owner;
+  actor.dataset.creatureId = String(stack.creature.creatureId);
   actor.style.left = `${hex.centerX}px`;
   actor.style.top = `${hex.centerY}px`;
   actor.innerHTML = `<img alt="" />${showCount ? `<span class="stack-count">${stack.count}</span>` : ""}`;
@@ -136,13 +157,20 @@ async function moveActorAlongPath(actor, grid, path) {
   await nextFrame();
   actor.classList.add("moving");
   for (let index = 1; index < path.length; index += 1) {
-    const previous = findHex(grid, path[index - 1]);
-    const destination = findHex(grid, path[index]);
+    const previous = stackVisualPosition(grid, { ...actorStack(actor), hexId: path[index - 1] }, path[index - 1]) || findHex(grid, path[index - 1]);
+    const destination = stackVisualPosition(grid, { ...actorStack(actor), hexId: path[index] }, path[index]) || findHex(grid, path[index]);
     setFacing(actor, destination.centerX < previous.centerX);
     actor.style.left = `${destination.centerX}px`;
     actor.style.top = `${destination.centerY}px`;
     await waitForTransition(actor, 170);
   }
+}
+
+function actorStack(actor) {
+  return {
+    owner: actor.dataset.owner,
+    creature: { creatureId: Number(actor.dataset.creatureId) }
+  };
 }
 
 function nextFrame() {

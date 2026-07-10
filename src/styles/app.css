@@ -287,6 +287,30 @@ button.primary {
   fill: rgba(255, 255, 255, 0.06);
 }
 
+.hex.occupied-primary.occupied-player {
+  fill: rgba(75, 142, 219, 0.26);
+  stroke: rgba(121, 184, 255, 0.95);
+  stroke-width: 2;
+}
+
+.hex.occupied-rear.occupied-player {
+  fill: rgba(75, 142, 219, 0.16);
+  stroke: rgba(121, 184, 255, 0.78);
+  stroke-dasharray: 4 3;
+}
+
+.hex.occupied-primary.occupied-ai {
+  fill: rgba(198, 78, 78, 0.26);
+  stroke: rgba(255, 124, 112, 0.95);
+  stroke-width: 2;
+}
+
+.hex.occupied-rear.occupied-ai {
+  fill: rgba(198, 78, 78, 0.16);
+  stroke: rgba(255, 124, 112, 0.78);
+  stroke-dasharray: 4 3;
+}
+
 .hex.reachable {
   fill: rgba(197, 214, 107, 0.22);
   stroke: rgba(240, 211, 107, 0.9);
@@ -302,6 +326,14 @@ button.primary {
   fill: rgba(207, 78, 78, 0.34);
   stroke: #ff7b70;
   stroke-width: 2;
+}
+
+.hex.placement-preview.placement-primary {
+  stroke-width: 3;
+}
+
+.hex.placement-preview.placement-rear {
+  stroke-dasharray: 5 3;
 }
 
 .stack-layer {
@@ -342,7 +374,7 @@ button.primary {
 }
 
 .battle-stack.selected img {
-  outline: 2px solid var(--accent-strong);
+  filter: drop-shadow(0 0 7px var(--accent-strong)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
 }
 
 .battle-stack.active img {
@@ -355,17 +387,25 @@ button.primary {
 
 .battle-stack.dead {
   z-index: 4;
-  width: 128px;
-  height: 76px;
+  width: 86px;
+  height: 86px;
   transform: translate(-50%, -38%);
   opacity: 1;
 }
 
 .battle-stack.dead img {
-  width: 120px;
-  height: 72px;
+  width: 78px;
+  height: 78px;
   object-position: center bottom;
   filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.7));
+}
+
+.battle-stack.two-hex.dead {
+  width: 112px;
+}
+
+.battle-stack.two-hex.dead img {
+  width: 104px;
 }
 
 .battle-stack.targetable {
@@ -388,8 +428,8 @@ button.primary {
 .battle-animation {
   position: absolute;
   z-index: 6;
-  width: 132px;
-  height: 116px;
+  width: 86px;
+  height: 86px;
   transform: translate(-50%, -72%);
   pointer-events: none;
 }
@@ -399,11 +439,19 @@ button.primary {
 }
 
 .battle-animation img {
-  width: 132px;
-  height: 110px;
+  width: 78px;
+  height: 78px;
   object-fit: contain;
   transform-origin: center;
   filter: drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+}
+
+.battle-animation.two-hex {
+  width: 112px;
+}
+
+.battle-animation.two-hex img {
+  width: 104px;
 }
 
 .battle-animation[data-animation="move"] {

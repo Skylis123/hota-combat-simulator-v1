@@ -1,6 +1,6 @@
 import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver.js";
 import { polygonPointsToString } from "../engine/hexGrid.js";
-import { footprintHexes } from "../engine/footprint.js";
+import { footprintHexes, stackVisualPosition } from "../engine/footprint.js";
 import { inferAbilityFlags } from "../engine/abilities.js";
 
 export function renderBattlefield(container, data, state, handlers) {
@@ -48,7 +48,7 @@ export function renderBattlefield(container, data, state, handlers) {
   const occupied = new Map();
   for (const stack of state.stacks) {
     if (stack.alive === false) continue;
-    for (const hexId of footprintHexes(grid, stack) || []) occupied.set(hexId, stack);
+    (footprintHexes(grid, stack) || []).forEach((hexId, index) => occupied.set(hexId, { stack, role: index === 0 ? "primary" : "rear" }));
   }
   for (const hex of grid.hexes) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
@@ -56,14 +56,19 @@ export function renderBattlefield(container, data, state, handlers) {
     polygon.dataset.hexId = String(hex.id);
     const classes = ["hex"];
     if (state.reachable.has(hex.id)) classes.push("reachable");
-    if (occupied.has(hex.id)) classes.push("occupied");
+    const occupancy = occupied.get(hex.id);
+    if (occupancy) classes.push("occupied", `occupied-${occupancy.role}`, `occupied-${occupancy.stack.owner}`);
     if (state.setupPreview?.hexIds?.includes(hex.id)) {
-      classes.push("placement-preview", state.setupPreview.valid ? "placement-valid" : "placement-invalid");
+      classes.push(
+        "placement-preview",
+        hex.id === state.setupPreview.primaryHexId ? "placement-primary" : "placement-rear",
+        state.setupPreview.valid ? "placement-valid" : "placement-invalid"
+      );
     }
     polygon.setAttribute("class", classes.join(" "));
     polygon.addEventListener("click", (event) => {
       event.stopPropagation();
-      const occupyingStack = occupied.get(hex.id);
+      const occupyingStack = occupied.get(hex.id)?.stack;
       if (occupyingStack) handlers.onStackClick(occupyingStack.id);
       else handlers.onHexClick(hex.id);
     });
@@ -93,8 +98,9 @@ export function renderBattlefield(container, data, state, handlers) {
       state.attackableTargetIds?.has(stack.id) ? "targetable" : "",
       state.enemyTargetIds?.has(stack.id) && !state.attackableTargetIds?.has(stack.id) ? "unreachable-target" : ""
     ].join(" ");
-    element.style.left = `${hex.centerX}px`;
-    element.style.top = `${hex.centerY}px`;
+    const visualPosition = stackVisualPosition(grid, stack) || hex;
+    element.style.left = `${visualPosition.centerX}px`;
+    element.style.top = `${visualPosition.centerY}px`;
     element.dataset.stackId = stack.id;
     element.title = stackTitle(state, stack);
     element.draggable = state.phase === "setup";
