@@ -139,18 +139,20 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
   return { ok: true, mode, moved, attackLog, retaliation };
 }
 
-export function performAiTurn(state, grid) {
+export async function performAiTurn(state, grid, hooks = {}) {
   const stack = state.stacks.find((candidate) => candidate.id === state.activeStackId);
   if (!stack || stack.owner !== "ai" || stack.alive === false) return;
 
   const attack = chooseBestAttack(grid, state, stack);
   if (attack) {
+    await hooks.beforeAttack?.(stack, attack.target, attack.option);
     executeAttack(state, grid, stack, attack.target, attack.option);
     return;
   }
 
   const advanceHex = chooseAdvanceHex(grid, state, stack);
   if (advanceHex !== stack.hexId) {
+    await hooks.beforeMove?.(stack, advanceHex);
     stack.hexId = advanceHex;
     stack.statuses.acted = true;
     state.actionLog.unshift(`${stack.label} advances to hex ${advanceHex}.`);

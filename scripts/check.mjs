@@ -21,6 +21,12 @@ for (const creature of data.creatures || []) {
   }
 }
 
+for (const animation of ["move.gif", "attack-up.gif", "attack-front.gif", "attack-down.gif"]) {
+  if (!fs.existsSync(path.join(root, "public", "assets", "creatures", "animations", "0", animation))) {
+    failures.push(`Missing Pikeman battle animation: ${animation}`);
+  }
+}
+
 const resetCreature = { name: "Reset test", stats: { hp: 30, shots: 12, speed: 5 } };
 const resetState = createInitialState();
 resetState.stacks = [

@@ -350,6 +350,41 @@ button.primary {
   opacity: 0.78;
 }
 
+.battle-animation {
+  position: absolute;
+  z-index: 6;
+  width: 132px;
+  height: 116px;
+  transform: translate(-50%, -72%);
+  pointer-events: none;
+}
+
+.battle-animation.moving {
+  transition: left var(--move-duration) linear, top var(--move-duration) linear;
+}
+
+.battle-animation img {
+  width: 132px;
+  height: 110px;
+  object-fit: contain;
+  transform-origin: center;
+  filter: drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+}
+
+.battle-animation.facing-left img {
+  transform: scaleX(-1);
+}
+
+.battle-animation .stack-count {
+  right: 18px;
+  bottom: 4px;
+}
+
+.battle-animation-running button,
+.battle-animation-running .battlefield {
+  pointer-events: none;
+}
+
 .stack-count {
   position: absolute;
   right: 8px;
