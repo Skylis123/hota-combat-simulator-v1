@@ -552,7 +552,6 @@ button.primary {
 .hex.occupied-rear.occupied-player {
   fill: rgba(75, 142, 219, 0.16);
   stroke: rgba(121, 184, 255, 0.78);
-  stroke-dasharray: 4 3;
 }
 
 .hex.occupied-primary.occupied-ai {
@@ -564,7 +563,6 @@ button.primary {
 .hex.occupied-rear.occupied-ai {
   fill: rgba(198, 78, 78, 0.16);
   stroke: rgba(255, 124, 112, 0.78);
-  stroke-dasharray: 4 3;
 }
 
 .hex.reachable {
@@ -572,18 +570,10 @@ button.primary {
   stroke: rgba(240, 211, 107, 0.9);
 }
 
-.hex.reachable.reachable-wide-rear {
-  stroke-dasharray: 5 3;
-}
-
 .hex.movement-footprint-preview {
   fill: rgba(115, 210, 255, 0.28);
   stroke: #8fe4ff;
   stroke-width: 3;
-}
-
-.hex.movement-footprint-preview.movement-footprint-rear {
-  stroke-dasharray: 6 3;
 }
 
 .hex.attack-approach-preview {
@@ -618,10 +608,6 @@ button.primary {
 
 .hex.placement-preview.placement-primary {
   stroke-width: 3;
-}
-
-.hex.placement-preview.placement-rear {
-  stroke-dasharray: 5 3;
 }
 
 .stack-layer {

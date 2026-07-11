@@ -127,7 +127,7 @@ function bindEvents() {
     await runAnimatedAction(
       () => animateStackAttack(elements.battlefield, data.battlefield.grid, stack, best.target, best.option),
       () => executeAttack(state, data.battlefield.grid, stack, best.target, best.option),
-      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, stack, best.target, result)
+      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, stack, best.target, result, best.option)
     );
   });
 
@@ -382,7 +382,7 @@ async function onStackClick(stackId) {
       await runAnimatedAction(
         () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option),
         () => executeAttack(state, data.battlefield.grid, active, clicked, option),
-        (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, clicked, result)
+        (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, clicked, result, option)
       );
       return;
     } else {
@@ -409,7 +409,7 @@ async function onAttackSelectedTarget() {
     await runAnimatedAction(
       () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, target, option),
       () => executeAttack(state, data.battlefield.grid, active, target, option),
-      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, target, result)
+      (result) => animateAttackResult(elements.battlefield, data.battlefield.grid, active, target, result, option)
     );
     return;
   } else {
@@ -653,7 +653,7 @@ function scheduleAiTurn() {
       await runAnimatedAction(
         () => performAiTurn(state, data.battlefield.grid, {
           beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option),
-          afterAttack: (attacker, target, result) => animateAttackResult(elements.battlefield, data.battlefield.grid, attacker, target, result),
+          afterAttack: (attacker, target, result, option) => animateAttackResult(elements.battlefield, data.battlefield.grid, attacker, target, result, option),
           beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path)
         }),
         () => {}

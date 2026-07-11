@@ -22,6 +22,7 @@ export function selectPointerAttack(grid, state, attacker, target, point = null,
     cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point, targetHexId),
     option: { ...selected, targetHexId: contact?.targetHex.id ?? targetHexId },
     approachHex: selected.approachHex,
+    approachHexIds: footprintHexes(grid, attacker, selected.approachHex) || [selected.approachHex],
     targetHexId: contact?.targetHex.id ?? targetHexId
   };
 }

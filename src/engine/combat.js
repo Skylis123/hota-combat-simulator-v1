@@ -179,7 +179,7 @@ export async function performAiTurn(state, grid, hooks = {}) {
   if (attack) {
     await hooks.beforeAttack?.(stack, attack.target, attack.option);
     const result = executeAttack(state, grid, stack, attack.target, attack.option);
-    await hooks.afterAttack?.(stack, attack.target, result);
+    await hooks.afterAttack?.(stack, attack.target, result, attack.option);
     return;
   }
 

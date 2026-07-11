@@ -245,7 +245,9 @@ function showMovementPreview(container, placement) {
 function showAttackApproach(container, preview) {
   clearAttackApproach(container);
   if (!preview?.option || preview.option.mode !== "melee") return;
-  container.querySelector(`.hex[data-hex-id="${preview.approachHex}"]`)?.classList.add("attack-approach-preview");
+  for (const hexId of preview.approachHexIds || [preview.approachHex]) {
+    container.querySelector(`.hex[data-hex-id="${hexId}"]`)?.classList.add("attack-approach-preview");
+  }
 }
 
 function clearPlacementPreview(container) {

@@ -250,7 +250,7 @@ const animatorSource = fs.readFileSync(path.join(root, "src", "components", "Bat
 if (!animatorSource.includes("syncStackElement(container, grid, attacker)")) {
   failures.push("Move-attack animation must synchronize the attacker's DOM position before retaliation.");
 }
-if (!animatorSource.includes("target.statuses.defending ? \"defend\" : \"hit\"") || !animatorSource.includes("inferAbilityFlags(attacker.creature).doubleAttack")) {
+if (!animatorSource.includes("target.statuses.defending ? \"defend\" : \"hit\"") || !animatorSource.includes("result.attackLog.length") || !animatorSource.includes("syncStackSnapshot")) {
   failures.push("Defend must animate only when struck and double-shot creatures must replay their ranged attack animation.");
 }
 const creatureListSource = fs.readFileSync(path.join(root, "src", "components", "CreatureList.js"), "utf8");
@@ -297,6 +297,9 @@ if (!battlefieldSource.includes("enemyOfActivePlayer") || !battlefieldSource.inc
 }
 if (!battlefieldSource.includes("matchingAttackPreview") || !battlefieldSource.includes("stack.alive === false ? hex")) {
   failures.push("Stack clicks must follow the displayed cursor action and corpses must anchor to their primary death hex.");
+}
+if (!battlefieldSource.includes("preview.approachHexIds") || /occupied-rear[^}]*stroke-dasharray/s.test(appCss) || /reachable-wide-rear[^}]*stroke-dasharray/s.test(appCss)) {
+  failures.push("Wide-unit movement and attack footprints must show both hexes with normal solid outlines.");
 }
 if (!appCss.includes(".battle-stack.dead") || !/\.battle-stack\.dead\s*\{[^}]*pointer-events:\s*none/s.test(appCss)) {
   failures.push("Corpses must not intercept targeting or movement pointer events.");

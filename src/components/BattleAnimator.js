@@ -42,27 +42,44 @@ export async function animateStackAttack(container, grid, attacker, target, opti
     if (approachHexId !== attacker.hexId) await moveActorAlongPath(actor, grid, approachPath);
     const animation = attackName(approach, targetHex, option.mode);
     setFacing(actor, targetHex.centerX < approach.centerX);
-    const strikeCount = option.mode === "ranged" && inferAbilityFlags(attacker.creature).doubleAttack
-      ? Math.min(2, Math.max(1, Number(attacker.shotsRemaining || 0)))
-      : 1;
-    for (let strike = 0; strike < strikeCount; strike += 1) {
-      setAnimation(actor, attacker, animation);
-      await wait(animation.endsWith("down") ? 900 : 820);
-    }
+    setAnimation(actor, attacker, animation);
+    await wait(animation.endsWith("down") ? 900 : 820);
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
   }
 }
 
-export async function animateAttackResult(container, grid, attacker, target, result) {
+export async function animateAttackResult(container, grid, attacker, target, result, option = null) {
   if (!result?.ok) return;
   syncStackElement(container, grid, attacker);
-  syncStackElement(container, grid, target);
-  await animateReaction(container, grid, target, target.alive === false ? "death" : target.statuses.defending ? "defend" : "hit");
+  for (let index = 0; index < result.attackLog.length; index += 1) {
+    const strike = result.attackLog[index];
+    if (index > 0) await animateStackStrike(container, grid, attacker, target, option?.mode || result.mode);
+    syncStackSnapshot(container, grid, target, strike.after);
+    const stagedTarget = { ...target, ...strike.after, alive: strike.after.count > 0 };
+    await animateReaction(container, grid, stagedTarget, strike.after.count <= 0 ? "death" : target.statuses.defending ? "defend" : "hit");
+  }
   if (result.retaliation) {
     await animateRetaliation(container, grid, target, attacker);
     await animateReaction(container, grid, attacker, attacker.alive === false ? "death" : "hit");
+  }
+}
+
+async function animateStackStrike(container, grid, attacker, target, mode) {
+  if (!supportsBattleAnimation(attacker)) return;
+  const attackerPosition = stackVisualPosition(grid, attacker);
+  const targetPosition = stackVisualPosition(grid, target);
+  if (!attackerPosition || !targetPosition) return;
+  const animation = attackName(attackerPosition, targetPosition, mode);
+  const actor = createActor(container, attacker, attackerPosition, animation);
+  const original = hideOriginalStack(container, attacker.id);
+  setFacing(actor, targetPosition.centerX < attackerPosition.centerX);
+  try {
+    await wait(animation.endsWith("down") ? 900 : 820);
+  } finally {
+    actor.remove();
+    if (original) original.style.visibility = "";
   }
 }
 
@@ -75,6 +92,17 @@ function syncStackElement(container, grid, stack) {
   element.dataset.hexId = String(stack.hexId);
   const count = element.querySelector(".stack-count");
   if (count) count.textContent = String(stack.count);
+}
+
+function syncStackSnapshot(container, grid, stack, snapshot) {
+  const element = container.querySelector(`[data-stack-id="${stack.id}"]`);
+  const position = stackVisualPosition(grid, stack);
+  if (!element || !position) return;
+  element.style.left = `${position.centerX}px`;
+  element.style.top = `${position.centerY}px`;
+  const count = element.querySelector(".stack-count");
+  if (count) count.textContent = String(snapshot.count);
+  element.classList.toggle("dead", snapshot.count <= 0);
 }
 
 async function animateRetaliation(container, grid, defender, attacker) {
