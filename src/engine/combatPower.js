@@ -233,7 +233,10 @@ export function calculateHpLossValue(stack, hpAmount) {
   const unit = calculateUnitValue(stack);
   const hpPerUnit = Number(unit.effective?.hpPerUnit || (stack.creature || stack).stats?.hp || 1);
   const wound = Number(stack.wound || 0);
-  const amount = Math.max(0, Number(hpAmount || 0));
+  const availableHp = Number.isFinite(stack.hpTotal)
+    ? Math.max(0, Number(stack.hpTotal))
+    : Math.max(0, Number(stack.count || 0) * hpPerUnit - wound);
+  const amount = Math.min(availableHp, Math.max(0, Number(hpAmount || 0)));
   const remainder = amount % hpPerUnit;
   const creditedPriorDamage = remainder + wound >= hpPerUnit ? wound : 0;
   const value = ((amount + creditedPriorDamage) * unit.value) / hpPerUnit;
@@ -242,6 +245,7 @@ export function calculateHpLossValue(stack, hpAmount) {
     rounded: Math.trunc(value),
     unitValue: unit.value,
     creditedPriorDamage,
+    availableHp,
     confidence: unit.confidence,
     evidence: "Implements normal FUN_00442cf0 HP-loss/value conversion without unknown bit-23 or fixed-1000 branches."
   };

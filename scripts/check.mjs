@@ -5,7 +5,7 @@ import { createBattleStack, createInitialState, resetBattle, setSetupStackCount,
 import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, executeAttack } from "../src/engine/combat.js";
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
-import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
+import { calculateExpectedDamage, calculateHpLossValue, calculateRolledDamage } from "../src/engine/combatPower.js";
 import { canStackOccupy, footprintHexes, movementPlacementForHex, placementPreview, stackVisualPosition, stacksAreAdjacent } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engine/turnOrder.js";
@@ -377,6 +377,40 @@ const aiTargetAuditState = { stacks: [aiCavalier, aiPikemanTarget, aiMarksmanTar
 const auditedAiChoice = chooseBestAttack(data.battlefield.grid, aiTargetAuditState, aiCavalier);
 if (auditedAiChoice?.target.id !== aiMarksmanTarget.id) {
   failures.push("An AI Cavalier must prefer 9 adjacent Marksmen over 1 adjacent Pikeman under the confirmed local exchange score.");
+}
+const onePikemanValue = calculateHpLossValue(aiPikemanTarget, 99999);
+if (onePikemanValue.value > Number(aiPikemanTarget.creature.stats.aiValue || aiPikemanTarget.creature.stats.fightValue)) {
+  failures.push("AI HP-loss value must cap overkill damage at the target's remaining stack HP.");
+}
+
+const aiShooter = createBattleStack({ creature: byCreatureId.get(3), owner: "ai", hexId: 14, count: 17, createdAt: 0 });
+const shooterPikemen = createBattleStack({ creature: byCreatureId.get(0), owner: "player", hexId: 159, count: 20, createdAt: 1 });
+const shooterMarksmen = createBattleStack({ creature: byCreatureId.get(3), owner: "player", hexId: 161, count: 20, createdAt: 2 });
+let shooterAuditState = { stacks: [aiShooter, shooterPikemen, shooterMarksmen] };
+if (chooseBestAttack(data.battlefield.grid, shooterAuditState, aiShooter)?.target.id !== shooterMarksmen.id) {
+  failures.push("Unblocked AI Marksmen must prioritize the higher damage-reduction value of a healthy enemy Marksman stack.");
+}
+shooterMarksmen.count = 3;
+shooterMarksmen.hpTotal = 30;
+if (chooseBestAttack(data.battlefield.grid, shooterAuditState, aiShooter)?.target.id !== shooterPikemen.id) {
+  failures.push("AI Marksmen must switch from 3 remaining Marksmen to 20 Pikemen when the latter has greater capped damage-reduction value.");
+}
+const blockingGriffin = createBattleStack({ creature: byCreatureId.get(4), owner: "player", hexId: 13, count: 6, createdAt: 3 });
+shooterAuditState = { stacks: [aiShooter, shooterPikemen, shooterMarksmen, blockingGriffin] };
+const blockedShooterChoice = chooseBestAttack(data.battlefield.grid, shooterAuditState, aiShooter);
+if (blockedShooterChoice?.target.id !== blockingGriffin.id || blockedShooterChoice.option.mode !== "melee") {
+  failures.push("Any adjacent enemy must block an AI shooter and force melee target evaluation until the blocker is removed.");
+}
+const pursuitCavalier = createBattleStack({ creature: byCreatureId.get(10), owner: "ai", hexId: 14, count: 4, createdAt: 0 });
+const nearbyWeakPikeman = createBattleStack({ creature: byCreatureId.get(0), owner: "player", hexId: 10, count: 1, createdAt: 1 });
+const distantValuableMarksmen = createBattleStack({ creature: byCreatureId.get(3), owner: "player", hexId: 90, count: 20, createdAt: 2 });
+const valueDrivenAdvance = chooseAdvanceOption(
+  data.battlefield.grid,
+  { stacks: [pursuitCavalier, nearbyWeakPikeman, distantValuableMarksmen] },
+  pursuitCavalier
+);
+if (valueDrivenAdvance.target?.id !== distantValuableMarksmen.id || valueDrivenAdvance.hexId === pursuitCavalier.hexId) {
+  failures.push("AI movement must pursue the best discounted future attack instead of the nearest low-value enemy.");
 }
 const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const joustingState = { stacks: [joustingChampion, normalJoustTarget] };

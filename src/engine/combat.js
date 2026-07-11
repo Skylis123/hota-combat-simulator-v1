@@ -1,6 +1,6 @@
 import { inferAbilityFlags } from "./abilities.js";
 import { calculateExpectedDamage, calculateHpLossValue, calculateRolledDamage, calculateTargetPriority } from "./combatPower.js";
-import { findMovementPath, findStackPath, reachableHexes } from "./movement.js";
+import { findMovementPath, findPath, findStackPath } from "./movement.js";
 import { canStackOccupy, stacksAreAdjacent } from "./footprint.js";
 import { chooseBestResurrection, executeResurrection } from "./creatureAbilities.js";
 import { distanceByBreadthFirst } from "./hexGrid.js";
@@ -29,9 +29,12 @@ export function isAdjacent(grid, a, b) {
   return Boolean(hex?.neighbors.includes(b));
 }
 
-export function canUseRangedAttack(attacker, grid, target) {
+export function canUseRangedAttack(attacker, grid, target, state = null) {
   const abilities = inferAbilityFlags(attacker.creature);
-  return abilities.ranged && Number(attacker.shotsRemaining || 0) > 0 && !stacksAreAdjacent(grid, attacker, target);
+  const adjacentEnemy = state
+    ? livingEnemies(state, attacker).some((enemy) => stacksAreAdjacent(grid, attacker, enemy))
+    : stacksAreAdjacent(grid, attacker, target);
+  return abilities.ranged && Number(attacker.shotsRemaining || 0) > 0 && !adjacentEnemy;
 }
 
 export function findApproachHex(grid, state, attacker, target) {
@@ -56,7 +59,7 @@ export function attackOptions(grid, state, attacker, target) {
   if (!attacker || !target || attacker.owner === target.owner || target.alive === false) {
     return [];
   }
-  if (canUseRangedAttack(attacker, grid, target)) {
+  if (canUseRangedAttack(attacker, grid, target, state)) {
     return [{ canAttack: true, mode: "ranged", approachHex: attacker.hexId, approachPath: [attacker.hexId] }];
   }
   return findApproachOptions(grid, state, attacker, target).map((approach) => ({
@@ -97,21 +100,42 @@ export function chooseAdvanceHex(grid, state, stack) {
 }
 
 export function chooseAdvanceOption(grid, state, stack) {
-  const enemies = livingEnemies(state, stack);
-  const reachable = reachableHexes(grid, state.stacks, stack);
-  let bestHex = stack.hexId;
-  let bestDistance = nearestEnemyContactDistance(grid, state.stacks, stack, stack.hexId, enemies);
-  for (const hexId of reachable) {
-    const distance = nearestEnemyContactDistance(grid, state.stacks, stack, hexId, enemies);
-    if (distance < bestDistance || (Number.isFinite(distance) && distance === bestDistance && hexId > bestHex)) {
-      bestDistance = distance;
-      bestHex = hexId;
-    }
-  }
+  const plan = choosePursuitPlan(grid, state, stack);
+  if (!plan) return { hexId: stack.hexId, path: [stack.hexId], target: null, score: -Infinity, turnsToReach: Infinity };
+  const speed = Math.max(0, Number(stack.creature.stats.speed || 0));
+  const stepIndex = Math.min(speed, plan.path.length - 1);
+  const bestHex = plan.path[stepIndex];
   return {
     hexId: bestHex,
-    path: findMovementPath(grid, state.stacks, stack, bestHex) || [stack.hexId]
+    path: plan.path.slice(0, stepIndex + 1),
+    target: plan.target,
+    score: plan.score,
+    turnsToReach: plan.turnsToReach
   };
+}
+
+function choosePursuitPlan(grid, state, stack) {
+  let best = null;
+  const speed = Math.max(1, Number(stack.creature.stats.speed || 0));
+  for (const target of livingEnemies(state, stack)) {
+    for (const candidate of grid.hexes) {
+      if (!canStackOccupy(grid, state.stacks, stack, candidate.id)) continue;
+      if (!stacksAreAdjacent(grid, stack, target, candidate.id)) continue;
+      const path = inferAbilityFlags(stack.creature).flying
+        ? findPath(grid, stack.hexId, candidate.id)
+        : findStackPath(grid, state.stacks, stack, stack.hexId, candidate.id);
+      if (!path) continue;
+      const movementSteps = Math.max(0, path.length - 1);
+      const option = { canAttack: true, mode: "melee", approachHex: candidate.id, approachPath: path };
+      const attackScore = scoreAttackOption(grid, stack, target, option);
+      const turnsToReach = Math.ceil(movementSteps / speed);
+      const score = attackScore / (1 + Math.max(0, turnsToReach - 1) * 0.35);
+      if (!best || score > best.score || (score === best.score && movementSteps < best.movementSteps)) {
+        best = { target, path, score, attackScore, turnsToReach, movementSteps };
+      }
+    }
+  }
+  return best;
 }
 
 export function executeAttack(state, grid, attacker, target, option = attackOption(grid, state, attacker, target)) {
@@ -176,14 +200,14 @@ export async function performAiTurn(state, grid, hooks = {}) {
     executeResurrection(state, stack, resurrection.target);
     return;
   }
-  if (attack) {
+  const advance = chooseAdvanceOption(grid, state, stack);
+  if (attack && (attack.option.mode === "ranged" || !(advance.hexId !== stack.hexId && advance.score > attack.score))) {
     await hooks.beforeAttack?.(stack, attack.target, attack.option);
     const result = executeAttack(state, grid, stack, attack.target, attack.option);
     await hooks.afterAttack?.(stack, attack.target, result, attack.option);
     return;
   }
 
-  const advance = chooseAdvanceOption(grid, state, stack);
   if (advance.hexId !== stack.hexId) {
     await hooks.beforeMove?.(stack, advance.hexId, advance.path);
     stack.hexId = advance.hexId;
@@ -263,19 +287,6 @@ function snapshotHp(stack) {
     hpTotal: stack.hpTotal,
     wound: stack.wound
   };
-}
-
-function nearestEnemyContactDistance(grid, stacks, stack, fromHexId, enemies) {
-  let best = Infinity;
-  for (const enemy of enemies) {
-    for (const candidate of grid.hexes) {
-      if (!canStackOccupy(grid, stacks, stack, candidate.id)) continue;
-      if (!stacksAreAdjacent(grid, stack, enemy, candidate.id)) continue;
-      const path = findStackPath(grid, stacks, stack, fromHexId, candidate.id);
-      if (path) best = Math.min(best, path.length - 1);
-    }
-  }
-  return best;
 }
 
 function describeAttack(attacker, target, mode, moved, attackLog, retaliation) {
