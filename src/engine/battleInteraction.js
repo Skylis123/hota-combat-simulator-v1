@@ -5,21 +5,24 @@ export function selectPointerAttack(grid, state, attacker, target, point = null,
   const options = attackOptions(grid, state, attacker, target);
   if (!options.length) return { cursor: "prohibited", option: null, approachHex: null };
   if (options[0].mode === "ranged") {
-    return { cursor: "shoot", option: options[0], approachHex: attacker.hexId };
+    return { cursor: "shoot", option: options[0], approachHex: attacker.hexId, targetHexId };
   }
 
   const selected = options.reduce((best, option) => {
     const contact = attackContactPair(grid, attacker, target, option.approachHex, point, targetHexId);
+    if (targetHexId !== null && !contact) return best;
     const position = contact?.attackerHex || stackVisualPosition(grid, attacker, option.approachHex);
     if (!position || !point) return best || { option, distance: 0 };
     const distance = Math.hypot(position.centerX - point.x, position.centerY - point.y);
     return !best || distance < best.distance ? { option, distance } : best;
   }, null)?.option;
   if (!selected) return { cursor: "prohibited", option: null, approachHex: null };
+  const contact = attackContactPair(grid, attacker, target, selected.approachHex, point, targetHexId);
   return {
     cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point, targetHexId),
-    option: selected,
-    approachHex: selected.approachHex
+    option: { ...selected, targetHexId: contact?.targetHex.id ?? targetHexId },
+    approachHex: selected.approachHex,
+    targetHexId: contact?.targetHex.id ?? targetHexId
   };
 }
 
@@ -55,7 +58,8 @@ export function attackContactPair(grid, attacker, target, approachHex, point = n
   const matchingTargetContacts = targetHexId === null
     ? contacts
     : contacts.filter((contact) => contact.targetHex.id === targetHexId);
-  const candidates = matchingTargetContacts.length ? matchingTargetContacts : contacts;
+  if (targetHexId !== null && !matchingTargetContacts.length) return null;
+  const candidates = matchingTargetContacts;
   if (!point || candidates.length === 1) return candidates[0];
   return candidates.reduce((best, contact) => {
     const distance = Math.hypot(contact.targetHex.centerX - point.x, contact.targetHex.centerY - point.y);

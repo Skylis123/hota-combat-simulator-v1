@@ -6,7 +6,7 @@ import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, exe
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
 import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
-import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition, stacksAreAdjacent } from "../src/engine/footprint.js";
+import { canStackOccupy, footprintHexes, movementPlacementForHex, placementPreview, stackVisualPosition, stacksAreAdjacent } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engine/turnOrder.js";
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
@@ -235,7 +235,14 @@ const championHoverPreview = placementPreview(footprintGrid, [], championStack, 
 if (!championHoverPreview.valid || JSON.stringify(championHoverPreview.hexIds) !== JSON.stringify([1, 0])) {
   failures.push("Two-hex setup hover must preview both primary and rear hexes.");
 }
+const championEdgeMovement = movementPlacementForHex(footprintGrid, championStack, new Set([1, 2]), 0);
+if (championEdgeMovement?.primaryHexId !== 1 || JSON.stringify(championEdgeMovement.hexIds) !== JSON.stringify([1, 0])) {
+  failures.push("A wide Player stack must expose the first-column rear hex and resolve it to its legal primary destination.");
+}
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
+if (!/action-cursor="attack-up-left"[^}]*12-attack-down-left\.png/s.test(appCss) || !/action-cursor="attack-down-left"[^}]*10-attack-up-left\.png/s.test(appCss)) {
+  failures.push("The two visually reversed left-diagonal sword frames must be mapped to their actual blade directions.");
+}
 if (/\.battle-stack\.selected\s+img\s*\{[^}]*outline/s.test(appCss)) {
   failures.push("Selected stack styling must not draw a rectangular image outline.");
 }

@@ -10,7 +10,7 @@ import { createBattleStack, createInitialState, resetBattle, setSetupStackCount,
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
-import { canStackOccupy, footprintHexes, occupiedHexesForStacks } from "./engine/footprint.js";
+import { canStackOccupy, footprintHexes, movementPlacementForHex, occupiedHexesForStacks } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 import { ARMY_SLOT_COUNT, deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 import { selectPointerAttack } from "./engine/battleInteraction.js";
@@ -358,12 +358,14 @@ async function onHexClick(hexId) {
   if (state.phase === "setup") return;
 
   const active = activePlayerStack();
-  if (state.phase === "battle" && active && !battleAnimationPending && state.reachable.has(hexId) && !isHexOccupied(hexId, active.id)) {
-    const path = findMovementPath(data.battlefield.grid, state.stacks, active, hexId);
+  const movementPlacement = active ? movementPlacementForHex(data.battlefield.grid, active, state.reachable, hexId) : null;
+  const destinationHexId = movementPlacement?.primaryHexId;
+  if (state.phase === "battle" && active && !battleAnimationPending && destinationHexId !== undefined && !isHexOccupied(destinationHexId, active.id)) {
+    const path = findMovementPath(data.battlefield.grid, state.stacks, active, destinationHexId);
     if (!path) return;
     await runAnimatedAction(
       () => animateStackMove(elements.battlefield, data.battlefield.grid, active, path),
-      () => moveStack(state, active, hexId)
+      () => moveStack(state, active, destinationHexId)
     );
   }
 }
@@ -456,7 +458,7 @@ function onAttackHover(stackId, point = null, targetHexId = null) {
     state.attackPreview = null;
     return preview;
   }
-  state.attackPreview = { targetId: target.id, option: preview.option };
+  state.attackPreview = { targetId: target.id, targetHexId: preview.targetHexId, option: preview.option };
   return preview;
 }
 

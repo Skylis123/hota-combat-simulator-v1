@@ -572,6 +572,20 @@ button.primary {
   stroke: rgba(240, 211, 107, 0.9);
 }
 
+.hex.reachable.reachable-wide-rear {
+  stroke-dasharray: 5 3;
+}
+
+.hex.movement-footprint-preview {
+  fill: rgba(115, 210, 255, 0.28);
+  stroke: #8fe4ff;
+  stroke-width: 3;
+}
+
+.hex.movement-footprint-preview.movement-footprint-rear {
+  stroke-dasharray: 6 3;
+}
+
 .hex.attack-approach-preview {
   fill: rgba(240, 211, 107, 0.34);
   stroke: #ffe184;
@@ -831,7 +845,7 @@ button.primary {
 }
 
 .battlefield[data-action-cursor="attack-up-left"] {
-  cursor: url("../../public/assets/cursors/combat/10-attack-up-left.png") 0 0, crosshair;
+  cursor: url("../../public/assets/cursors/combat/12-attack-down-left.png") 0 0, crosshair;
 }
 
 .battlefield[data-action-cursor="attack-left"] {
@@ -839,7 +853,7 @@ button.primary {
 }
 
 .battlefield[data-action-cursor="attack-down-left"] {
-  cursor: url("../../public/assets/cursors/combat/12-attack-down-left.png") 0 0, crosshair;
+  cursor: url("../../public/assets/cursors/combat/10-attack-up-left.png") 0 0, crosshair;
 }
 
 .battlefield[data-action-cursor="attack-up"] {

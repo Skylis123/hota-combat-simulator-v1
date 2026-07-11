@@ -1,6 +1,6 @@
 import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver.js";
 import { polygonPointsToString } from "../engine/hexGrid.js";
-import { footprintHexes, placementPreview, stackVisualPosition } from "../engine/footprint.js";
+import { footprintHexes, movementPlacementForHex, placementPreview, stackVisualPosition } from "../engine/footprint.js";
 import { inferAbilityFlags } from "../engine/abilities.js";
 
 export function renderBattlefield(container, data, state, handlers) {
@@ -42,18 +42,22 @@ export function renderBattlefield(container, data, state, handlers) {
     const active = state.stacks.find((stack) => stack.id === state.activeStackId);
     if (!hex || active?.owner !== "player") {
       setActionCursor(container, "default");
+      clearMovementPreview(container);
       return;
     }
     const hoveredStack = occupied.get(hex.id)?.stack;
     if (hoveredStack && hoveredStack.owner !== active.owner) {
       const preview = handlers.onAttackHover(hoveredStack.id, point, hex.id);
       showAttackApproach(container, preview);
+      clearMovementPreview(container);
       setActionCursor(container, preview?.cursor || "prohibited");
       return;
     }
     handlers.onAttackHover(null);
     clearAttackApproach(container);
-    if (!hoveredStack && state.reachable.has(hex.id)) {
+    const movementPlacement = !hoveredStack ? movementPlacementForHex(grid, active, state.reachable, hex.id) : null;
+    showMovementPreview(container, movementPlacement);
+    if (movementPlacement) {
       setActionCursor(container, inferAbilityFlags(active.creature).flying ? "fly" : "move");
     } else {
       setActionCursor(container, "default");
@@ -62,6 +66,7 @@ export function renderBattlefield(container, data, state, handlers) {
   container.onpointerleave = () => {
     clearPlacementPreview(container);
     clearAttackApproach(container);
+    clearMovementPreview(container);
     setActionCursor(container, "default");
     handlers.onAttackHover(null);
     handlers.onStackHover(null);
@@ -81,12 +86,25 @@ export function renderBattlefield(container, data, state, handlers) {
     if (stack.alive === false) continue;
     (footprintHexes(grid, stack) || []).forEach((hexId, index) => occupied.set(hexId, { stack, role: index === 0 ? "primary" : "rear" }));
   }
+  const activeStack = state.stacks.find((stack) => stack.id === state.activeStackId);
+  const reachableFootprints = new Map();
+  if (activeStack?.owner === "player") {
+    for (const primaryHexId of state.reachable) {
+      const hexIds = footprintHexes(grid, activeStack, primaryHexId) || [];
+      hexIds.forEach((hexId, index) => {
+        const roles = reachableFootprints.get(hexId) || new Set();
+        roles.add(index === 0 ? "primary" : "rear");
+        reachableFootprints.set(hexId, roles);
+      });
+    }
+  }
   for (const hex of grid.hexes) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     polygon.setAttribute("points", polygonPointsToString(hex.polygonPoints));
     polygon.dataset.hexId = String(hex.id);
     const classes = ["hex"];
-    if (state.reachable.has(hex.id)) classes.push("reachable");
+    if (reachableFootprints.has(hex.id)) classes.push("reachable");
+    if (reachableFootprints.get(hex.id)?.has("rear")) classes.push("reachable-wide-rear");
     const occupancy = occupied.get(hex.id);
     if (occupancy) classes.push("occupied", `occupied-${occupancy.role}`, `occupied-${occupancy.stack.owner}`);
     if (occupancy?.stack.id === state.activeStackId) classes.push("active-stack-hex");
@@ -166,7 +184,13 @@ export function renderBattlefield(container, data, state, handlers) {
       if (active?.owner !== "player" || stack.owner === active.owner) return;
       const point = pointFromPointer(event, container, grid);
       const pointerHex = hexFromPoint(point, grid);
-      const hoveredTargetHexId = (footprintHexes(grid, stack) || []).includes(pointerHex?.id) ? pointerHex.id : null;
+      const targetFootprint = (footprintHexes(grid, stack) || [])
+        .map((hexId) => grid.hexes.find((hex) => hex.id === hexId))
+        .filter(Boolean);
+      const hoveredTargetHexId = targetFootprint.reduce((best, hex) => {
+        const distance = Math.hypot(hex.centerX - point.x, hex.centerY - point.y);
+        return !best || distance < best.distance ? { id: hex.id, distance } : best;
+      }, null)?.id ?? null;
       const preview = handlers.onAttackHover(stack.id, point, hoveredTargetHexId);
       showAttackApproach(container, preview);
       setActionCursor(container, preview?.cursor || "prohibited");
@@ -199,6 +223,23 @@ function setActionCursor(container, action) {
 
 function clearAttackApproach(container) {
   container.querySelectorAll(".hex.attack-approach-preview").forEach((hex) => hex.classList.remove("attack-approach-preview"));
+}
+
+function clearMovementPreview(container) {
+  container.querySelectorAll(".hex.movement-footprint-preview").forEach((hex) => {
+    hex.classList.remove("movement-footprint-preview", "movement-footprint-primary", "movement-footprint-rear");
+  });
+}
+
+function showMovementPreview(container, placement) {
+  clearMovementPreview(container);
+  if (!placement) return;
+  for (const hexId of placement.hexIds) {
+    container.querySelector(`.hex[data-hex-id="${hexId}"]`)?.classList.add(
+      "movement-footprint-preview",
+      hexId === placement.primaryHexId ? "movement-footprint-primary" : "movement-footprint-rear"
+    );
+  }
 }
 
 function showAttackApproach(container, preview) {

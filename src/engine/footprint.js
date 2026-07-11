@@ -36,6 +36,20 @@ export function placementPreview(grid, stacks, stack, primaryHexId) {
   };
 }
 
+export function movementPlacementForHex(grid, stack, reachable, hoveredHexId) {
+  if (!stack || hoveredHexId === null || hoveredHexId === undefined) return null;
+  const primaryIds = [...(reachable || [])];
+  if (reachable?.has(hoveredHexId)) {
+    const hexIds = footprintHexes(grid, stack, hoveredHexId);
+    return hexIds ? { primaryHexId: hoveredHexId, hexIds } : null;
+  }
+  for (const primaryHexId of primaryIds) {
+    const hexIds = footprintHexes(grid, stack, primaryHexId);
+    if (hexIds?.includes(hoveredHexId)) return { primaryHexId, hexIds };
+  }
+  return null;
+}
+
 export function stackVisualPosition(grid, stack, primaryHexId = stack?.hexId) {
   const footprint = footprintHexes(grid, stack, primaryHexId) || [primaryHexId];
   const hexes = footprint.map((hexId) => grid.hexes.find((hex) => hex.id === hexId)).filter(Boolean);
