@@ -75,8 +75,8 @@ for (const creature of data.creatures) {
   const animationRoot = path.join(root, "public", "assets", "creatures", "animations", String(creature.creatureId));
   const corpseSize = pngDimensions(path.join(animationRoot, "corpse.png"));
   const deathSize = gifDimensions(path.join(animationRoot, "death.gif"));
-  if (JSON.stringify(corpseSize) !== JSON.stringify(deathSize)) {
-    failures.push(`${creature.name} corpse must retain the shared death canvas instead of being enlarged from a tight crop.`);
+  if (corpseSize.width > deathSize.width || corpseSize.height > deathSize.height || corpseSize.width < 1 || corpseSize.height < 1) {
+    failures.push(`${creature.name} corpse must be a valid tight crop of its death animation canvas.`);
   }
 }
 

@@ -680,10 +680,18 @@ button.primary {
 }
 
 .battle-stack.dead img {
-  width: 78px;
-  height: 78px;
-  object-position: center bottom;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 36px;
+  object-position: center center;
+  transform: translate(-50%, -50%);
   filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.7));
+}
+
+.battle-stack.dead.ai img {
+  transform: translate(-50%, -50%) scaleX(-1);
 }
 
 .battle-stack.two-hex.dead {
