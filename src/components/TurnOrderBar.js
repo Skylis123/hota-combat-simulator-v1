@@ -1,3 +1,5 @@
+import { pendingTurnOrder } from "../engine/turnOrder.js";
+
 export function renderTurnOrder(container, state) {
   container.innerHTML = "";
   if (!state.stacks.length) {
@@ -5,7 +7,7 @@ export function renderTurnOrder(container, state) {
     return;
   }
 
-  const order = state.phase === "battle" ? state.turnQueue : [...state.stacks]
+  const order = state.phase === "battle" ? pendingTurnOrder(state) : [...state.stacks]
     .sort((a, b) => (b.creature.stats.speed || 0) - (a.creature.stats.speed || 0))
     .map((stack) => stack.id);
 

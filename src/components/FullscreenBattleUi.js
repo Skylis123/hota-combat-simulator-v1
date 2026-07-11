@@ -1,10 +1,10 @@
 import { resolveCreatureImage } from "../engine/assetResolver.js";
-import { computeTurnOrder } from "../engine/turnOrder.js";
+import { computeTurnOrder, pendingTurnOrder } from "../engine/turnOrder.js";
 
 export function renderFullscreenTurnOrder(container, state) {
   container.innerHTML = "";
   const order = state.phase === "battle" || state.phase === "finished"
-    ? state.turnQueue
+    ? pendingTurnOrder(state)
     : computeTurnOrder(state.stacks);
 
   const strip = document.createElement("div");

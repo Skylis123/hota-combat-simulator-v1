@@ -92,7 +92,10 @@ function normalizeCreature(creature, asset) {
 
 function normalizeGrid(visibleGrid) {
   const rawHexes = visibleGrid.hexes || visibleGrid.mapping || [];
-  const engineToVisible = new Map(rawHexes.map((hex) => [hex.engineId ?? hex.id, hex.id ?? hex.visibleId]));
+  const idByCell = new Map(rawHexes.map((hex) => [
+    `${hex.row}:${hex.col ?? hex.visibleCol}`,
+    hex.id ?? hex.visibleId
+  ]));
   return {
     id: visibleGrid.gridId || "visible_15x11_165",
     status: visibleGrid.status || "CONFIRMED",
@@ -103,15 +106,24 @@ function normalizeGrid(visibleGrid) {
     columns: visibleGrid.columns || visibleGrid.visibleCols || 15,
     hexCount: rawHexes.length,
     hexes: rawHexes.map((hex) => {
-      const engineNeighbors = hex.neighborEngineIds || hex.neighborsEngineIds || hex.neighbors || [];
-      const visibleNeighbors = uniqueNumbers(engineNeighbors.map((engineId) => engineToVisible.get(engineId)));
-      const centerX = Math.round(hex.centerX);
+      const row = hex.row;
+      const col = hex.col ?? hex.visibleCol;
+      const diagonalCols = row % 2 === 0 ? [col, col + 1] : [col - 1, col];
+      const visibleNeighbors = uniqueNumbers([
+        idByCell.get(`${row}:${col - 1}`),
+        idByCell.get(`${row}:${col + 1}`),
+        idByCell.get(`${row - 1}:${diagonalCols[0]}`),
+        idByCell.get(`${row - 1}:${diagonalCols[1]}`),
+        idByCell.get(`${row + 1}:${diagonalCols[0]}`),
+        idByCell.get(`${row + 1}:${diagonalCols[1]}`)
+      ]);
+      const centerX = Math.round(hex.centerX) + (row % 2 === 0 ? 22 : -22);
       const centerY = Math.round(hex.centerY);
       return {
         id: hex.id ?? hex.visibleId,
         engineId: hex.engineId ?? hex.id,
-        row: hex.row,
-        col: hex.col ?? hex.visibleCol,
+        row,
+        col,
         centerX,
         centerY,
         polygonPoints: [

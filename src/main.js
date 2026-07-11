@@ -556,6 +556,8 @@ function render() {
   elements.battleActions.classList.toggle("hidden", state.phase !== "battle" || !activePlayerStack());
   elements.attackBestAction.disabled = state.phase !== "battle" || !activePlayerStack() || state.attackableTargetIds.size === 0;
   const active = activePlayerStack();
+  elements.waitAction.disabled = !active || active.statuses.waiting;
+  elements.defendAction.disabled = !active;
   const resurrectionTargets = active ? resurrectionCandidates(state, active) : [];
   elements.resurrectAction.classList.toggle("hidden", resurrectionTargets.length === 0 && !active?.resurrectionUsed);
   elements.resurrectAction.disabled = resurrectionTargets.length === 0;

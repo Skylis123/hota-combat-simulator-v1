@@ -7,11 +7,11 @@ export const ActionKind = {
 };
 
 export function waitStack(state, stack) {
+  if (!stack || stack.statuses.acted || stack.statuses.waiting) return false;
   stack.statuses.waiting = true;
   state.actionLog.unshift(`${stack.label} waits.`);
-  state.turnQueue = state.turnQueue.filter((id) => id !== stack.id);
-  state.turnQueue.push(stack.id);
   state.activeStackId = nextActiveStack(state);
+  return true;
 }
 
 export function defendStack(state, stack) {

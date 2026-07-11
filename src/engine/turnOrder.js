@@ -13,11 +13,8 @@ export function computeTurnOrder(stacks) {
 }
 
 export function nextActiveStack(state) {
-  const available = state.turnQueue.filter((id) => {
-    const stack = state.stacks.find((candidate) => candidate.id === id);
-    return stack && stack.alive !== false && !stack.statuses.acted;
-  });
-  if (available.length) return available[0];
+  const pending = pendingTurnOrder(state);
+  if (pending.length) return pending[0];
   for (const stack of state.stacks) {
     stack.statuses.acted = false;
     stack.statuses.waiting = false;
@@ -29,4 +26,15 @@ export function nextActiveStack(state) {
   state.round += 1;
   state.turnQueue = computeTurnOrder(state.stacks);
   return state.turnQueue[0] || null;
+}
+
+export function pendingTurnOrder(state) {
+  const available = state.turnQueue.filter((id) => {
+    const stack = state.stacks.find((candidate) => candidate.id === id);
+    return stack && stack.alive !== false && !stack.statuses.acted && !stack.statuses.waiting;
+  });
+  const waiting = computeTurnOrder(
+    state.stacks.filter((stack) => stack.alive !== false && !stack.statuses.acted && stack.statuses.waiting)
+  ).reverse();
+  return [...available, ...waiting];
 }

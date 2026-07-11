@@ -6,11 +6,12 @@ import { attackOption, attackOptions, chooseAdvanceOption, chooseBestAttack, exe
 import { findMovementPath } from "../src/engine/movement.js";
 import { inferAbilityFlags } from "../src/engine/abilities.js";
 import { calculateExpectedDamage, calculateRolledDamage } from "../src/engine/combatPower.js";
-import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition } from "../src/engine/footprint.js";
+import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition, stacksAreAdjacent } from "../src/engine/footprint.js";
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
-import { computeTurnOrder } from "../src/engine/turnOrder.js";
+import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engine/turnOrder.js";
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { selectPointerAttack } from "../src/engine/battleInteraction.js";
+import { waitStack } from "../src/engine/actions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -41,6 +42,9 @@ if (
   !lowerHex.polygonPoints.some((point) => point[0] === topHex.centerX && point[1] === topHex.centerY + 28)
 ) {
   failures.push("Battlefield hex polygons must share exact game-style edges without vertical gaps.");
+}
+if (JSON.stringify(topHex.neighbors) !== JSON.stringify([1, 15, 16])) {
+  failures.push(`Top-left battlefield corner must expose three contact hexes with game parity: ${topHex.neighbors}`);
 }
 
 for (const cursor of [
@@ -84,6 +88,29 @@ if (countEditorStack.count !== 27 || countEditorStack.initialCount !== 27 || cou
 }
 setSetupStackCount(countEditorStack, 0);
 if (countEditorStack.count !== 1) failures.push("Stack count editing must clamp the minimum to one.");
+const fastWaiter = createBattleStack({ creature: { name: "Fast", stats: { hp: 10, speed: 9 } }, owner: "player", hexId: 0, count: 1, createdAt: 0, armySlot: 0 });
+const slowWaiter = createBattleStack({ creature: { name: "Slow", stats: { hp: 10, speed: 4 } }, owner: "player", hexId: 1, count: 1, createdAt: 1, armySlot: 1 });
+const waitState = {
+  stacks: [fastWaiter, slowWaiter],
+  turnQueue: computeTurnOrder([fastWaiter, slowWaiter]),
+  activeStackId: fastWaiter.id,
+  actionLog: [],
+  round: 1
+};
+if (!waitStack(waitState, fastWaiter) || waitState.activeStackId !== slowWaiter.id) {
+  failures.push("Wait must defer the current stack behind all non-waiting stacks.");
+}
+waitStack(waitState, slowWaiter);
+if (JSON.stringify(pendingTurnOrder(waitState)) !== JSON.stringify([slowWaiter.id, fastWaiter.id])) {
+  failures.push("Wait phase must run in reverse initiative order, slowest waiting stack first.");
+}
+if (waitStack(waitState, slowWaiter)) {
+  failures.push("A stack must not be allowed to Wait more than once in the same round.");
+}
+slowWaiter.statuses.acted = true;
+if (nextActiveStack(waitState) !== fastWaiter.id) {
+  failures.push("After the slow waiting stack acts, the next waiting stack must receive its delayed turn.");
+}
 const resetState = createInitialState();
 resetState.stacks = [
   createBattleStack({ creature: resetCreature, owner: "player", hexId: 12, count: 20, createdAt: 0 }),
@@ -254,8 +281,18 @@ if (stackInfoSource.includes("data-stack-count")) {
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });
 const playerChampionVisual = stackVisualPosition(data.battlefield.grid, joustingChampion);
 const aiChampionVisual = stackVisualPosition(data.battlefield.grid, { ...joustingChampion, owner: "ai" });
-if (playerChampionVisual?.centerX !== 132 || aiChampionVisual?.centerX !== 176) {
+if (playerChampionVisual?.centerX !== 110 || aiChampionVisual?.centerX !== 154) {
   failures.push(`Two-hex visual anchor mismatch: Player=${playerChampionVisual?.centerX}, AI=${aiChampionVisual?.centerX}.`);
+}
+const parityGriffin = createBattleStack({ creature: byCreatureId.get(4), owner: "player", hexId: 31, count: 10, createdAt: 0 });
+const diagonalEnemy = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 17, count: 10, createdAt: 1 });
+const wideDiagonalEnemy = createBattleStack({ creature: byCreatureId.get(10), owner: "ai", hexId: 16, count: 10, createdAt: 2 });
+for (const target of [diagonalEnemy, wideDiagonalEnemy]) {
+  const parityState = { stacks: [parityGriffin, target] };
+  const options = attackOptions(data.battlefield.grid, parityState, parityGriffin, target);
+  if (!stacksAreAdjacent(data.battlefield.grid, parityGriffin, target) || !options.some((option) => option.approachHex === parityGriffin.hexId)) {
+    failures.push(`Two-hex Griffin must attack an adjacent ${target.creature.name} from either occupied footprint cell.`);
+  }
 }
 const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const joustingState = { stacks: [joustingChampion, normalJoustTarget] };
@@ -271,7 +308,7 @@ const pointerAttack = selectPointerAttack(data.battlefield.grid, joustingState, 
   x: pointerPosition.centerX,
   y: pointerPosition.centerY
 });
-if (!pointerAttack.option || pointerAttack.approachHex !== pointerCandidate.approachHex || !pointerAttack.cursor.startsWith("attack-")) {
+if (!pointerAttack.option || pointerAttack.approachHex !== pointerCandidate.approachHex || pointerAttack.cursor !== "attack-up-left") {
   failures.push("Enemy pointer sector must select its corresponding legal contact hex and sword cursor.");
 }
 const immuneJoustTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "ai", hexId: 84, count: 100, createdAt: 1 });

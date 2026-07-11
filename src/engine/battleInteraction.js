@@ -1,5 +1,5 @@
 import { attackOptions } from "./combat.js";
-import { stackVisualPosition } from "./footprint.js";
+import { footprintHexes, stackVisualPosition } from "./footprint.js";
 
 export function selectPointerAttack(grid, state, attacker, target, point = null) {
   const options = attackOptions(grid, state, attacker, target);
@@ -9,7 +9,8 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
   }
 
   const selected = options.reduce((best, option) => {
-    const position = stackVisualPosition(grid, attacker, option.approachHex);
+    const contact = attackContactPair(grid, attacker, target, option.approachHex);
+    const position = contact?.attackerHex || stackVisualPosition(grid, attacker, option.approachHex);
     if (!position || !point) return best || { option, distance: 0 };
     const distance = Math.hypot(position.centerX - point.x, position.centerY - point.y);
     return !best || distance < best.distance ? { option, distance } : best;
@@ -23,10 +24,11 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
 }
 
 export function directionalAttackCursor(grid, attacker, target, approachHex) {
-  const from = stackVisualPosition(grid, attacker, approachHex);
-  const to = stackVisualPosition(grid, target);
+  const contact = attackContactPair(grid, attacker, target, approachHex);
+  const from = contact?.attackerHex || stackVisualPosition(grid, attacker, approachHex);
+  const to = contact?.targetHex || stackVisualPosition(grid, target);
   if (!from || !to) return "attack-right";
-  const angle = Math.atan2(to.centerY - from.centerY, to.centerX - from.centerX) * 180 / Math.PI;
+  const angle = Math.atan2(from.centerY - to.centerY, from.centerX - to.centerX) * 180 / Math.PI;
   if (angle >= -22.5 && angle < 22.5) return "attack-right";
   if (angle >= 22.5 && angle < 67.5) return "attack-down-right";
   if (angle >= 67.5 && angle < 112.5) return "attack-down";
@@ -35,4 +37,18 @@ export function directionalAttackCursor(grid, attacker, target, approachHex) {
   if (angle >= -157.5 && angle < -112.5) return "attack-up-left";
   if (angle >= -112.5 && angle < -67.5) return "attack-up";
   return "attack-up-right";
+}
+
+export function attackContactPair(grid, attacker, target, approachHex) {
+  const attackerHexes = footprintHexes(grid, attacker, approachHex) || [];
+  const targetHexes = footprintHexes(grid, target) || [];
+  for (const attackerHexId of attackerHexes) {
+    const attackerHex = grid.hexes.find((hex) => hex.id === attackerHexId);
+    if (!attackerHex) continue;
+    for (const targetHexId of targetHexes) {
+      const targetHex = grid.hexes.find((hex) => hex.id === targetHexId);
+      if (targetHex?.neighbors.includes(attackerHexId)) return { attackerHex, targetHex };
+    }
+  }
+  return null;
 }
