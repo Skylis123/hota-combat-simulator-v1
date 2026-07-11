@@ -16,6 +16,7 @@ export function createInitialState() {
     enemyTargetIds: new Set(),
     attackableTargetIds: new Set(),
     setupPreview: null,
+    attackPreview: null,
     battleSetupSnapshot: null,
     round: 1,
     actionLog: []
@@ -66,6 +67,7 @@ export function startBattle(state) {
   state.phase = "battle";
   state.winner = null;
   state.round = 1;
+  state.attackPreview = null;
   for (const stack of state.stacks) {
     stack.alive = stack.count > 0;
     stack.hpTotal = stack.hpTotal || stack.count * Number(stack.creature.stats.hp || 1);
@@ -97,6 +99,7 @@ export function resetBattle(state) {
   state.reachable = new Set();
   state.enemyTargetIds = new Set();
   state.attackableTargetIds = new Set();
+  state.attackPreview = null;
   state.round = 1;
   state.actionLog.unshift("Battle reset to setup.");
 }

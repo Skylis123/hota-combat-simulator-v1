@@ -8,6 +8,7 @@ export function renderBattlefield(container, data, state, handlers) {
   const grid = battlefield.grid;
   container.style.backgroundImage = `url("./public/${resolveBackground(battlefield)}")`;
   container.innerHTML = "";
+  setActionCursor(container, "default");
   container.classList.toggle("setup-mode", state.phase === "setup");
   container.ondragover = (event) => {
     if (state.phase !== "setup" || !event.dataTransfer.types.includes("application/x-stack-id")) return;
@@ -34,8 +35,37 @@ export function renderBattlefield(container, data, state, handlers) {
     const stackId = event.dataTransfer.getData("application/x-stack-id");
     handlers.onDrop({ stackId }, hex.id);
   };
-  container.onpointermove = null;
-  container.onpointerleave = () => clearPlacementPreview(container);
+  container.onpointermove = (event) => {
+    if (state.phase !== "battle") return;
+    const point = pointFromPointer(event, container, grid);
+    const hex = hexFromPoint(point, grid);
+    const active = state.stacks.find((stack) => stack.id === state.activeStackId);
+    if (!hex || active?.owner !== "player") {
+      setActionCursor(container, "default");
+      return;
+    }
+    const hoveredStack = occupied.get(hex.id)?.stack;
+    if (hoveredStack && hoveredStack.owner !== active.owner) {
+      const preview = handlers.onAttackHover(hoveredStack.id, point);
+      showAttackApproach(container, preview);
+      setActionCursor(container, preview?.cursor || "prohibited");
+      return;
+    }
+    handlers.onAttackHover(null);
+    clearAttackApproach(container);
+    if (!hoveredStack && state.reachable.has(hex.id)) {
+      setActionCursor(container, inferAbilityFlags(active.creature).flying ? "fly" : "move");
+    } else {
+      setActionCursor(container, "default");
+    }
+  };
+  container.onpointerleave = () => {
+    clearPlacementPreview(container);
+    clearAttackApproach(container);
+    setActionCursor(container, "default");
+    handlers.onAttackHover(null);
+    handlers.onStackHover(null);
+  };
   container.onclick = (event) => {
     if (event.target.closest(".battle-stack")) return;
     const hex = hexFromPointer(event, container, grid);
@@ -112,10 +142,30 @@ export function renderBattlefield(container, data, state, handlers) {
     `;
     element.addEventListener("click", (event) => {
       event.stopPropagation();
+      const pointerHex = hexFromPointer(event, container, grid);
+      const stackFootprint = footprintHexes(grid, stack) || [];
+      if (state.phase === "battle" && pointerHex && !stackFootprint.includes(pointerHex.id)) {
+        handlers.onHexClick(pointerHex.id);
+        return;
+      }
       handlers.onStackClick(stack.id);
     });
     element.addEventListener("mouseenter", () => handlers.onStackHover(stack.id));
-    element.addEventListener("mouseleave", () => handlers.onStackHover(null));
+    element.addEventListener("pointermove", (event) => {
+      if (state.phase !== "battle") return;
+      const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
+      if (active?.owner !== "player" || stack.owner === active.owner) return;
+      const point = pointFromPointer(event, container, grid);
+      const preview = handlers.onAttackHover(stack.id, point);
+      showAttackApproach(container, preview);
+      setActionCursor(container, preview?.cursor || "prohibited");
+    });
+    element.addEventListener("mouseleave", () => {
+      handlers.onStackHover(null);
+      handlers.onAttackHover(null);
+      clearAttackApproach(container);
+      setActionCursor(container, "default");
+    });
     element.addEventListener("dragstart", (event) => {
       if (state.phase !== "setup") return;
       container.dataset.dragStackId = stack.id;
@@ -130,6 +180,20 @@ export function renderBattlefield(container, data, state, handlers) {
     stackLayer.appendChild(element);
   }
   container.appendChild(stackLayer);
+}
+
+function setActionCursor(container, action) {
+  container.dataset.actionCursor = action || "default";
+}
+
+function clearAttackApproach(container) {
+  container.querySelectorAll(".hex.attack-approach-preview").forEach((hex) => hex.classList.remove("attack-approach-preview"));
+}
+
+function showAttackApproach(container, preview) {
+  clearAttackApproach(container);
+  if (!preview?.option || preview.option.mode !== "melee") return;
+  container.querySelector(`.hex[data-hex-id="${preview.approachHex}"]`)?.classList.add("attack-approach-preview");
 }
 
 function clearPlacementPreview(container) {
@@ -161,16 +225,25 @@ function stackTitle(state, stack) {
 }
 
 function hexFromPointer(event, container, grid) {
+  return hexFromPoint(pointFromPointer(event, container, grid), grid);
+}
+
+function pointFromPointer(event, container, grid) {
   const rect = container.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * grid.width;
-  const y = ((event.clientY - rect.top) / rect.height) * grid.height;
-  const containingHex = grid.hexes.find((hex) => pointInPolygon(x, y, hex.polygonPoints));
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * grid.width,
+    y: ((event.clientY - rect.top) / rect.height) * grid.height
+  };
+}
+
+function hexFromPoint(point, grid) {
+  const containingHex = grid.hexes.find((hex) => pointInPolygon(point.x, point.y, hex.polygonPoints));
   if (containingHex) return containingHex;
 
   let nearest = null;
   let nearestDistance = Infinity;
   for (const hex of grid.hexes) {
-    const distance = Math.hypot(hex.centerX - x, hex.centerY - y);
+    const distance = Math.hypot(hex.centerX - point.x, hex.centerY - point.y);
     if (distance < nearestDistance) {
       nearest = hex;
       nearestDistance = distance;

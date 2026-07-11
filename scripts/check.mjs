@@ -10,6 +10,7 @@ import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition }
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 import { computeTurnOrder } from "../src/engine/turnOrder.js";
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
+import { selectPointerAttack } from "../src/engine/battleInteraction.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -32,6 +33,25 @@ if (data.scope?.town !== "Castle") failures.push("V1 data is not Castle-scoped."
 if ((data.creatures || []).length !== 14) failures.push("Castle creature subset must contain 14 base/upgraded units.");
 if (data.battlefield?.grid?.hexCount !== 165) failures.push("Visible grid must contain 165 hexes.");
 if (!fs.existsSync(path.join(root, "public", data.battlefield.background.image))) failures.push("Battlefield background is missing.");
+const topHex = data.battlefield.grid.hexes.find((hex) => hex.row === 0 && hex.col === 0);
+const lowerHex = data.battlefield.grid.hexes.find((hex) => hex.row === 1 && hex.col === 0);
+if (
+  Math.min(...topHex.polygonPoints.map((point) => point[1])) !== topHex.centerY - 28 ||
+  !topHex.polygonPoints.some((point) => point[0] === lowerHex.centerX && point[1] === lowerHex.centerY - 28) ||
+  !lowerHex.polygonPoints.some((point) => point[0] === topHex.centerX && point[1] === topHex.centerY + 28)
+) {
+  failures.push("Battlefield hex polygons must share exact game-style edges without vertical gaps.");
+}
+
+for (const cursor of [
+  "00-prohibited.png", "01-move.png", "02-fly.png", "03-shoot.png", "06-default.png",
+  "07-attack-up-right.png", "08-attack-right.png", "09-attack-down-right.png",
+  "10-attack-up-left.png", "11-attack-left.png", "12-attack-down-left.png", "13-attack-up.png", "14-attack-down.png"
+]) {
+  if (!fs.existsSync(path.join(root, "public", "assets", "cursors", "combat", cursor))) {
+    failures.push(`Missing extracted Heroes III combat cursor: ${cursor}`);
+  }
+}
 
 for (const creature of data.creatures || []) {
   const image = creature.asset?.displayImage;
@@ -216,6 +236,16 @@ const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
 if (!indexSource.includes('id="fullscreen-battlefield"') || !mainSource.includes("requestFullscreen") || !mainSource.includes('addEventListener("fullscreenchange"')) {
   failures.push("Battlefield full screen must use the native Fullscreen API and react to ESC-driven fullscreen changes.");
 }
+if (!mainSource.includes('event.code === "Space"') || !mainSource.includes('event.key.toLowerCase() === "d"') || !mainSource.includes('event.key.toLowerCase() === "w"')) {
+  failures.push("Battlefield hotkeys must include Space full screen, D defend and W wait.");
+}
+if (!battlefieldSource.includes("pointerHex") || !battlefieldSource.includes("onAttackHover")) {
+  failures.push("Battlefield interaction must resolve overlapped sprite clicks by underlying hex and support direct attack hover.");
+}
+const fullscreenUiSource = fs.readFileSync(path.join(root, "src", "components", "FullscreenBattleUi.js"), "utf8");
+if (!fullscreenUiSource.includes("total HP") || !fullscreenUiSource.includes("fullscreen-turn-unit")) {
+  failures.push("Full screen must include unit HP hover details and a visual turn-order strip.");
+}
 const stackInfoSource = fs.readFileSync(path.join(root, "src", "components", "StackInfo.js"), "utf8");
 if (stackInfoSource.includes("data-stack-count")) {
   failures.push("Selection details must not expose the legacy inline count field.");
@@ -234,6 +264,15 @@ const selectedJoust = chooseBestAttack(data.battlefield.grid, joustingState, jou
 const maximumJoustSteps = Math.max(...joustingOptions.map((option) => option.approachPath.length - 1));
 if (!selectedJoust || selectedJoust.option.approachPath.length - 1 !== maximumJoustSteps) {
   failures.push("Champion AI must jointly score target and approach hex to preserve the best Jousting bonus.");
+}
+const pointerCandidate = joustingOptions[0];
+const pointerPosition = stackVisualPosition(data.battlefield.grid, joustingChampion, pointerCandidate.approachHex);
+const pointerAttack = selectPointerAttack(data.battlefield.grid, joustingState, joustingChampion, normalJoustTarget, {
+  x: pointerPosition.centerX,
+  y: pointerPosition.centerY
+});
+if (!pointerAttack.option || pointerAttack.approachHex !== pointerCandidate.approachHex || !pointerAttack.cursor.startsWith("attack-")) {
+  failures.push("Enemy pointer sector must select its corresponding legal contact hex and sword cursor.");
 }
 const immuneJoustTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const immuneJoustState = { stacks: [joustingChampion, immuneJoustTarget] };

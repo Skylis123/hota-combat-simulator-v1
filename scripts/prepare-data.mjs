@@ -105,14 +105,23 @@ function normalizeGrid(visibleGrid) {
     hexes: rawHexes.map((hex) => {
       const engineNeighbors = hex.neighborEngineIds || hex.neighborsEngineIds || hex.neighbors || [];
       const visibleNeighbors = uniqueNumbers(engineNeighbors.map((engineId) => engineToVisible.get(engineId)));
+      const centerX = Math.round(hex.centerX);
+      const centerY = Math.round(hex.centerY);
       return {
         id: hex.id ?? hex.visibleId,
         engineId: hex.engineId ?? hex.id,
         row: hex.row,
         col: hex.col ?? hex.visibleCol,
-        centerX: Math.round(hex.centerX),
-        centerY: Math.round(hex.centerY),
-        polygonPoints: hex.polygonPoints || hex.polygon || [],
+        centerX,
+        centerY,
+        polygonPoints: [
+          [centerX - 22, centerY - 14],
+          [centerX, centerY - 28],
+          [centerX + 22, centerY - 14],
+          [centerX + 22, centerY + 14],
+          [centerX, centerY + 28],
+          [centerX - 22, centerY + 14]
+        ],
         neighbors: visibleNeighbors
       };
     })

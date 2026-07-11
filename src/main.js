@@ -4,6 +4,7 @@ import { renderBattlefield } from "./components/Battlefield.js";
 import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
 import { renderArmySetup } from "./components/ArmySetup.js";
+import { renderFullscreenHoverInfo, renderFullscreenTurnOrder } from "./components/FullscreenBattleUi.js";
 import { animateAttackResult, animateStackAttack, animateStackDefend, animateStackMove } from "./components/BattleAnimator.js";
 import { createBattleStack, createInitialState, resetBattle, setSetupStackCount, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
@@ -12,12 +13,15 @@ import { findMovementPath, reachableHexes } from "./engine/movement.js";
 import { canStackOccupy, occupiedHexesForStacks } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 import { deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
+import { selectPointerAttack } from "./engine/battleInteraction.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
   creatureList: document.querySelector("#creature-list"),
   battlefieldViewport: document.querySelector("#battlefield-viewport"),
   battlefield: document.querySelector("#battlefield"),
+  fullscreenHoverInfo: document.querySelector("#fullscreen-hover-info"),
+  fullscreenTurnOrder: document.querySelector("#fullscreen-turn-order"),
   stackInfo: document.querySelector("#stack-info"),
   turnOrder: document.querySelector("#turn-order"),
   armySetup: document.querySelector("#army-setup"),
@@ -70,6 +74,7 @@ function bindEvents() {
   elements.fullscreenBattlefield.addEventListener("click", toggleBattlefieldFullscreen);
   document.addEventListener("fullscreenchange", updateBattlefieldFullscreen);
   window.addEventListener("resize", updateBattlefieldFullscreen);
+  document.addEventListener("keydown", onGlobalKeyDown);
 
   elements.startBattle.addEventListener("click", () => {
     if (state.stacks.length < 2 || battleAnimationPending) return;
@@ -186,6 +191,26 @@ function bindEvents() {
   });
 }
 
+function onGlobalKeyDown(event) {
+  const editable = event.target instanceof HTMLElement && (
+    event.target.matches("input, textarea, select") || event.target.isContentEditable
+  );
+  if (editable || elements.stackCountDialog.open) return;
+  if (event.code === "Space") {
+    event.preventDefault();
+    toggleBattlefieldFullscreen();
+    return;
+  }
+  if (state.phase !== "battle" || battleAnimationPending) return;
+  if (event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    elements.defendAction.click();
+  } else if (event.key.toLowerCase() === "w") {
+    event.preventDefault();
+    elements.waitAction.click();
+  }
+}
+
 async function toggleBattlefieldFullscreen() {
   try {
     if (document.fullscreenElement === elements.battlefieldViewport) {
@@ -206,7 +231,7 @@ function updateBattlefieldFullscreen() {
     elements.battlefield.style.transform = "";
     return;
   }
-  const scale = Math.min(window.innerWidth / 800, window.innerHeight / 556);
+  const scale = Math.max(0.5, Math.min((window.innerWidth - 280) / 800, (window.innerHeight - 86) / 556));
   elements.battlefield.style.transform = `scale(${scale})`;
 }
 
@@ -330,8 +355,10 @@ async function onStackClick(stackId) {
   const clicked = state.stacks.find((candidate) => candidate.id === stackId);
   const active = activePlayerStack();
   if (state.phase === "battle" && active && clicked && clicked.owner !== active.owner) {
-    const option = attackOption(data.battlefield.grid, state, active, clicked);
+    const previewOption = state.attackPreview?.targetId === clicked.id ? state.attackPreview.option : null;
+    const option = previewOption || attackOption(data.battlefield.grid, state, active, clicked);
     if (option.canAttack) {
+      state.attackPreview = null;
       await runAnimatedAction(
         () => animateStackAttack(elements.battlefield, data.battlefield.grid, active, clicked, option),
         () => executeAttack(state, data.battlefield.grid, active, clicked, option),
@@ -375,12 +402,31 @@ async function onAttackSelectedTarget() {
 function onStackHover(stackId) {
   if (battleAnimationPending) return;
   state.hoveredStackId = stackId;
-  updateReachable();
-  renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
+  renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
+}
+
+function onAttackHover(stackId, point = null) {
+  if (!stackId || state.phase !== "battle" || battleAnimationPending) {
+    state.attackPreview = null;
+    return null;
+  }
+  const active = activePlayerStack();
+  const target = state.stacks.find((stack) => stack.id === stackId);
+  if (!active || !target || target.owner === active.owner || target.alive === false) {
+    state.attackPreview = null;
+    return null;
+  }
+  const preview = selectPointerAttack(data.battlefield.grid, state, active, target, point);
+  if (!preview.option) {
+    state.attackPreview = null;
+    return preview;
+  }
+  state.attackPreview = { targetId: target.id, option: preview.option };
+  return preview;
 }
 
 function battlefieldHandlers() {
-  return { onDrop, onHexClick, onStackClick, onStackHover };
+  return { onDrop, onHexClick, onStackClick, onStackHover, onAttackHover };
 }
 
 function armySlotFromClientPoint(clientX, clientY) {
@@ -524,6 +570,8 @@ function render() {
   });
   renderStackInfo(elements.stackInfo, data, state);
   renderTurnOrder(elements.turnOrder, state);
+  renderFullscreenTurnOrder(elements.fullscreenTurnOrder, state);
+  renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
   renderBattleLog();
   scheduleAiTurn();
 }

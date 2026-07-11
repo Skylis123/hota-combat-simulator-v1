@@ -261,20 +261,161 @@ button.primary {
   height: 100vh;
   overflow: hidden;
   background: #080b0f;
+  place-items: start;
 }
 
 .battlefield-viewport:fullscreen .battlefield {
-  transform-origin: center center;
+  transform-origin: top left;
 }
 
 .fullscreen-hint {
   display: none;
 }
 
+.fullscreen-turn-order,
+.fullscreen-hover-info {
+  display: none;
+}
+
+.battlefield-viewport:fullscreen .fullscreen-turn-order {
+  position: fixed;
+  z-index: 18;
+  right: 292px;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.fullscreen-turn-strip {
+  display: flex;
+  max-width: calc(100vw - 110px);
+  gap: 3px;
+  overflow: hidden;
+  padding: 4px;
+  border: 2px ridge #86683d;
+  background: rgba(26, 18, 12, 0.94);
+}
+
+.fullscreen-turn-unit {
+  position: relative;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 66px;
+  overflow: hidden;
+  border: 2px ridge #785c38;
+  background: #21170f;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.75);
+}
+
+.fullscreen-turn-unit.player {
+  border-bottom-color: var(--player);
+}
+
+.fullscreen-turn-unit.ai {
+  border-bottom-color: var(--ai);
+}
+
+.fullscreen-turn-unit.active {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 10px rgba(240, 211, 107, 0.85), inset 0 0 8px rgba(0, 0, 0, 0.75);
+}
+
+.fullscreen-turn-unit.acted {
+  filter: grayscale(0.65) brightness(0.62);
+}
+
+.fullscreen-turn-unit img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.fullscreen-turn-count,
+.fullscreen-turn-speed {
+  position: absolute;
+  bottom: 0;
+  padding: 1px 3px;
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.fullscreen-turn-count {
+  right: 0;
+  min-width: 24px;
+  background: #673092;
+  text-align: center;
+}
+
+.fullscreen-turn-speed {
+  left: 0;
+  background: rgba(20, 27, 34, 0.9);
+}
+
+.fullscreen-round {
+  display: grid;
+  width: 72px;
+  place-content: center;
+  border: 2px ridge #86683d;
+  background: rgba(26, 18, 12, 0.94);
+  color: #e8d29d;
+  text-align: center;
+}
+
+.fullscreen-round strong {
+  font-size: 23px;
+}
+
+.fullscreen-round span {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.battlefield-viewport:fullscreen .fullscreen-hover-info.visible {
+  position: fixed;
+  z-index: 19;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  width: 252px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid rgba(207, 185, 125, 0.8);
+  background: rgba(12, 16, 20, 0.91);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.fullscreen-hover-info img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.fullscreen-hover-info div {
+  display: grid;
+  gap: 2px;
+}
+
+.fullscreen-hover-info strong {
+  color: #f2e4bd;
+  font-size: 13px;
+}
+
+.fullscreen-hover-info span {
+  color: #c2c9b9;
+  font-size: 11px;
+}
+
 .battlefield-viewport:fullscreen .fullscreen-hint {
   position: fixed;
   z-index: 20;
-  top: 18px;
+  bottom: 18px;
   right: 20px;
   display: block;
   padding: 7px 10px;
@@ -310,9 +451,11 @@ button.primary {
 }
 
 .hex {
-  fill: rgba(141, 174, 66, 0.03);
-  stroke: rgba(179, 213, 62, 0.52);
-  stroke-width: 1;
+  fill: rgba(30, 42, 10, 0.08);
+  stroke: rgba(124, 166, 19, 0.88);
+  stroke-width: 1.35;
+  stroke-linejoin: round;
+  shape-rendering: geometricPrecision;
 }
 
 .setup-mode .hex:hover {
@@ -353,6 +496,12 @@ button.primary {
   stroke: rgba(240, 211, 107, 0.9);
 }
 
+.hex.attack-approach-preview {
+  fill: rgba(240, 211, 107, 0.34);
+  stroke: #ffe184;
+  stroke-width: 2.4;
+}
+
 .hex.placement-preview.placement-valid {
   fill: rgba(86, 205, 117, 0.34);
   stroke: #80ef9c;
@@ -382,9 +531,9 @@ button.primary {
 
 .battle-stack {
   position: absolute;
-  width: 86px;
-  height: 86px;
-  transform: translate(-50%, -72%);
+  width: 44px;
+  height: 64px;
+  transform: translate(-50%, -97%);
   border: 0;
   background: transparent;
   padding: 0;
@@ -392,7 +541,7 @@ button.primary {
 }
 
 .battle-stack.two-hex {
-  width: 112px;
+  width: 88px;
 }
 
 .battle-stack.two-hex img {
@@ -404,6 +553,7 @@ button.primary {
   height: 78px;
   object-fit: contain;
   filter: drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+  pointer-events: none;
 }
 
 .battle-stack.ai img {
@@ -424,9 +574,9 @@ button.primary {
 
 .battle-stack.dead {
   z-index: 4;
-  width: 86px;
-  height: 86px;
-  transform: translate(-50%, -38%);
+  width: 44px;
+  height: 50px;
+  transform: translate(-50%, -66%);
   opacity: 1;
 }
 
@@ -438,7 +588,7 @@ button.primary {
 }
 
 .battle-stack.two-hex.dead {
-  width: 112px;
+  width: 88px;
 }
 
 .battle-stack.two-hex.dead img {
@@ -538,6 +688,63 @@ button.primary {
   color: #fff;
   font-size: 12px;
   padding: 1px 4px;
+  pointer-events: none;
+}
+
+.battlefield[data-action-cursor="default"] {
+  cursor: url("../../public/assets/cursors/combat/06-default.png") 0 0, default;
+}
+
+.battlefield[data-action-cursor="prohibited"] {
+  cursor: url("../../public/assets/cursors/combat/00-prohibited.png") 0 0, not-allowed;
+}
+
+.battlefield[data-action-cursor="move"] {
+  cursor: url("../../public/assets/cursors/combat/01-move.png") 0 0, pointer;
+}
+
+.battlefield[data-action-cursor="fly"] {
+  cursor: url("../../public/assets/cursors/combat/02-fly.png") 0 0, pointer;
+}
+
+.battlefield[data-action-cursor="shoot"] {
+  cursor: url("../../public/assets/cursors/combat/03-shoot.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-up-right"] {
+  cursor: url("../../public/assets/cursors/combat/07-attack-up-right.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-right"] {
+  cursor: url("../../public/assets/cursors/combat/08-attack-right.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-down-right"] {
+  cursor: url("../../public/assets/cursors/combat/09-attack-down-right.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-up-left"] {
+  cursor: url("../../public/assets/cursors/combat/10-attack-up-left.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-left"] {
+  cursor: url("../../public/assets/cursors/combat/11-attack-left.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-down-left"] {
+  cursor: url("../../public/assets/cursors/combat/12-attack-down-left.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-up"] {
+  cursor: url("../../public/assets/cursors/combat/13-attack-up.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor="attack-down"] {
+  cursor: url("../../public/assets/cursors/combat/14-attack-down.png") 0 0, crosshair;
+}
+
+.battlefield[data-action-cursor] .battle-stack {
+  cursor: inherit;
 }
 
 .info-panel {

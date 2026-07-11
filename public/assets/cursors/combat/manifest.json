@@ -1,0 +1,130 @@
+{
+  "source": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+  "def": "CRCOMBAT.def",
+  "canvas": [
+    36,
+    36
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "semantic": "prohibited",
+      "sourceFrame": "Crcom006.pcx",
+      "file": "00-prohibited.png"
+    },
+    {
+      "index": 1,
+      "semantic": "move",
+      "sourceFrame": "Crcom009.pcx",
+      "file": "01-move.png"
+    },
+    {
+      "index": 2,
+      "semantic": "fly",
+      "sourceFrame": "Crcom012.pcx",
+      "file": "02-fly.png"
+    },
+    {
+      "index": 3,
+      "semantic": "shoot",
+      "sourceFrame": "Crcom023.pcx",
+      "file": "03-shoot.png"
+    },
+    {
+      "index": 4,
+      "semantic": "inspect",
+      "sourceFrame": "Crcom028.pcx",
+      "file": "04-inspect.png"
+    },
+    {
+      "index": 5,
+      "semantic": "help",
+      "sourceFrame": "Crcom003.pcx",
+      "file": "05-help.png"
+    },
+    {
+      "index": 6,
+      "semantic": "default",
+      "sourceFrame": "Crcom000.pcx",
+      "file": "06-default.png"
+    },
+    {
+      "index": 7,
+      "semantic": "attack-up-right",
+      "sourceFrame": "Crcom016.pcx",
+      "file": "07-attack-up-right.png"
+    },
+    {
+      "index": 8,
+      "semantic": "attack-right",
+      "sourceFrame": "Crcom017.pcx",
+      "file": "08-attack-right.png"
+    },
+    {
+      "index": 9,
+      "semantic": "attack-down-right",
+      "sourceFrame": "Crcom018.pcx",
+      "file": "09-attack-down-right.png"
+    },
+    {
+      "index": 10,
+      "semantic": "attack-up-left",
+      "sourceFrame": "Crcom020.pcx",
+      "file": "10-attack-up-left.png"
+    },
+    {
+      "index": 11,
+      "semantic": "attack-left",
+      "sourceFrame": "Crcom021.pcx",
+      "file": "11-attack-left.png"
+    },
+    {
+      "index": 12,
+      "semantic": "attack-down-left",
+      "sourceFrame": "Crcom022.pcx",
+      "file": "12-attack-down-left.png"
+    },
+    {
+      "index": 13,
+      "semantic": "attack-up",
+      "sourceFrame": "Crcom015.pcx",
+      "file": "13-attack-up.png"
+    },
+    {
+      "index": 14,
+      "semantic": "attack-down",
+      "sourceFrame": "Crcom019.pcx",
+      "file": "14-attack-down.png"
+    },
+    {
+      "index": 15,
+      "semantic": "multi-attack",
+      "sourceFrame": "Crcom026.pcx",
+      "file": "15-multi-attack.png"
+    },
+    {
+      "index": 16,
+      "semantic": "spell",
+      "sourceFrame": "Crcom034.pcx",
+      "file": "16-spell.png"
+    },
+    {
+      "index": 17,
+      "semantic": "teleport",
+      "sourceFrame": "Crcom031.pcx",
+      "file": "17-teleport.png"
+    },
+    {
+      "index": 18,
+      "semantic": "defend",
+      "sourceFrame": "Crcom032.pcx",
+      "file": "18-defend.png"
+    },
+    {
+      "index": 19,
+      "semantic": "wait",
+      "sourceFrame": "Crcom033.pcx",
+      "file": "19-wait.png"
+    }
+  ]
+}
