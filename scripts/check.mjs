@@ -353,6 +353,31 @@ const wideRearContact = wideRearPointer.option && attackContactPair(
 if (!wideRearPointer.option || wideRearContact?.targetHex.id !== wideRearHexId || wideRearPointer.cursor !== "attack-left") {
   failures.push("Hovering the rear footprint hex of a two-hex target must orient the sword toward that exact hex.");
 }
+const immobileCreature = structuredClone(byCreatureId.get(6));
+immobileCreature.stats.speed = 0;
+const adjacentImmobileAttacker = createBattleStack({ creature: immobileCreature, owner: "player", hexId: 15, count: 1, createdAt: 3 });
+const adjacentWideState = { stacks: [adjacentImmobileAttacker, wideDiagonalEnemy] };
+const requestedRear = data.battlefield.grid.hexes.find((hex) => hex.id === wideRearHexId);
+const adjacentFallbackAttack = selectPointerAttack(
+  data.battlefield.grid,
+  adjacentWideState,
+  adjacentImmobileAttacker,
+  wideDiagonalEnemy,
+  { x: requestedRear.centerX, y: requestedRear.centerY },
+  wideRearHexId
+);
+if (!adjacentFallbackAttack.option || adjacentFallbackAttack.approachHex !== adjacentImmobileAttacker.hexId || adjacentFallbackAttack.targetHexId !== wideDiagonalEnemy.hexId) {
+  failures.push("An adjacent stationary attacker must fall back to the legally contacted hex of a wide target.");
+}
+
+const aiCavalier = createBattleStack({ creature: byCreatureId.get(10), owner: "ai", hexId: 76, count: 4, createdAt: 0 });
+const aiPikemanTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "player", hexId: 60, count: 1, createdAt: 1 });
+const aiMarksmanTarget = createBattleStack({ creature: byCreatureId.get(3), owner: "player", hexId: 62, count: 9, createdAt: 2 });
+const aiTargetAuditState = { stacks: [aiCavalier, aiPikemanTarget, aiMarksmanTarget] };
+const auditedAiChoice = chooseBestAttack(data.battlefield.grid, aiTargetAuditState, aiCavalier);
+if (auditedAiChoice?.target.id !== aiMarksmanTarget.id) {
+  failures.push("An AI Cavalier must prefer 9 adjacent Marksmen over 1 adjacent Pikeman under the confirmed local exchange score.");
+}
 const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const joustingState = { stacks: [joustingChampion, normalJoustTarget] };
 const joustingOptions = attackOptions(data.battlefield.grid, joustingState, joustingChampion, normalJoustTarget);

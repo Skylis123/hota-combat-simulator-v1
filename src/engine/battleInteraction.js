@@ -8,22 +8,25 @@ export function selectPointerAttack(grid, state, attacker, target, point = null,
     return { cursor: "shoot", option: options[0], approachHex: attacker.hexId, targetHexId };
   }
 
-  const selected = options.reduce((best, option) => {
-    const contact = attackContactPair(grid, attacker, target, option.approachHex, point, targetHexId);
-    if (targetHexId !== null && !contact) return best;
+  const selectOption = (requiredTargetHexId) => options.reduce((best, option) => {
+    const contact = attackContactPair(grid, attacker, target, option.approachHex, point, requiredTargetHexId);
+    if (requiredTargetHexId !== null && !contact) return best;
     const position = contact?.attackerHex || stackVisualPosition(grid, attacker, option.approachHex);
     if (!position || !point) return best || { option, distance: 0 };
     const distance = Math.hypot(position.centerX - point.x, position.centerY - point.y);
     return !best || distance < best.distance ? { option, distance } : best;
   }, null)?.option;
+  const exactSelected = selectOption(targetHexId);
+  const selected = exactSelected || (targetHexId !== null ? selectOption(null) : null);
+  const resolvedTargetHexId = exactSelected ? targetHexId : null;
   if (!selected) return { cursor: "prohibited", option: null, approachHex: null };
-  const contact = attackContactPair(grid, attacker, target, selected.approachHex, point, targetHexId);
+  const contact = attackContactPair(grid, attacker, target, selected.approachHex, point, resolvedTargetHexId);
   return {
-    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point, targetHexId),
-    option: { ...selected, targetHexId: contact?.targetHex.id ?? targetHexId },
+    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point, resolvedTargetHexId),
+    option: { ...selected, targetHexId: contact?.targetHex.id ?? resolvedTargetHexId },
     approachHex: selected.approachHex,
     approachHexIds: footprintHexes(grid, attacker, selected.approachHex) || [selected.approachHex],
-    targetHexId: contact?.targetHex.id ?? targetHexId
+    targetHexId: contact?.targetHex.id ?? resolvedTargetHexId
   };
 }
 
