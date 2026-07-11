@@ -12,7 +12,7 @@ import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
 import { canStackOccupy, footprintHexes, occupiedHexesForStacks } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
-import { deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
+import { ARMY_SLOT_COUNT, deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 import { selectPointerAttack } from "./engine/battleInteraction.js";
 
 const elements = {
@@ -247,6 +247,25 @@ function onSelectCreature(creatureId) {
   state.selectedCreatureId = creatureId;
   state.selectedStackId = null;
   render();
+}
+
+function onRosterOwnerSelect(owner) {
+  if (state.phase !== "setup" || !["player", "ai"].includes(owner)) return;
+  state.owner = owner;
+  render();
+}
+
+function onRosterQuickAdd(creatureId) {
+  if (state.phase !== "setup") return;
+  const owner = state.owner === "ai" ? "ai" : "player";
+  const freeSlot = Array.from({ length: ARMY_SLOT_COUNT }, (_, armySlot) => armySlot)
+    .find((armySlot) => !stackInArmySlot(state.stacks, owner, armySlot));
+  if (freeSlot === undefined) {
+    state.actionLog.unshift(`${owner === "ai" ? "AI" : "Player"} army is full.`);
+    renderBattleLog();
+    return;
+  }
+  onArmySlotDrop({ creatureId }, owner, freeSlot);
 }
 
 function onMenuDragMove(event) {
@@ -579,7 +598,11 @@ function render() {
   elements.resurrectAction.disabled = resurrectionTargets.length === 0;
   elements.resurrectAction.textContent = active?.resurrectionUsed ? "Resurrection Used" : "Resurrect Ally";
 
-  renderCreatureList(elements.creatureList, data, state, onSelectCreature);
+  renderCreatureList(elements.creatureList, data, state, {
+    onSelect: onSelectCreature,
+    onOwnerSelect: onRosterOwnerSelect,
+    onQuickAdd: onRosterQuickAdd
+  });
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
   renderArmySetup(elements.armySetup, state, {
     onSlotClick: onArmySlotClick,

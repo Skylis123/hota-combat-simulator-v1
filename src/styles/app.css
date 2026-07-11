@@ -150,6 +150,22 @@ input {
   color: var(--accent);
 }
 
+.roster-owner-selector {
+  margin: 8px 0 4px;
+}
+
+.roster-owner-selector .segment {
+  min-height: 38px;
+  font-weight: 700;
+}
+
+.roster-quick-add-hint {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .tier-row {
   display: grid;
   grid-template-columns: 34px 1fr 1fr;

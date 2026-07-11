@@ -1,8 +1,24 @@
 import { abilityBadges } from "../engine/abilities.js";
 import { resolveCreatureImage } from "../engine/assetResolver.js";
 
-export function renderCreatureList(container, data, state, onSelect) {
+export function renderCreatureList(container, data, state, handlers) {
   container.innerHTML = "";
+  const ownerSelector = document.createElement("div");
+  ownerSelector.className = "roster-owner-selector segmented";
+  ownerSelector.setAttribute("aria-label", "Quick-add army owner");
+  for (const owner of ["player", "ai"]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `segment ${state.owner === owner ? "active" : ""}`;
+    button.textContent = owner === "player" ? "Player" : "AI";
+    button.setAttribute("aria-pressed", String(state.owner === owner));
+    button.addEventListener("click", () => handlers.onOwnerSelect(owner));
+    ownerSelector.appendChild(button);
+  }
+  const hint = document.createElement("small");
+  hint.className = "roster-quick-add-hint";
+  hint.textContent = "Right-click a unit to add it to the first free army slot.";
+  container.append(ownerSelector, hint);
   const tiers = data.town.tiers || [];
 
   for (const tier of tiers) {
@@ -29,7 +45,11 @@ export function renderCreatureList(container, data, state, onSelect) {
         <span class="creature-meta">A${creature.stats.attack ?? "-"} D${creature.stats.defense ?? "-"} S${creature.stats.speed ?? "-"}</span>
       `;
       card.title = abilityBadges(creature).join(", ") || "No confirmed passive tags";
-      card.addEventListener("click", () => onSelect(creature.creatureId));
+      card.addEventListener("click", () => handlers.onSelect(creature.creatureId));
+      card.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        handlers.onQuickAdd(creature.creatureId);
+      });
       row.appendChild(card);
     }
 

@@ -250,6 +250,9 @@ const creatureListSource = fs.readFileSync(path.join(root, "src", "components", 
 if (!creatureListSource.includes('resolveCreatureImage(creature, "animation")')) {
   failures.push("Castle roster cards must use the sanitized idle animation.");
 }
+if (!creatureListSource.includes('addEventListener("contextmenu"') || !creatureListSource.includes("onOwnerSelect")) {
+  failures.push("The roster must select Player/AI and support right-click insertion into the first free army slot.");
+}
 const battlefieldSource = fs.readFileSync(path.join(root, "src", "components", "Battlefield.js"), "utf8");
 if (battlefieldSource.includes("application/x-creature-id")) {
   failures.push("The battlefield must not accept creatures directly from the roster.");
@@ -263,6 +266,9 @@ if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack
   failures.push("The legacy global count field must be replaced by the stack count dialog.");
 }
 const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
+if (!mainSource.includes("onRosterQuickAdd") || !mainSource.includes("ARMY_SLOT_COUNT")) {
+  failures.push("Roster quick-add must scan the configured army slots in order.");
+}
 if (!indexSource.includes('id="fullscreen-battlefield"') || !mainSource.includes("requestFullscreen") || !mainSource.includes('addEventListener("fullscreenchange"')) {
   failures.push("Battlefield full screen must use the native Fullscreen API and react to ESC-driven fullscreen changes.");
 }
