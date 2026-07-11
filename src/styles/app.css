@@ -655,10 +655,10 @@ button.primary {
 }
 
 .battle-stack.dead {
-  z-index: 4;
+  z-index: 0;
   width: 44px;
   height: 50px;
-  transform: translate(-50%, -66%);
+  transform: translate(-50%, -50%);
   opacity: 1;
   pointer-events: none;
 }

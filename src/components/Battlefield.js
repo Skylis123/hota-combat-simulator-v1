@@ -130,7 +130,7 @@ export function renderBattlefield(container, data, state, handlers) {
       state.attackableTargetIds?.has(stack.id) ? "targetable" : "",
       state.enemyTargetIds?.has(stack.id) && !state.attackableTargetIds?.has(stack.id) ? "unreachable-target" : ""
     ].join(" ");
-    const visualPosition = stackVisualPosition(grid, stack) || hex;
+    const visualPosition = stack.alive === false ? hex : stackVisualPosition(grid, stack) || hex;
     element.style.left = `${visualPosition.centerX}px`;
     element.style.top = `${visualPosition.centerY}px`;
     element.dataset.stackId = stack.id;
@@ -147,6 +147,12 @@ export function renderBattlefield(container, data, state, handlers) {
       const stackFootprint = footprintHexes(grid, stack) || [];
       const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
       const enemyOfActivePlayer = active?.owner === "player" && stack.owner !== active.owner;
+      const attackCursor = container.dataset.actionCursor === "shoot" || container.dataset.actionCursor?.startsWith("attack-");
+      const matchingAttackPreview = state.attackPreview?.targetId === stack.id;
+      if (state.phase === "battle" && enemyOfActivePlayer && pointerHex && (!attackCursor || !matchingAttackPreview)) {
+        handlers.onHexClick(pointerHex.id);
+        return;
+      }
       if (state.phase === "battle" && !enemyOfActivePlayer && pointerHex && !stackFootprint.includes(pointerHex.id)) {
         handlers.onHexClick(pointerHex.id);
         return;

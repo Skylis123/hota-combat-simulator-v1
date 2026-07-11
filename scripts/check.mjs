@@ -282,8 +282,14 @@ if (!fullscreenUiSource.includes("onTurnHover") || !fullscreenUiSource.includes(
 if (!battlefieldSource.includes("enemyOfActivePlayer") || !battlefieldSource.includes("active-stack-hex")) {
   failures.push("Enemy sprite clicks must remain attackable and the active stack footprint must be emphasized.");
 }
+if (!battlefieldSource.includes("matchingAttackPreview") || !battlefieldSource.includes("stack.alive === false ? hex")) {
+  failures.push("Stack clicks must follow the displayed cursor action and corpses must anchor to their primary death hex.");
+}
 if (!appCss.includes(".battle-stack.dead") || !/\.battle-stack\.dead\s*\{[^}]*pointer-events:\s*none/s.test(appCss)) {
   failures.push("Corpses must not intercept targeting or movement pointer events.");
+}
+if (!/\.battle-stack\.dead\s*\{[^}]*z-index:\s*0/s.test(appCss)) {
+  failures.push("Corpses must render below living battle stacks.");
 }
 if (mainSource.includes("beforeDefend:") || mainSource.includes("animateStackDefend")) {
   failures.push("Choosing Defend must not play an animation before ending the stack's turn.");
