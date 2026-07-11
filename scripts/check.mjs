@@ -10,7 +10,7 @@ import { canStackOccupy, footprintHexes, placementPreview, stackVisualPosition, 
 import { executeResurrection } from "../src/engine/creatureAbilities.js";
 import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engine/turnOrder.js";
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
-import { selectPointerAttack } from "../src/engine/battleInteraction.js";
+import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -320,6 +320,28 @@ for (const target of [diagonalEnemy, wideDiagonalEnemy]) {
   if (!stacksAreAdjacent(data.battlefield.grid, parityGriffin, target) || !options.some((option) => option.approachHex === parityGriffin.hexId)) {
     failures.push(`Two-hex Griffin must attack an adjacent ${target.creature.name} from either occupied footprint cell.`);
   }
+}
+const wideRearHexId = footprintHexes(data.battlefield.grid, wideDiagonalEnemy)[1];
+const wideRearHex = data.battlefield.grid.hexes.find((hex) => hex.id === wideRearHexId);
+const wideRearState = { stacks: [parityGriffin, wideDiagonalEnemy] };
+const wideRearPointer = selectPointerAttack(
+  data.battlefield.grid,
+  wideRearState,
+  parityGriffin,
+  wideDiagonalEnemy,
+  { x: wideRearHex.centerX, y: wideRearHex.centerY },
+  wideRearHexId
+);
+const wideRearContact = wideRearPointer.option && attackContactPair(
+  data.battlefield.grid,
+  parityGriffin,
+  wideDiagonalEnemy,
+  wideRearPointer.approachHex,
+  { x: wideRearHex.centerX, y: wideRearHex.centerY },
+  wideRearHexId
+);
+if (!wideRearPointer.option || wideRearContact?.targetHex.id !== wideRearHexId || wideRearPointer.cursor !== "attack-left") {
+  failures.push("Hovering the rear footprint hex of a two-hex target must orient the sword toward that exact hex.");
 }
 const normalJoustTarget = createBattleStack({ creature: byCreatureId.get(6), owner: "ai", hexId: 84, count: 100, createdAt: 1 });
 const joustingState = { stacks: [joustingChampion, normalJoustTarget] };

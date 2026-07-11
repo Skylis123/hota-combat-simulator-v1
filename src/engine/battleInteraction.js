@@ -1,7 +1,7 @@
 import { attackOptions } from "./combat.js";
 import { footprintHexes, stackVisualPosition } from "./footprint.js";
 
-export function selectPointerAttack(grid, state, attacker, target, point = null) {
+export function selectPointerAttack(grid, state, attacker, target, point = null, targetHexId = null) {
   const options = attackOptions(grid, state, attacker, target);
   if (!options.length) return { cursor: "prohibited", option: null, approachHex: null };
   if (options[0].mode === "ranged") {
@@ -9,7 +9,7 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
   }
 
   const selected = options.reduce((best, option) => {
-    const contact = attackContactPair(grid, attacker, target, option.approachHex, point);
+    const contact = attackContactPair(grid, attacker, target, option.approachHex, point, targetHexId);
     const position = contact?.attackerHex || stackVisualPosition(grid, attacker, option.approachHex);
     if (!position || !point) return best || { option, distance: 0 };
     const distance = Math.hypot(position.centerX - point.x, position.centerY - point.y);
@@ -17,14 +17,14 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
   }, null)?.option;
   if (!selected) return { cursor: "prohibited", option: null, approachHex: null };
   return {
-    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point),
+    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point, targetHexId),
     option: selected,
     approachHex: selected.approachHex
   };
 }
 
-export function directionalAttackCursor(grid, attacker, target, approachHex, point = null) {
-  const contact = attackContactPair(grid, attacker, target, approachHex, point);
+export function directionalAttackCursor(grid, attacker, target, approachHex, point = null, targetHexId = null) {
+  const contact = attackContactPair(grid, attacker, target, approachHex, point, targetHexId);
   const from = contact?.attackerHex || stackVisualPosition(grid, attacker, approachHex);
   const to = contact?.targetHex || stackVisualPosition(grid, target);
   if (!from || !to) return "attack-right";
@@ -39,7 +39,7 @@ export function directionalAttackCursor(grid, attacker, target, approachHex, poi
   return "attack-up-right";
 }
 
-export function attackContactPair(grid, attacker, target, approachHex, point = null) {
+export function attackContactPair(grid, attacker, target, approachHex, point = null, targetHexId = null) {
   const attackerHexes = footprintHexes(grid, attacker, approachHex) || [];
   const targetHexes = footprintHexes(grid, target) || [];
   const contacts = [];
@@ -52,8 +52,12 @@ export function attackContactPair(grid, attacker, target, approachHex, point = n
     }
   }
   if (!contacts.length) return null;
-  if (!point || contacts.length === 1) return contacts[0];
-  return contacts.reduce((best, contact) => {
+  const matchingTargetContacts = targetHexId === null
+    ? contacts
+    : contacts.filter((contact) => contact.targetHex.id === targetHexId);
+  const candidates = matchingTargetContacts.length ? matchingTargetContacts : contacts;
+  if (!point || candidates.length === 1) return candidates[0];
+  return candidates.reduce((best, contact) => {
     const distance = Math.hypot(contact.targetHex.centerX - point.x, contact.targetHex.centerY - point.y);
     return !best || distance < best.distance ? { contact, distance } : best;
   }, null).contact;

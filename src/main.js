@@ -440,7 +440,7 @@ function onTurnOrderHover(stackId) {
   renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
 }
 
-function onAttackHover(stackId, point = null) {
+function onAttackHover(stackId, point = null, targetHexId = null) {
   if (!stackId || state.phase !== "battle" || battleAnimationPending) {
     state.attackPreview = null;
     return null;
@@ -451,7 +451,7 @@ function onAttackHover(stackId, point = null) {
     state.attackPreview = null;
     return null;
   }
-  const preview = selectPointerAttack(data.battlefield.grid, state, active, target, point);
+  const preview = selectPointerAttack(data.battlefield.grid, state, active, target, point, targetHexId);
   if (!preview.option) {
     state.attackPreview = null;
     return preview;

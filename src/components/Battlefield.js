@@ -46,7 +46,7 @@ export function renderBattlefield(container, data, state, handlers) {
     }
     const hoveredStack = occupied.get(hex.id)?.stack;
     if (hoveredStack && hoveredStack.owner !== active.owner) {
-      const preview = handlers.onAttackHover(hoveredStack.id, point);
+      const preview = handlers.onAttackHover(hoveredStack.id, point, hex.id);
       showAttackApproach(container, preview);
       setActionCursor(container, preview?.cursor || "prohibited");
       return;
@@ -165,7 +165,9 @@ export function renderBattlefield(container, data, state, handlers) {
       const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
       if (active?.owner !== "player" || stack.owner === active.owner) return;
       const point = pointFromPointer(event, container, grid);
-      const preview = handlers.onAttackHover(stack.id, point);
+      const pointerHex = hexFromPoint(point, grid);
+      const hoveredTargetHexId = (footprintHexes(grid, stack) || []).includes(pointerHex?.id) ? pointerHex.id : null;
+      const preview = handlers.onAttackHover(stack.id, point, hoveredTargetHexId);
       showAttackApproach(container, preview);
       setActionCursor(container, preview?.cursor || "prohibited");
     });
