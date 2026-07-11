@@ -660,6 +660,7 @@ button.primary {
   height: 50px;
   transform: translate(-50%, -66%);
   opacity: 1;
+  pointer-events: none;
 }
 
 .battle-stack.dead img {

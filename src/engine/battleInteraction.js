@@ -9,7 +9,7 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
   }
 
   const selected = options.reduce((best, option) => {
-    const contact = attackContactPair(grid, attacker, target, option.approachHex);
+    const contact = attackContactPair(grid, attacker, target, option.approachHex, point);
     const position = contact?.attackerHex || stackVisualPosition(grid, attacker, option.approachHex);
     if (!position || !point) return best || { option, distance: 0 };
     const distance = Math.hypot(position.centerX - point.x, position.centerY - point.y);
@@ -17,14 +17,14 @@ export function selectPointerAttack(grid, state, attacker, target, point = null)
   }, null)?.option;
   if (!selected) return { cursor: "prohibited", option: null, approachHex: null };
   return {
-    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex),
+    cursor: directionalAttackCursor(grid, attacker, target, selected.approachHex, point),
     option: selected,
     approachHex: selected.approachHex
   };
 }
 
-export function directionalAttackCursor(grid, attacker, target, approachHex) {
-  const contact = attackContactPair(grid, attacker, target, approachHex);
+export function directionalAttackCursor(grid, attacker, target, approachHex, point = null) {
+  const contact = attackContactPair(grid, attacker, target, approachHex, point);
   const from = contact?.attackerHex || stackVisualPosition(grid, attacker, approachHex);
   const to = contact?.targetHex || stackVisualPosition(grid, target);
   if (!from || !to) return "attack-right";
@@ -39,16 +39,22 @@ export function directionalAttackCursor(grid, attacker, target, approachHex) {
   return "attack-up-right";
 }
 
-export function attackContactPair(grid, attacker, target, approachHex) {
+export function attackContactPair(grid, attacker, target, approachHex, point = null) {
   const attackerHexes = footprintHexes(grid, attacker, approachHex) || [];
   const targetHexes = footprintHexes(grid, target) || [];
+  const contacts = [];
   for (const attackerHexId of attackerHexes) {
     const attackerHex = grid.hexes.find((hex) => hex.id === attackerHexId);
     if (!attackerHex) continue;
     for (const targetHexId of targetHexes) {
       const targetHex = grid.hexes.find((hex) => hex.id === targetHexId);
-      if (targetHex?.neighbors.includes(attackerHexId)) return { attackerHex, targetHex };
+      if (targetHex?.neighbors.includes(attackerHexId)) contacts.push({ attackerHex, targetHex });
     }
   }
-  return null;
+  if (!contacts.length) return null;
+  if (!point || contacts.length === 1) return contacts[0];
+  return contacts.reduce((best, contact) => {
+    const distance = Math.hypot(contact.targetHex.centerX - point.x, contact.targetHex.centerY - point.y);
+    return !best || distance < best.distance ? { contact, distance } : best;
+  }, null).contact;
 }

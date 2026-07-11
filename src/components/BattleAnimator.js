@@ -42,8 +42,13 @@ export async function animateStackAttack(container, grid, attacker, target, opti
     if (approachHexId !== attacker.hexId) await moveActorAlongPath(actor, grid, approachPath);
     const animation = attackName(approach, targetHex, option.mode);
     setFacing(actor, targetHex.centerX < approach.centerX);
-    setAnimation(actor, attacker, animation);
-    await wait(animation.endsWith("down") ? 900 : 820);
+    const strikeCount = option.mode === "ranged" && inferAbilityFlags(attacker.creature).doubleAttack
+      ? Math.min(2, Math.max(1, Number(attacker.shotsRemaining || 0)))
+      : 1;
+    for (let strike = 0; strike < strikeCount; strike += 1) {
+      setAnimation(actor, attacker, animation);
+      await wait(animation.endsWith("down") ? 900 : 820);
+    }
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
@@ -54,7 +59,7 @@ export async function animateAttackResult(container, grid, attacker, target, res
   if (!result?.ok) return;
   syncStackElement(container, grid, attacker);
   syncStackElement(container, grid, target);
-  await animateReaction(container, grid, target, target.alive === false ? "death" : "hit");
+  await animateReaction(container, grid, target, target.alive === false ? "death" : target.statuses.defending ? "defend" : "hit");
   if (result.retaliation) {
     await animateRetaliation(container, grid, target, attacker);
     await animateReaction(container, grid, attacker, attacker.alive === false ? "death" : "hit");

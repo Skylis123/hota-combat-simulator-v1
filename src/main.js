@@ -5,7 +5,7 @@ import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
 import { renderArmySetup } from "./components/ArmySetup.js";
 import { renderFullscreenHoverInfo, renderFullscreenTurnOrder } from "./components/FullscreenBattleUi.js";
-import { animateAttackResult, animateStackAttack, animateStackDefend, animateStackMove } from "./components/BattleAnimator.js";
+import { animateAttackResult, animateStackAttack, animateStackMove } from "./components/BattleAnimator.js";
 import { createBattleStack, createInitialState, resetBattle, setSetupStackCount, startBattle } from "./engine/battleState.js";
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
@@ -134,10 +134,9 @@ function bindEvents() {
   elements.defendAction.addEventListener("click", async () => {
     const stack = activePlayerStack();
     if (!stack || battleAnimationPending) return;
-    await runAnimatedAction(
-      () => animateStackDefend(elements.battlefield, data.battlefield.grid, stack),
-      () => defendStack(state, stack)
-    );
+    defendStack(state, stack);
+    updateReachable();
+    render();
   });
 
   elements.resurrectAction.addEventListener("click", () => {
@@ -630,8 +629,7 @@ function scheduleAiTurn() {
         () => performAiTurn(state, data.battlefield.grid, {
           beforeAttack: (attacker, target, option) => animateStackAttack(elements.battlefield, data.battlefield.grid, attacker, target, option),
           afterAttack: (attacker, target, result) => animateAttackResult(elements.battlefield, data.battlefield.grid, attacker, target, result),
-          beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path),
-          beforeDefend: (stack) => animateStackDefend(elements.battlefield, data.battlefield.grid, stack)
+          beforeMove: (stack, _hexId, path) => animateStackMove(elements.battlefield, data.battlefield.grid, stack, path)
         }),
         () => {}
       );
