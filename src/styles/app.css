@@ -280,7 +280,7 @@ button.primary {
 .battlefield-viewport:fullscreen .fullscreen-turn-order {
   position: fixed;
   z-index: 18;
-  right: 292px;
+  right: 382px;
   bottom: 10px;
   left: 12px;
   display: flex;
@@ -309,6 +309,8 @@ button.primary {
   border: 2px ridge #785c38;
   background: #21170f;
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.75);
+  pointer-events: auto;
+  cursor: url("../../public/assets/cursors/combat/04-inspect.png") 0 0, help;
 }
 
 .fullscreen-turn-unit.player {
@@ -322,6 +324,13 @@ button.primary {
 .fullscreen-turn-unit.active {
   border-color: var(--accent-strong);
   box-shadow: 0 0 10px rgba(240, 211, 107, 0.85), inset 0 0 8px rgba(0, 0, 0, 0.75);
+}
+
+.fullscreen-turn-unit.turn-preview,
+.turn-pill.turn-preview {
+  border-color: #65efff;
+  box-shadow: 0 0 12px rgba(70, 226, 255, 0.95), inset 0 0 8px rgba(0, 0, 0, 0.75);
+  filter: none;
 }
 
 .fullscreen-turn-unit.acted {
@@ -380,11 +389,11 @@ button.primary {
   z-index: 19;
   top: 14px;
   right: 14px;
-  display: flex;
-  width: 252px;
-  gap: 10px;
-  align-items: center;
-  padding: 9px 12px;
+  display: grid;
+  width: 340px;
+  max-height: calc(100vh - 120px);
+  gap: 12px;
+  padding: 14px;
   border: 1px solid rgba(207, 185, 125, 0.8);
   background: rgba(12, 16, 20, 0.91);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
@@ -392,24 +401,75 @@ button.primary {
 }
 
 .fullscreen-hover-info img {
-  width: 58px;
-  height: 58px;
+  width: 82px;
+  height: 82px;
   object-fit: contain;
 }
 
-.fullscreen-hover-info div {
+.fullscreen-hover-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #5c513b;
+}
+
+.fullscreen-hover-heading > div {
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
 .fullscreen-hover-info strong {
   color: #f2e4bd;
-  font-size: 13px;
+  font-size: 17px;
 }
 
 .fullscreen-hover-info span {
   color: #c2c9b9;
-  font-size: 11px;
+  font-size: 12px;
+}
+
+.fullscreen-hover-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.fullscreen-hover-stats > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  background: #151a1f;
+  border: 1px solid #313a40;
+}
+
+.fullscreen-hover-stats small {
+  color: #92a08f;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.fullscreen-hover-stats b {
+  color: #f2e4bd;
+  font-size: 13px;
+}
+
+.fullscreen-hover-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fullscreen-hover-statuses em {
+  padding: 4px 6px;
+  border: 1px solid #7d714e;
+  background: #282519;
+  color: #e8d891;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.04em;
 }
 
 .battlefield-viewport:fullscreen .fullscreen-hint {
@@ -502,6 +562,18 @@ button.primary {
   stroke-width: 2.4;
 }
 
+.hex.active-stack-hex {
+  fill: rgba(89, 228, 255, 0.24);
+  stroke: #67efff;
+  stroke-width: 2.6;
+}
+
+.hex.turn-preview-hex {
+  fill: rgba(89, 228, 255, 0.34);
+  stroke: #8af4ff;
+  stroke-width: 2.8;
+}
+
 .hex.placement-preview.placement-valid {
   fill: rgba(86, 205, 117, 0.34);
   stroke: #80ef9c;
@@ -566,6 +638,16 @@ button.primary {
 
 .battle-stack.active img {
   filter: drop-shadow(0 0 8px var(--accent-strong)) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+  animation: active-stack-pulse 1s ease-in-out infinite alternate;
+}
+
+.battle-stack.turn-preview img {
+  filter: drop-shadow(0 0 10px #5cecff) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65));
+}
+
+@keyframes active-stack-pulse {
+  from { filter: drop-shadow(0 0 5px #f0d36b) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65)); }
+  to { filter: drop-shadow(0 0 13px #fff1a8) drop-shadow(0 8px 5px rgba(0, 0, 0, 0.65)); }
 }
 
 .battle-stack.acted {

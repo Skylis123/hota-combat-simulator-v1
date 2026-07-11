@@ -270,8 +270,14 @@ if (!battlefieldSource.includes("pointerHex") || !battlefieldSource.includes("on
   failures.push("Battlefield interaction must resolve overlapped sprite clicks by underlying hex and support direct attack hover.");
 }
 const fullscreenUiSource = fs.readFileSync(path.join(root, "src", "components", "FullscreenBattleUi.js"), "utf8");
-if (!fullscreenUiSource.includes("total HP") || !fullscreenUiSource.includes("fullscreen-turn-unit")) {
+if (!fullscreenUiSource.includes("Total HP") || !fullscreenUiSource.includes("fullscreen-turn-unit")) {
   failures.push("Full screen must include unit HP hover details and a visual turn-order strip.");
+}
+if (!fullscreenUiSource.includes("onTurnHover") || !fullscreenUiSource.includes("fullscreen-hover-statuses")) {
+  failures.push("Full-screen initiative hover must preview a stack and expose its battle statuses.");
+}
+if (!battlefieldSource.includes("enemyOfActivePlayer") || !battlefieldSource.includes("active-stack-hex")) {
+  failures.push("Enemy sprite clicks must remain attackable and the active stack footprint must be emphasized.");
 }
 const stackInfoSource = fs.readFileSync(path.join(root, "src", "components", "StackInfo.js"), "utf8");
 if (stackInfoSource.includes("data-stack-count")) {
@@ -308,7 +314,7 @@ const pointerAttack = selectPointerAttack(data.battlefield.grid, joustingState, 
   x: pointerPosition.centerX,
   y: pointerPosition.centerY
 });
-if (!pointerAttack.option || pointerAttack.approachHex !== pointerCandidate.approachHex || pointerAttack.cursor !== "attack-up-left") {
+if (!pointerAttack.option || pointerAttack.approachHex !== pointerCandidate.approachHex || pointerAttack.cursor !== "attack-down-right") {
   failures.push("Enemy pointer sector must select its corresponding legal contact hex and sword cursor.");
 }
 const immuneJoustTarget = createBattleStack({ creature: byCreatureId.get(0), owner: "ai", hexId: 84, count: 100, createdAt: 1 });

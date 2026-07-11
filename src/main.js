@@ -10,7 +10,7 @@ import { createBattleStack, createInitialState, resetBattle, setSetupStackCount,
 import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
-import { canStackOccupy, occupiedHexesForStacks } from "./engine/footprint.js";
+import { canStackOccupy, footprintHexes, occupiedHexesForStacks } from "./engine/footprint.js";
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 import { deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 import { selectPointerAttack } from "./engine/battleInteraction.js";
@@ -231,7 +231,7 @@ function updateBattlefieldFullscreen() {
     elements.battlefield.style.transform = "";
     return;
   }
-  const scale = Math.max(0.5, Math.min((window.innerWidth - 280) / 800, (window.innerHeight - 86) / 556));
+  const scale = Math.max(0.5, Math.min((window.innerWidth - 370) / 800, (window.innerHeight - 86) / 556));
   elements.battlefield.style.transform = `scale(${scale})`;
 }
 
@@ -405,6 +405,23 @@ function onStackHover(stackId) {
   renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
 }
 
+function onTurnOrderHover(stackId) {
+  state.hoveredStackId = stackId;
+  document.querySelectorAll("[data-turn-stack-id]").forEach((item) => {
+    item.classList.toggle("turn-preview", item.dataset.turnStackId === stackId);
+  });
+  elements.battlefield.querySelectorAll(".battle-stack.turn-preview").forEach((item) => item.classList.remove("turn-preview"));
+  elements.battlefield.querySelectorAll(".hex.turn-preview-hex").forEach((hex) => hex.classList.remove("turn-preview-hex"));
+  const stack = state.stacks.find((candidate) => candidate.id === stackId);
+  if (stack) {
+    elements.battlefield.querySelector(`.battle-stack[data-stack-id="${stack.id}"]`)?.classList.add("turn-preview");
+    for (const hexId of footprintHexes(data.battlefield.grid, stack) || []) {
+      elements.battlefield.querySelector(`.hex[data-hex-id="${hexId}"]`)?.classList.add("turn-preview-hex");
+    }
+  }
+  renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
+}
+
 function onAttackHover(stackId, point = null) {
   if (!stackId || state.phase !== "battle" || battleAnimationPending) {
     state.attackPreview = null;
@@ -571,8 +588,8 @@ function render() {
     onStackContextMenu: openStackCountEditor
   });
   renderStackInfo(elements.stackInfo, data, state);
-  renderTurnOrder(elements.turnOrder, state);
-  renderFullscreenTurnOrder(elements.fullscreenTurnOrder, state);
+  renderTurnOrder(elements.turnOrder, state, { onTurnHover: onTurnOrderHover });
+  renderFullscreenTurnOrder(elements.fullscreenTurnOrder, state, { onTurnHover: onTurnOrderHover });
   renderFullscreenHoverInfo(elements.fullscreenHoverInfo, state);
   renderBattleLog();
   scheduleAiTurn();

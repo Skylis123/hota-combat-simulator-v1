@@ -1,6 +1,6 @@
 import { pendingTurnOrder } from "../engine/turnOrder.js";
 
-export function renderTurnOrder(container, state) {
+export function renderTurnOrder(container, state, handlers = {}) {
   container.innerHTML = "";
   if (!state.stacks.length) {
     container.innerHTML = `<span class="empty-turn">Place stacks to preview turn order.</span>`;
@@ -16,9 +16,12 @@ export function renderTurnOrder(container, state) {
     if (!stack) continue;
     const pill = document.createElement("button");
     pill.type = "button";
+    pill.dataset.turnStackId = stack.id;
     pill.className = `turn-pill ${stack.owner} ${stack.id === state.activeStackId ? "active" : ""} ${stack.statuses.acted ? "acted" : ""}`;
     pill.textContent = `${stack.creature.name} (${stack.creature.stats.speed ?? "-"})`;
     pill.title = `${stack.label} · hex ${stack.hexId}`;
+    pill.addEventListener("mouseenter", () => handlers.onTurnHover?.(stack.id));
+    pill.addEventListener("mouseleave", () => handlers.onTurnHover?.(null));
     container.appendChild(pill);
   }
 }

@@ -89,6 +89,7 @@ export function renderBattlefield(container, data, state, handlers) {
     if (state.reachable.has(hex.id)) classes.push("reachable");
     const occupancy = occupied.get(hex.id);
     if (occupancy) classes.push("occupied", `occupied-${occupancy.role}`, `occupied-${occupancy.stack.owner}`);
+    if (occupancy?.stack.id === state.activeStackId) classes.push("active-stack-hex");
     if (state.setupPreview?.hexIds?.includes(hex.id)) {
       classes.push(
         "placement-preview",
@@ -144,7 +145,9 @@ export function renderBattlefield(container, data, state, handlers) {
       event.stopPropagation();
       const pointerHex = hexFromPointer(event, container, grid);
       const stackFootprint = footprintHexes(grid, stack) || [];
-      if (state.phase === "battle" && pointerHex && !stackFootprint.includes(pointerHex.id)) {
+      const active = state.stacks.find((candidate) => candidate.id === state.activeStackId);
+      const enemyOfActivePlayer = active?.owner === "player" && stack.owner !== active.owner;
+      if (state.phase === "battle" && !enemyOfActivePlayer && pointerHex && !stackFootprint.includes(pointerHex.id)) {
         handlers.onHexClick(pointerHex.id);
         return;
       }

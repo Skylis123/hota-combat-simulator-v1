@@ -28,7 +28,7 @@ export function directionalAttackCursor(grid, attacker, target, approachHex) {
   const from = contact?.attackerHex || stackVisualPosition(grid, attacker, approachHex);
   const to = contact?.targetHex || stackVisualPosition(grid, target);
   if (!from || !to) return "attack-right";
-  const angle = Math.atan2(from.centerY - to.centerY, from.centerX - to.centerX) * 180 / Math.PI;
+  const angle = Math.atan2(to.centerY - from.centerY, to.centerX - from.centerX) * 180 / Math.PI;
   if (angle >= -22.5 && angle < 22.5) return "attack-right";
   if (angle >= 22.5 && angle < 67.5) return "attack-down-right";
   if (angle >= 67.5 && angle < 112.5) return "attack-down";
