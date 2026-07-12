@@ -38,28 +38,90 @@ const screenshotPath = path.resolve(process.argv[2]);
 const bytes = fs.readFileSync(screenshotPath);
 const file = new Blob([bytes], { type: "image/png" });
 const result = await analyzeBattlefieldScreenshot(file, data);
+const includeDiagnostics = process.argv.includes("--diagnostics");
 const summary = {
   backgroundId: result.backgroundId,
-  obstacles: result.obstacles.map(({ id, name, anchorHexId }) => ({ id, name, anchorHexId })),
-  stacks: result.stacks.map((stack) => ({ creature: stack.creature.name, owner: stack.owner, count: stack.count, hexId: stack.hexId, armySlot: stack.armySlot }))
+  obstacles: result.obstacles.map(({ id, name, anchorHexId, detectedLeft, detectedTop }) => ({
+    id,
+    name,
+    anchorHexId,
+    detectedLeft,
+    detectedTop
+  })),
+  ...(includeDiagnostics ? { timings: result.timings } : {}),
+  stacks: result.stacks.map((stack) => ({
+    creature: stack.creature.name,
+    owner: stack.owner,
+    count: stack.count,
+    hexId: stack.hexId,
+    armySlot: stack.armySlot,
+    ...(includeDiagnostics ? {
+      alternatives: stack.detectionAlternatives,
+      countDiagnostics: stack.screenshotCountDiagnostics
+    } : {})
+  }))
 };
 if (process.argv.includes("--assert-reference")) {
-  const signature = summary.stacks.map(({ creature, owner, count, hexId }) => `${owner}:${creature}:${count}@${hexId}`).sort();
-  const expected = [
-    "ai:Cavalier:6@67",
-    "player:Griffin:6@121",
-    "player:Marksman:22@0",
-    "player:Pikeman:1@60",
-    "player:Pikeman:1@75",
-    "player:Pikeman:1@90",
-    "player:Pikeman:1@150",
-    "player:Pikeman:20@30"
+  assertScene(summary, {
+    backgroundId: "cmbkgrtr",
+    stacks: [
+      "ai:Cavalier:6@67",
+      "player:Griffin:6@121",
+      "player:Marksman:22@0",
+      "player:Pikeman:1@60",
+      "player:Pikeman:1@75",
+      "player:Pikeman:1@90",
+      "player:Pikeman:1@150",
+      "player:Pikeman:20@30"
+    ],
+    obstacles: ["106@null", "22@141"]
+  });
+}
+if (process.argv.includes("--assert-archangel-reference")) {
+  assertScene(summary, {
+    backgroundId: "cmbkgrmt",
+    stacks: [
+      "ai:Crusader:17@44",
+      "ai:Crusader:17@134",
+      "player:Archangel:5@1",
+      "player:Archangel:5@31",
+      "player:Archangel:5@61",
+      "player:Archangel:5@91",
+      "player:Archangel:5@121",
+      "player:Archangel:5@151"
+    ],
+    obstacles: ["105@null", "23@62", "22@52", "21@114", "20@69"]
+  });
+  const slotSignature = summary.stacks
+    .map(({ creature, owner, hexId, armySlot }) => `${owner}:${creature}@${hexId}#${armySlot}`)
+    .sort();
+  const expectedSlots = [
+    "ai:Crusader@44#0",
+    "ai:Crusader@134#1",
+    "player:Archangel@1#0",
+    "player:Archangel@31#1",
+    "player:Archangel@61#2",
+    "player:Archangel@91#3",
+    "player:Archangel@121#4",
+    "player:Archangel@151#5"
   ].sort();
-  if (JSON.stringify(signature) !== JSON.stringify(expected)) throw new Error(`Unexpected stack signature: ${signature.join(", ")}`);
-  if (summary.backgroundId !== "cmbkgrtr") throw new Error(`Unexpected background: ${summary.backgroundId}`);
-  const obstacleSignature = summary.obstacles.map(({ id, anchorHexId }) => `${id}@${anchorHexId}`).sort();
-  if (JSON.stringify(obstacleSignature) !== JSON.stringify(["106@null", "22@141"].sort())) {
-    throw new Error(`Unexpected obstacles: ${obstacleSignature.join(", ")}`);
+  if (JSON.stringify(slotSignature) !== JSON.stringify(expectedSlots)) {
+    throw new Error(`Unexpected army slots: ${slotSignature.join(", ")}`);
+  }
+  const stump = summary.obstacles.find(({ id }) => id === 21);
+  if (!stump || Math.abs(stump.detectedLeft - 453) > 3 || Math.abs(stump.detectedTop - 380) > 3) {
+    throw new Error(`Unexpected stump placement: ${stump?.detectedLeft}, ${stump?.detectedTop}`);
   }
 }
 console.log(JSON.stringify(summary, null, 2));
+
+function assertScene(actual, expectedScene) {
+  const signature = actual.stacks.map(({ creature, owner, count, hexId }) => `${owner}:${creature}:${count}@${hexId}`).sort();
+  const expected = [...expectedScene.stacks].sort();
+  if (JSON.stringify(signature) !== JSON.stringify(expected)) throw new Error(`Unexpected stack signature: ${signature.join(", ")}`);
+  if (actual.backgroundId !== expectedScene.backgroundId) throw new Error(`Unexpected background: ${actual.backgroundId}`);
+  const obstacleSignature = actual.obstacles.map(({ id, anchorHexId }) => `${id}@${anchorHexId}`).sort();
+  if (JSON.stringify(obstacleSignature) !== JSON.stringify([...expectedScene.obstacles].sort())) {
+    throw new Error(`Unexpected obstacles: ${obstacleSignature.join(", ")}`);
+  }
+}

@@ -1,4 +1,4 @@
-import { createBattleStack, setSetupStackCount } from "./battleState.js";
+import { createBattleStack } from "./battleState.js";
 import { createObstacleInstance, obstacleBlockedHexes } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
@@ -7,34 +7,50 @@ const WIDTH = 800;
 const HEIGHT = 556;
 const contextPixelCache = new WeakMap();
 const templatePixelCache = new WeakMap();
+const imagePromiseCache = new Map();
 
 export async function analyzeBattlefieldScreenshot(file, data) {
+  const startedAt = performance.now();
   const source = await createImageBitmap(file);
   const screenshotCanvas = normalizeBattlefield(source);
+  const countCanvas = normalizeBattlefield(source, false);
   const screenshot = screenshotCanvas.getContext("2d", { willReadFrequently: true });
+  const countContext = countCanvas.getContext("2d", { willReadFrequently: true });
   const backgroundId = identifyBackground(screenshotCanvas, data.backgrounds);
   const background = data.backgrounds.find((candidate) => candidate.id === backgroundId);
   const backgroundImage = await loadImage(`./public/${background.image}`);
   const backgroundCanvas = drawToCanvas(backgroundImage, WIDTH, HEIGHT);
   const backgroundContext = backgroundCanvas.getContext("2d", { willReadFrequently: true });
   const terrain = inferTerrain(background);
+  const preparedAt = performance.now();
 
   const obstacles = await detectObstacles(screenshot, backgroundContext, data, terrain);
+  const obstaclesAt = performance.now();
   const blocked = new Set(obstacles.flatMap((obstacle) => obstacle.blockedHexIds));
-  const stacks = await detectStacks(screenshot, backgroundContext, data, blocked);
-  const recognizedCounts = await applyNativeOcrCounts(screenshotCanvas, stacks, data.battlefield.grid);
+  const stacks = await detectStacks(screenshot, backgroundContext, data, blocked, countContext);
+  const stacksAt = performance.now();
+  // Native TextDetector OCR is intentionally not used for Heroes III badges:
+  // its general-purpose glyph model confuses the game's tiny bitmap 5/6/1.
   const bitmapCounts = stacks.filter((stack) => stack.screenshotCountRecognized).length;
+  const completedAt = performance.now();
   return {
     backgroundId,
     obstacles,
     stacks,
-    note: recognizedCounts + bitmapCounts
-      ? `${recognizedCounts + bitmapCounts} stack counts were read automatically.`
-      : "Creature and obstacle recognition uses original game frames. Counts that cannot be read confidently remain 1 and can be edited with right-click."
+    note: bitmapCounts
+      ? `${bitmapCounts} stack counts were read automatically.`
+      : "Creature and obstacle recognition uses original game frames. Counts that cannot be read confidently remain 1 and can be edited with right-click.",
+    timings: {
+      prepareMs: preparedAt - startedAt,
+      obstaclesMs: obstaclesAt - preparedAt,
+      stacksMs: stacksAt - obstaclesAt,
+      ocrMs: completedAt - stacksAt,
+      totalMs: completedAt - startedAt
+    }
   };
 }
 
-function normalizeBattlefield(image) {
+function normalizeBattlefield(image, smoothing = true) {
   const targetRatio = WIDTH / HEIGHT;
   const sourceRatio = image.width / image.height;
   let sw = image.width;
@@ -44,7 +60,9 @@ function normalizeBattlefield(image) {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  canvas.getContext("2d").drawImage(image, 0, 0, sw, sh, 0, 0, WIDTH, HEIGHT);
+  const context = canvas.getContext("2d");
+  context.imageSmoothingEnabled = smoothing;
+  context.drawImage(image, 0, 0, sw, sh, 0, 0, WIDTH, HEIGHT);
   return canvas;
 }
 
@@ -71,8 +89,10 @@ async function detectObstacles(screenshot, background, data, terrain) {
   const definitions = data.obstacles.filter((obstacle) =>
     obstacle.allowedTerrains.includes(terrain) || obstacle.specialBattlefields.includes(terrain) || obstacle.category === terrain
   );
-  const images = new Map();
-  for (const definition of definitions) images.set(definition.id, await loadImage(`./public/${definition.image}`));
+  const images = new Map(await Promise.all(definitions.map(async (definition) => [
+    definition.id,
+    await loadImage(`./public/${definition.image}`)
+  ])));
   const candidates = [];
 
   for (const definition of definitions.filter((candidate) => candidate.absolute)) {
@@ -85,13 +105,23 @@ async function detectObstacles(screenshot, background, data, terrain) {
 
   for (const definition of definitions.filter((candidate) => !candidate.absolute)) {
     const image = images.get(definition.id);
+    const coarseCandidates = [];
     for (const anchor of data.battlefield.grid.hexes) {
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
       const placement = bestCompositePlacement(screenshot, background, image, Math.round(anchor.centerX - 22), Math.round(anchor.centerY + 50 - image.height), {
-        radiusX: 9, radiusY: 5, step: 2, allowFlip: false, sampleStep: 3
+        radiusX: 9, radiusY: 5, step: 6, allowFlip: false, sampleStep: 6
       });
-      if (placement.correlation > 0.5 && placement.gain > 0.12 && placement.match > 0.72) candidates.push({ definition, anchorHexId: anchor.id, blockedHexIds, ...placement });
+      coarseCandidates.push({ anchor, blockedHexIds, ...placement });
+    }
+    coarseCandidates.sort((left, right) => obstacleMatchQuality(right) - obstacleMatchQuality(left));
+    for (const coarse of coarseCandidates.slice(0, 12)) {
+      const placement = bestCompositePlacement(screenshot, background, image, coarse.x, coarse.y, {
+        radiusX: 3, radiusY: 3, step: 1, fixedFlip: coarse.flip, sampleStep: 3
+      });
+      if (placement.correlation > 0.5 && placement.gain > 0.12 && placement.match > 0.72) {
+        candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
+      }
     }
   }
 
@@ -105,6 +135,8 @@ async function detectObstacles(screenshot, background, data, terrain) {
     const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, candidate.anchorHexId);
     instance.detectionConfidence = candidate.gain;
     instance.detectedFlip = candidate.flip;
+    instance.detectedLeft = candidate.x;
+    instance.detectedTop = candidate.y;
     accepted.push(instance);
     blockedHexIds.forEach((hexId) => occupied.add(hexId));
     if (accepted.length >= 12) break;
@@ -112,80 +144,186 @@ async function detectObstacles(screenshot, background, data, terrain) {
   return accepted;
 }
 
-async function detectStacks(screenshot, background, data, blocked) {
-  const templates = [];
-  for (const creature of data.creatures) {
-    const records = data.creatureDetection?.creatures?.[String(creature.creatureId)]?.frames || [];
-    for (const record of records) {
-      templates.push({ creature, record, image: await loadImage(`./public/${record.image}`) });
-    }
+async function detectStacks(screenshot, background, data, blocked, countContext = screenshot) {
+  const templateRecords = data.creatures.flatMap((creature) =>
+    (data.creatureDetection?.creatures?.[String(creature.creatureId)]?.frames || [])
+      .map((record) => ({ creature, record }))
+  );
+  const templates = await Promise.all(templateRecords.map(async ({ creature, record }) => ({
+    creature,
+    record,
+    image: await loadImage(`./public/${record.image}`)
+  })));
+  const templatesByCreature = new Map();
+  for (const template of templates) {
+    const creatureId = template.creature.creatureId;
+    if (!templatesByCreature.has(creatureId)) templatesByCreature.set(creatureId, []);
+    templatesByCreature.get(creatureId).push(template);
   }
 
   const candidates = [];
   const badges = detectStackBadges(screenshot);
   const digitTemplates = await loadDigitTemplates(data);
-  for (const badge of badges) badge.count = readBadgeCount(screenshot, badge, digitTemplates);
   for (const badge of badges) {
-    const nearbyHexes = data.battlefield.grid.hexes.filter((hex) => !blocked.has(hex.id));
+    const smoothCount = readBadgeCount(screenshot, badge, digitTemplates);
+    const sharpCount = readBadgeCount(countContext, badge, digitTemplates);
+    const selectedCount = selectBadgeCount(smoothCount, sharpCount);
+    badge.count = selectedCount?.value || null;
+    badge.countDiagnostics = { smooth: smoothCount, sharp: sharpCount, selected: selectedCount };
+  }
+  for (const badge of badges) {
+    const badgePlacements = ["player", "ai"]
+      .map((owner) => locateBadgeOnGrid(badge, data.battlefield.grid, owner))
+      .filter((placement) => placement && !blocked.has(placement.primaryHex.id));
+    if (!badgePlacements.length) continue;
     let best = null;
     const bestByCreature = new Map();
-    for (const hex of nearbyHexes) {
-      for (const template of templates) {
-        const twoHex = inferAbilityFlags(template.creature).twoHex;
-        const aiSide = hex.centerX >= WIDTH / 2;
-        const expectedBadgeX = twoHex ? hex.centerX + (aiSide ? -44 : 75) : hex.centerX + 31;
-        const expectedBadgeY = hex.centerY + (twoHex && aiSide ? 16 : 32);
-        if (Math.abs(expectedBadgeX - badge.centerX) > 16 || Math.abs(expectedBadgeY - badge.centerY) > 16) continue;
-        // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
-        // Preserve the frame's internal left/top offsets; centering the cropped PNG
-        // lets a large neighboring creature win the score for the wrong hex.
-        const baseX = Math.round(hex.centerX - 202 + template.record.left);
-        const baseY = Math.round(hex.centerY - 226 + template.record.top);
-        const placement = bestCompositePlacement(screenshot, background, template.image, baseX, baseY, {
-          radiusX: 2, radiusY: 2, step: 2, allowFlip: true, sampleStep: 2
-        });
-        const quality = Math.max(0, placement.correlation) * 0.55 + placement.chroma * 0.3 + Math.max(0, placement.gain) * 0.15;
-        const candidate = { creature: template.creature, quality, hex, ...placement };
-        const previous = bestByCreature.get(template.creature.creatureId);
-        if (!previous || quality > previous.quality) bestByCreature.set(template.creature.creatureId, candidate);
-        if (!best || quality > best.quality) best = candidate;
+    const coarseCandidates = [];
+    for (const badgePlacement of badgePlacements) {
+      for (const creatureTemplates of templatesByCreature.values()) {
+        let coarseBest = null;
+        for (const template of representativeTemplates(creatureTemplates)) {
+          const candidate = scoreCreatureTemplate(screenshot, background, data.battlefield.grid, blocked, badgePlacement, template, true);
+          if (candidate && (!coarseBest || candidate.quality > coarseBest.quality)) coarseBest = candidate;
+        }
+        if (coarseBest) coarseCandidates.push(coarseBest);
       }
     }
-    if (best?.creature.creatureId % 2 === 1) {
-      const baseCreature = bestByCreature.get(best.creature.creatureId - 1);
-      if (baseCreature && baseCreature.quality >= best.quality - 0.06) best = baseCreature;
+    coarseCandidates.sort((left, right) => right.quality - left.quality);
+    const coarseFloor = (coarseCandidates[0]?.quality ?? 0) - 0.08;
+    const shortlist = coarseCandidates.filter((candidate, index) => index < 6 || (index < 10 && candidate.quality >= coarseFloor));
+    for (const coarseCandidate of shortlist) {
+      const creatureTemplates = templatesByCreature.get(coarseCandidate.creature.creatureId) || [];
+      for (const template of creatureTemplates) {
+        const candidate = scoreCreatureTemplate(
+          screenshot,
+          background,
+          data.battlefield.grid,
+          blocked,
+          coarseCandidate,
+          template,
+          false
+        );
+        if (!candidate) continue;
+        const key = `${candidate.owner}:${candidate.creature.creatureId}`;
+        const previous = bestByCreature.get(key);
+        if (!previous || candidate.quality > previous.quality) bestByCreature.set(key, candidate);
+        if (!best || candidate.quality > best.quality) best = candidate;
+      }
     }
+    const alternatives = [...bestByCreature.values()]
+      .sort((left, right) => right.quality - left.quality)
+      .slice(0, 5)
+      .map(({ creature, owner, quality, rawQuality, sidePenalty, correlation, chroma, gain, match }) => ({
+        creatureId: creature.creatureId, name: creature.name, owner, quality, rawQuality, sidePenalty, correlation, chroma, gain, match
+      }));
+    if (best) best.detectionAlternatives = alternatives;
     if (best?.correlation > 0.13 && best.chroma > 0.82 && best.quality > 0.34) candidates.push({ ...best, badge });
   }
 
   candidates.sort((left, right) => right.quality - left.quality);
   const accepted = [];
   const usedHexes = new Set();
-  const slots = { player: 0, ai: 0 };
+  const ownerCounts = { player: 0, ai: 0 };
   for (const candidate of candidates) {
-    if (usedHexes.has(candidate.hex.id)) continue;
-    const owner = candidate.hex.centerX < WIDTH / 2 ? "player" : "ai";
-    if (slots[owner] >= 7) continue;
-    let primaryHex = candidate.hex;
-    if (inferAbilityFlags(candidate.creature).twoHex && owner === "player") {
-      primaryHex = data.battlefield.grid.hexes.find((hex) => hex.row === candidate.hex.row && hex.col === candidate.hex.col + 1) || candidate.hex;
-    }
+    if (usedHexes.has(candidate.primaryHex.id)) continue;
+    const owner = candidate.owner;
+    if (ownerCounts[owner] >= 7) continue;
     const stack = createBattleStack({
       creature: candidate.creature,
       owner,
-      hexId: primaryHex.id,
+      hexId: candidate.primaryHex.id,
       count: candidate.badge.count || 1,
-      armySlot: slots[owner]++,
+      armySlot: null,
       createdAt: accepted.length
     });
+    const footprint = footprintHexes(data.battlefield.grid, stack) || [candidate.primaryHex.id];
+    if (footprint.some((hexId) => usedHexes.has(hexId) || blocked.has(hexId))) continue;
+    ownerCounts[owner] += 1;
     stack.detectionConfidence = candidate.quality;
+    stack.detectionAlternatives = candidate.detectionAlternatives;
+    stack.screenshotCountDiagnostics = candidate.badge.countDiagnostics;
     stack.screenshotCountRecognized = Boolean(candidate.badge.count);
     accepted.push(stack);
-    for (const occupiedHexId of footprintHexes(data.battlefield.grid, stack) || [candidate.hex.id]) {
-      usedHexes.add(occupiedHexId);
-    }
+    for (const occupiedHexId of footprint) usedHexes.add(occupiedHexId);
+  }
+  for (const owner of ["player", "ai"]) {
+    accepted
+      .filter((stack) => stack.owner === owner)
+      .sort((left, right) => {
+        const leftHex = data.battlefield.grid.hexes.find((hex) => hex.id === left.hexId);
+        const rightHex = data.battlefield.grid.hexes.find((hex) => hex.id === right.hexId);
+        return (leftHex?.row ?? 99) - (rightHex?.row ?? 99) || (leftHex?.col ?? 99) - (rightHex?.col ?? 99);
+      })
+      .forEach((stack, armySlot) => { stack.armySlot = armySlot; });
   }
   return accepted;
+}
+
+function representativeTemplates(templates) {
+  if (templates.length <= 3) return templates;
+  return [templates[0], templates[Math.floor((templates.length - 1) / 2)], templates[templates.length - 1]];
+}
+
+function scoreCreatureTemplate(screen, background, grid, blocked, badgePlacement, template, coarse) {
+  const anchorHex = detectionAnchorHex(grid, badgePlacement, template.creature);
+  if (!anchorHex || blocked.has(anchorHex.id)) return null;
+  // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
+  // Preserve the frame's internal left/top offsets; centering the cropped PNG
+  // lets a large neighboring creature win the score for the wrong hex.
+  const baseX = Math.round(anchorHex.centerX - 202 + template.record.left);
+  const baseY = Math.round(anchorHex.centerY - 226 + template.record.top);
+  const placement = bestCompositePlacement(screen, background, template.image, baseX, baseY, {
+    radiusX: 2,
+    radiusY: 2,
+    step: 2,
+    fixedFlip: badgePlacement.owner === "ai",
+    sampleStep: coarse ? 4 : 2
+  });
+  const rawQuality = creatureMatchQuality(placement);
+  const sidePenalty = ownerSidePenalty(badgePlacement.owner, badgePlacement.primaryHex);
+  const badgePenalty = Math.min(0.08, Math.hypot(badgePlacement.dx, badgePlacement.dy) * 0.0025);
+  const quality = rawQuality - sidePenalty - badgePenalty;
+  return { ...badgePlacement, ...placement, creature: template.creature, quality, rawQuality, sidePenalty, badgePenalty };
+}
+
+function locateBadgeOnGrid(badge, grid, owner) {
+  const badgeOffsetX = owner === "ai" ? -44 : 31;
+  const badgeOffsetY = owner === "ai" ? 16 : 32;
+  let best = null;
+  for (const hex of grid.hexes) {
+    const dx = badge.centerX - (hex.centerX + badgeOffsetX);
+    const dy = badge.centerY - (hex.centerY + badgeOffsetY);
+    const distance = dx * dx + dy * dy;
+    if (!best || distance < best.distance) best = { primaryHex: hex, owner, distance, dx, dy };
+  }
+  return best && Math.abs(best.dx) <= 18 && Math.abs(best.dy) <= 20 ? best : null;
+}
+
+function detectionAnchorHex(grid, placement, creature) {
+  if (placement.owner !== "player" || !inferAbilityFlags(creature).twoHex) return placement.primaryHex;
+  return grid.hexes.find((hex) => hex.row === placement.primaryHex.row && hex.col === placement.primaryHex.col - 1) || null;
+}
+
+function creatureMatchQuality(placement) {
+  const correlation = Math.max(0, placement.correlation);
+  const chroma = Math.max(0, placement.chroma);
+  const match = Math.max(0, placement.match);
+  const signedGain = Math.max(-1, Math.min(1, placement.gain));
+  return correlation * 0.15 + chroma * 0.15 + match * 0.45 + signedGain * 0.25;
+}
+
+function obstacleMatchQuality(placement) {
+  return Math.max(0, placement.correlation) * 0.5
+    + Math.max(0, placement.match) * 0.3
+    + Math.max(-1, Math.min(1, placement.gain)) * 0.2;
+}
+
+function ownerSidePenalty(owner, primaryHex) {
+  const wrongSideDistance = owner === "ai"
+    ? Math.max(0, WIDTH / 2 - primaryHex.centerX)
+    : Math.max(0, primaryHex.centerX - WIDTH / 2);
+  return 0.3 * wrongSideDistance / (WIDTH / 2);
 }
 
 async function loadDigitTemplates(data) {
@@ -273,7 +411,14 @@ function readBadgeCount(context, badge, digits) {
       }
     }
   }
-  return best?.score >= 0.4 ? best.value : null;
+  return best?.score >= 0.4 ? best : null;
+}
+
+function selectBadgeCount(smooth, sharp) {
+  if (!smooth) return sharp;
+  if (!sharp) return smooth;
+  if (smooth.value === sharp.value) return smooth.score >= sharp.score ? smooth : sharp;
+  return smooth.score + 0.03 >= sharp.score ? smooth : sharp;
 }
 
 function detectStackBadges(context) {
@@ -329,13 +474,16 @@ function detectStackBadges(context) {
 
 function bestCompositePlacement(screen, background, image, originX, originY, options) {
   let best = { gain: -1, match: 0, correlation: -1, chroma: 0, x: originX, y: originY, flip: false };
-  const flips = options.allowFlip ? [false, true] : [false];
+  const flips = typeof options.fixedFlip === "boolean"
+    ? [options.fixedFlip]
+    : (options.allowFlip ? [false, true] : [false]);
   for (const flip of flips) {
+    const orientedOriginX = originX + (flip ? Number(options.flipOffsetX || 0) : 0);
     for (let dy = -options.radiusY; dy <= options.radiusY; dy += options.step) {
       for (let dx = -options.radiusX; dx <= options.radiusX; dx += options.step) {
-        const score = compositeScore(screen, background, image, originX + dx, originY + dy, flip, options.sampleStep);
+        const score = compositeScore(screen, background, image, orientedOriginX + dx, originY + dy, flip, options.sampleStep);
         if (score.correlation > best.correlation || (score.correlation === best.correlation && score.gain > best.gain)) {
-          best = { ...score, x: originX + dx, y: originY + dy, flip };
+          best = { ...score, x: orientedOriginX + dx, y: originY + dy, flip };
         }
       }
     }
@@ -467,40 +615,13 @@ function drawToCanvas(image, width, height, flip = false) {
 }
 
 function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  if (imagePromiseCache.has(src)) return imagePromiseCache.get(src);
+  const promise = new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error(`Could not load ${src}`));
     image.src = src;
   });
-}
-
-async function applyNativeOcrCounts(canvas, stacks, grid) {
-  if (!("TextDetector" in window) || !stacks.length) return 0;
-  try {
-    const detector = new window.TextDetector();
-    const results = await detector.detect(canvas);
-    let applied = 0;
-    for (const result of results) {
-      const match = String(result.rawValue || "").match(/^\s*(\d{1,4})\s*$/);
-      if (!match) continue;
-      const count = Number(match[1]);
-      if (count < 1 || count > 9999) continue;
-      const box = result.boundingBox;
-      const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-      const nearest = stacks.reduce((best, stack) => {
-        const hex = grid.hexes.find((candidate) => candidate.id === stack.hexId);
-        if (!hex) return best;
-        const distance = Math.hypot(center.x - (hex.centerX + 18), center.y - (hex.centerY + 10));
-        return !best || distance < best.distance ? { stack, distance } : best;
-      }, null);
-      if (nearest?.distance < 70 && nearest.stack.count === 1 && !nearest.stack.screenshotCountRecognized) {
-        setSetupStackCount(nearest.stack, count);
-        applied += 1;
-      }
-    }
-    return applied;
-  } catch {
-    return 0;
-  }
+  imagePromiseCache.set(src, promise);
+  return promise;
 }

@@ -135,12 +135,16 @@ export function renderBattlefield(container, data, state, handlers) {
   for (const obstacle of state.obstacles || []) {
     const element = document.createElement("button");
     element.type = "button";
-    element.className = `battle-obstacle ${obstacle.absolute ? "absolute" : "usual"} ${obstacle.foreground ? "foreground" : ""}`;
+    const hasDetectedPosition = Number.isFinite(obstacle.detectedLeft) && Number.isFinite(obstacle.detectedTop);
+    element.className = `battle-obstacle ${obstacle.absolute ? "absolute" : "usual"} ${obstacle.foreground ? "foreground" : ""} ${hasDetectedPosition ? "detected-position" : ""}`;
     element.dataset.obstacleInstanceId = obstacle.instanceId;
     element.title = `${obstacle.name} · blocks ${obstacle.blockedHexIds.length} hexes · right-click to remove`;
     element.innerHTML = `<img src="./public/${obstacle.image}" alt="${obstacle.name}" />`;
     if (obstacle.detectedFlip) element.querySelector("img").style.transform = "scaleX(-1)";
-    if (obstacle.absolute) {
+    if (hasDetectedPosition) {
+      element.style.left = `${obstacle.detectedLeft}px`;
+      element.style.top = `${obstacle.detectedTop}px`;
+    } else if (obstacle.absolute) {
       element.style.left = `${obstacle.width}px`;
       element.style.top = `${obstacle.height}px`;
     } else {

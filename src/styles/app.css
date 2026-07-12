@@ -788,6 +788,10 @@ button.primary {
   transform: translateY(-100%);
 }
 
+.battle-obstacle.detected-position {
+  transform: none;
+}
+
 .battle-obstacle.foreground {
   z-index: 4;
 }
