@@ -14,10 +14,21 @@ import { canStackOccupy, footprintHexes, movementPlacementForHex, occupiedHexesF
 import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
 import { ARMY_SLOT_COUNT, deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 import { selectPointerAttack } from "./engine/battleInteraction.js";
+import { renderObstacleMenu } from "./components/ObstacleMenu.js";
+import { renderBackgroundMenu } from "./components/BackgroundMenu.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, generateObstacleLayout } from "./engine/obstacles.js";
+import { analyzeBattlefieldScreenshot } from "./engine/screenshotAnalyzer.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
   creatureList: document.querySelector("#creature-list"),
+  obstacleMenu: document.querySelector("#obstacle-menu"),
+  backgroundMenu: document.querySelector("#background-menu"),
+  setupMenuTabs: document.querySelector("#setup-menu-tabs"),
+  imageInput: document.querySelector("#battlefield-image-input"),
+  importPreview: document.querySelector("#battlefield-import-preview"),
+  analyzeImage: document.querySelector("#analyze-battlefield-image"),
+  importStatus: document.querySelector("#battlefield-import-status"),
   battlefieldViewport: document.querySelector("#battlefield-viewport"),
   battlefield: document.querySelector("#battlefield"),
   fullscreenHoverInfo: document.querySelector("#fullscreen-hover-info"),
@@ -53,6 +64,7 @@ let menuDrag = null;
 let aiTurnPending = false;
 let battleAnimationPending = false;
 let editingStackId = null;
+let importedImageFile = null;
 
 async function boot() {
   try {
@@ -75,6 +87,10 @@ function bindEvents() {
   document.addEventListener("fullscreenchange", updateBattlefieldFullscreen);
   window.addEventListener("resize", updateBattlefieldFullscreen);
   document.addEventListener("keydown", onGlobalKeyDown);
+  elements.setupMenuTabs.addEventListener("click", onSetupTabClick);
+  elements.imageInput.addEventListener("change", () => loadImportedImage(elements.imageInput.files?.[0]));
+  elements.analyzeImage.addEventListener("click", analyzeImportedImage);
+  document.addEventListener("paste", onImagePaste);
 
   elements.startBattle.addEventListener("click", () => {
     if (state.stacks.length < 2 || battleAnimationPending) return;
@@ -346,7 +362,7 @@ function onDrop(payload, hexId) {
   state.setupPreview = null;
   if (payload.stackId) {
     const stack = state.stacks.find((candidate) => candidate.id === payload.stackId);
-    if (!stack || !canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId)) return;
+    if (!stack || !canStackOccupy(data.battlefield.grid, state.stacks, stack, hexId, state.obstacleBlockedHexIds)) return;
     stack.hexId = hexId;
     state.selectedStackId = stack.id;
     state.selectedCreatureId = null;
@@ -355,13 +371,20 @@ function onDrop(payload, hexId) {
 }
 
 async function onHexClick(hexId) {
-  if (state.phase === "setup") return;
+  if (state.phase === "setup") {
+    const definition = data.obstacles.find((obstacle) => obstacle.id === state.selectedObstacleId);
+    if (!definition || definition.absolute || !canPlaceObstacle(data.battlefield.grid, state, definition, hexId)) return;
+    state.obstacles.push(createObstacleInstance(data.battlefield.grid, definition, hexId));
+    refreshObstacleBlocking();
+    render();
+    return;
+  }
 
   const active = activePlayerStack();
   const movementPlacement = active ? movementPlacementForHex(data.battlefield.grid, active, state.reachable, hexId) : null;
   const destinationHexId = movementPlacement?.primaryHexId;
   if (state.phase === "battle" && active && !battleAnimationPending && destinationHexId !== undefined && !isHexOccupied(destinationHexId, active.id)) {
-    const path = findMovementPath(data.battlefield.grid, state.stacks, active, destinationHexId);
+    const path = findMovementPath(data.battlefield.grid, state.stacks, active, destinationHexId, state.obstacleBlockedHexIds);
     if (!path) return;
     await runAnimatedAction(
       () => animateStackMove(elements.battlefield, data.battlefield.grid, active, path),
@@ -463,7 +486,99 @@ function onAttackHover(stackId, point = null, targetHexId = null) {
 }
 
 function battlefieldHandlers() {
-  return { onDrop, onHexClick, onStackClick, onStackHover, onAttackHover };
+  return { onDrop, onHexClick, onStackClick, onStackHover, onAttackHover, onObstacleRemove };
+}
+
+function onSetupTabClick(event) {
+  const button = event.target.closest("[data-setup-tab]");
+  if (!button) return;
+  document.querySelectorAll("[data-setup-tab]").forEach((tab) => tab.classList.toggle("active", tab === button));
+  document.querySelectorAll("[data-setup-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.setupPanel === button.dataset.setupTab));
+}
+
+function onObstacleSelect(obstacleId) {
+  if (state.phase !== "setup") return;
+  const definition = data.obstacles.find((obstacle) => obstacle.id === obstacleId);
+  if (!definition) return;
+  if (definition.absolute) {
+    if (!canPlaceObstacle(data.battlefield.grid, state, definition)) return;
+    state.obstacles = state.obstacles.filter((obstacle) => !obstacle.absolute);
+    state.obstacles.push(createObstacleInstance(data.battlefield.grid, definition));
+    state.selectedObstacleId = null;
+    refreshObstacleBlocking();
+  } else {
+    state.selectedObstacleId = state.selectedObstacleId === obstacleId ? null : obstacleId;
+  }
+  render();
+}
+
+function onObstacleRemove(instanceId) {
+  if (state.phase !== "setup") return;
+  state.obstacles = state.obstacles.filter((obstacle) => obstacle.instanceId !== instanceId);
+  refreshObstacleBlocking();
+  render();
+}
+
+function onBackgroundSelect(backgroundId) {
+  if (state.phase !== "setup") return;
+  state.backgroundId = backgroundId;
+  const aliases = {
+    cmbkcf: "cursed_ground", cmbkef: "evil_fog", cmbkff: "fiery_fields", cmbkhg: "holy_ground",
+    cmbklp: "lucid_pools", cmbkmag: "magic_clouds", cmbkmc: "magic_clouds", cmbkrk: "rocklands"
+  };
+  if (aliases[backgroundId]) state.obstacleCategory = aliases[backgroundId];
+  else if (backgroundId.includes("sn")) state.obstacleCategory = "snow";
+  else if (backgroundId.includes("swmp")) state.obstacleCategory = "swamp";
+  else if (backgroundId.includes("lava")) state.obstacleCategory = "lava";
+  else if (backgroundId.includes("bch")) state.obstacleCategory = "sand_shore";
+  else if (backgroundId.includes("boat") || backgroundId.includes("deck")) state.obstacleCategory = "ship";
+  else if (backgroundId.includes("des")) state.obstacleCategory = "sand";
+  else if (backgroundId.includes("rgh")) state.obstacleCategory = "rough";
+  else if (backgroundId.includes("sub")) state.obstacleCategory = "subterra";
+  else if (backgroundId.includes("dr")) state.obstacleCategory = "dirt";
+  else state.obstacleCategory = "grass";
+  render();
+}
+
+function refreshObstacleBlocking() {
+  state.obstacleBlockedHexIds = allObstacleBlockedHexes(state);
+}
+
+function onImagePaste(event) {
+  const imageItem = [...(event.clipboardData?.items || [])].find((item) => item.type.startsWith("image/"));
+  if (!imageItem) return;
+  event.preventDefault();
+  loadImportedImage(imageItem.getAsFile());
+  document.querySelector('[data-setup-tab="import"]')?.click();
+}
+
+function loadImportedImage(file) {
+  if (!file?.type.startsWith("image/")) return;
+  importedImageFile = file;
+  const url = URL.createObjectURL(file);
+  elements.importPreview.src = url;
+  elements.importPreview.classList.add("visible");
+  elements.analyzeImage.disabled = false;
+  elements.importStatus.textContent = `${file.name || "Clipboard image"} loaded. Ready to analyze.`;
+}
+
+async function analyzeImportedImage() {
+  if (!importedImageFile || state.phase !== "setup") return;
+  elements.analyzeImage.disabled = true;
+  elements.importStatus.textContent = "Analyzing background, obstacles and units...";
+  try {
+    const result = await analyzeBattlefieldScreenshot(importedImageFile, data);
+    state.backgroundId = result.backgroundId || state.backgroundId;
+    state.obstacles = result.obstacles;
+    refreshObstacleBlocking();
+    state.stacks = result.stacks;
+    elements.importStatus.textContent = `Applied ${result.obstacles.length} obstacles and ${result.stacks.length} unit candidates. Background: ${result.backgroundId}. ${result.note}`;
+    render();
+  } catch (error) {
+    elements.importStatus.textContent = `Analysis failed: ${error.message}`;
+  } finally {
+    elements.analyzeImage.disabled = false;
+  }
 }
 
 function armySlotFromClientPoint(clientX, clientY) {
@@ -572,7 +687,7 @@ function applyStackCountEditor() {
 function updateReachable() {
   const active = state.stacks.find((stack) => stack.id === state.activeStackId);
   const battlePreview = state.phase === "battle" && active?.owner === "player" ? active : null;
-  state.reachable = battlePreview ? reachableHexes(data.battlefield.grid, state.stacks, battlePreview) : new Set();
+  state.reachable = battlePreview ? reachableHexes(data.battlefield.grid, state.stacks, battlePreview, state.obstacleBlockedHexIds) : new Set();
   state.enemyTargetIds = new Set();
   state.attackableTargetIds = new Set();
   if (state.phase === "battle" && active?.owner === "player") {
@@ -605,6 +720,26 @@ function render() {
     onOwnerSelect: onRosterOwnerSelect,
     onQuickAdd: onRosterQuickAdd
   });
+  renderObstacleMenu(elements.obstacleMenu, data, state, {
+    onCategory: (category) => {
+      state.obstacleCategory = category;
+      render();
+    },
+    onSelect: onObstacleSelect,
+    onAuto: () => {
+      if (state.phase !== "setup") return;
+      state.obstacles = generateObstacleLayout(data.battlefield.grid, state, data.obstacles, state.obstacleCategory);
+      refreshObstacleBlocking();
+      render();
+    },
+    onClear: () => {
+      if (state.phase !== "setup") return;
+      state.obstacles = [];
+      refreshObstacleBlocking();
+      render();
+    }
+  });
+  renderBackgroundMenu(elements.backgroundMenu, data, state, onBackgroundSelect);
   renderBattlefield(elements.battlefield, data, state, battlefieldHandlers());
   renderArmySetup(elements.armySetup, state, {
     onSlotClick: onArmySlotClick,

@@ -40,7 +40,9 @@ This reads the parent workspace exports and copies only the Castle V1 subset int
 ## Current Limits
 
 - Castle only.
-- One grass battlefield background.
+- All 25 extracted Heroes III combat backgrounds.
+- 125 battle obstacles with terrain categories, blocked-hex footprints, manual placement and original-style automatic layouts.
+- Screenshot import by file or Ctrl+V, with local background/obstacle/unit template analysis and optional native OCR for stack counts.
 - Obstacles, siege, hero spellbook, morale/luck and full attack execution are deferred.
 - Two-hex creatures are displayed and marked, but still occupy one visual hex in V1.
 - Uses `engine_verified_hd_variant` behavior as the maximum runtime tier; exact-build verification remains forbidden.

@@ -20,11 +20,11 @@ export function occupiedHexesForStacks(grid, stacks, exceptStackId = null) {
   return occupied;
 }
 
-export function canStackOccupy(grid, stacks, stack, primaryHexId) {
+export function canStackOccupy(grid, stacks, stack, primaryHexId, extraBlocked = null) {
   const footprint = footprintHexes(grid, stack, primaryHexId);
   if (!footprint) return false;
   const occupied = occupiedHexesForStacks(grid, stacks, stack.id);
-  return footprint.every((hexId) => !occupied.has(hexId));
+  return footprint.every((hexId) => !occupied.has(hexId) && !extraBlocked?.has(hexId));
 }
 
 export function placementPreview(grid, stacks, stack, primaryHexId) {

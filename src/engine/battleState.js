@@ -4,6 +4,11 @@ export function createInitialState() {
   return {
     phase: "setup",
     owner: "player",
+    backgroundId: "cmbkgrtr",
+    obstacleCategory: "grass",
+    selectedObstacleId: null,
+    obstacles: [],
+    obstacleBlockedHexIds: new Set(),
     selectedCreatureId: null,
     selectedStackId: null,
     stackCount: 1,
@@ -100,6 +105,7 @@ export function resetBattle(state) {
   state.enemyTargetIds = new Set();
   state.attackableTargetIds = new Set();
   state.attackPreview = null;
+  state.selectedObstacleId = null;
   state.round = 1;
   state.actionLog.unshift("Battle reset to setup.");
 }

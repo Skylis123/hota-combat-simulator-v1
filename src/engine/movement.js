@@ -6,13 +6,13 @@ export function occupiedHexes(grid, stacks, exceptStackId = null) {
   return occupiedHexesForStacks(grid, stacks, exceptStackId);
 }
 
-export function reachableHexes(grid, stacks, stack) {
-  return new Set(movementPaths(grid, stacks, stack).keys());
+export function reachableHexes(grid, stacks, stack, extraBlocked = null) {
+  return new Set(movementPaths(grid, stacks, stack, extraBlocked).keys());
 }
 
-export function findMovementPath(grid, stacks, stack, destinationHexId) {
+export function findMovementPath(grid, stacks, stack, destinationHexId, extraBlocked = null) {
   if (!stack) return null;
-  return movementPaths(grid, stacks, stack).get(destinationHexId) || null;
+  return movementPaths(grid, stacks, stack, extraBlocked).get(destinationHexId) || null;
 }
 
 export function findPath(grid, fromHexId, destinationHexId, blocked = new Set(), maxSteps = Infinity) {
@@ -40,8 +40,8 @@ export function findPath(grid, fromHexId, destinationHexId, blocked = new Set(),
   return null;
 }
 
-export function findStackPath(grid, stacks, stack, fromHexId, destinationHexId, maxSteps = Infinity) {
-  if (!canStackOccupy(grid, stacks, stack, destinationHexId)) return null;
+export function findStackPath(grid, stacks, stack, fromHexId, destinationHexId, maxSteps = Infinity, extraBlocked = null) {
+  if (!canStackOccupy(grid, stacks, stack, destinationHexId, extraBlocked)) return null;
   if (fromHexId === destinationHexId) return [fromHexId];
   const lookup = buildHexLookup(grid);
   const parents = new Map([[fromHexId, null]]);
@@ -54,7 +54,7 @@ export function findStackPath(grid, stacks, stack, fromHexId, destinationHexId, 
     const hex = lookup.get(hexId);
     if (!hex || distance >= maxSteps) continue;
     for (const neighbor of hex.neighbors) {
-      if (parents.has(neighbor) || !canStackOccupy(grid, stacks, stack, neighbor)) continue;
+      if (parents.has(neighbor) || !canStackOccupy(grid, stacks, stack, neighbor, extraBlocked)) continue;
       parents.set(neighbor, hexId);
       distances.set(neighbor, distance + 1);
       if (neighbor === destinationHexId) return reconstructPath(parents, destinationHexId);
@@ -64,7 +64,7 @@ export function findStackPath(grid, stacks, stack, fromHexId, destinationHexId, 
   return null;
 }
 
-function movementPaths(grid, stacks, stack) {
+function movementPaths(grid, stacks, stack, extraBlocked = null) {
   const paths = new Map();
   if (!stack) return paths;
   const speed = Math.max(0, Number(stack.creature.stats.speed || 0));
@@ -77,7 +77,7 @@ function movementPaths(grid, stacks, stack) {
 
   if (flying) {
     for (const destination of grid.hexes) {
-      if (!canStackOccupy(grid, stacks, stack, destination.id)) continue;
+      if (!canStackOccupy(grid, stacks, stack, destination.id, extraBlocked)) continue;
       const path = findPath(grid, stack.hexId, destination.id, new Set(), speed);
       if (path) paths.set(destination.id, path);
     }
@@ -90,7 +90,7 @@ function movementPaths(grid, stacks, stack) {
     const hex = lookup.get(hexId);
     if (!hex || cost >= speed) continue;
     for (const neighbor of hex.neighbors) {
-      if (parents.has(neighbor) || !canStackOccupy(grid, stacks, stack, neighbor)) continue;
+      if (parents.has(neighbor) || !canStackOccupy(grid, stacks, stack, neighbor, extraBlocked)) continue;
       parents.set(neighbor, hexId);
       distances.set(neighbor, cost + 1);
       paths.set(neighbor, reconstructPath(parents, neighbor));

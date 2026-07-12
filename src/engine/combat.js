@@ -48,7 +48,7 @@ function findApproachOptions(grid, state, attacker, target) {
   for (const candidate of grid.hexes) {
     if (candidate.id === attacker.hexId) continue;
     if (!stacksAreAdjacent(grid, attacker, target, candidate.id)) continue;
-    const path = findMovementPath(grid, state.stacks, attacker, candidate.id);
+    const path = findMovementPath(grid, state.stacks, attacker, candidate.id, state.obstacleBlockedHexIds);
     if (!path) continue;
     options.push({ hexId: candidate.id, path });
   }
@@ -119,11 +119,11 @@ function choosePursuitPlan(grid, state, stack) {
   const speed = Math.max(1, Number(stack.creature.stats.speed || 0));
   for (const target of livingEnemies(state, stack)) {
     for (const candidate of grid.hexes) {
-      if (!canStackOccupy(grid, state.stacks, stack, candidate.id)) continue;
+      if (!canStackOccupy(grid, state.stacks, stack, candidate.id, state.obstacleBlockedHexIds)) continue;
       if (!stacksAreAdjacent(grid, stack, target, candidate.id)) continue;
       const path = inferAbilityFlags(stack.creature).flying
         ? findPath(grid, stack.hexId, candidate.id)
-        : findStackPath(grid, state.stacks, stack, stack.hexId, candidate.id);
+        : findStackPath(grid, state.stacks, stack, stack.hexId, candidate.id, Infinity, state.obstacleBlockedHexIds);
       if (!path) continue;
       const movementSteps = Math.max(0, path.length - 1);
       const option = { canAttack: true, mode: "melee", approachHex: candidate.id, approachPath: path };

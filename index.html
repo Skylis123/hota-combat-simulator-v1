@@ -24,9 +24,37 @@
           </select>
         </section>
 
-        <section>
+        <nav id="setup-menu-tabs" class="setup-menu-tabs" aria-label="Battlefield setup menus">
+          <button type="button" class="active" data-setup-tab="units">Units</button>
+          <button type="button" data-setup-tab="obstacles">Obstacles</button>
+          <button type="button" data-setup-tab="backgrounds">Backgrounds</button>
+          <button type="button" data-setup-tab="import">Import</button>
+        </nav>
+
+        <section class="setup-menu-panel active" data-setup-panel="units">
           <div class="section-title">Castle Units</div>
           <div id="creature-list" class="creature-list"></div>
+        </section>
+        <section class="setup-menu-panel" data-setup-panel="obstacles">
+          <div class="section-title">Battle Obstacles</div>
+          <div id="obstacle-menu" class="obstacle-menu"></div>
+        </section>
+        <section class="setup-menu-panel" data-setup-panel="backgrounds">
+          <div class="section-title">Battlefield Backgrounds</div>
+          <div id="background-menu" class="background-menu"></div>
+        </section>
+        <section class="setup-menu-panel" data-setup-panel="import">
+          <div class="section-title">Import Screenshot</div>
+          <div id="screenshot-import" class="screenshot-import">
+            <label class="screenshot-dropzone" for="battlefield-image-input">
+              <strong>Choose or paste an image</strong>
+              <span>Upload a screenshot or press Ctrl+V after copying it from Snipping Tool.</span>
+            </label>
+            <input id="battlefield-image-input" type="file" accept="image/*" />
+            <img id="battlefield-import-preview" alt="Imported battlefield preview" />
+            <button id="analyze-battlefield-image" type="button" disabled>Analyze and apply</button>
+            <div id="battlefield-import-status" class="import-status">No image loaded.</div>
+          </div>
         </section>
       </aside>
 

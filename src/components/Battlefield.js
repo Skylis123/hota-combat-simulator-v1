@@ -6,7 +6,8 @@ import { inferAbilityFlags } from "../engine/abilities.js";
 export function renderBattlefield(container, data, state, handlers) {
   const battlefield = data.battlefield;
   const grid = battlefield.grid;
-  container.style.backgroundImage = `url("./public/${resolveBackground(battlefield)}")`;
+  const selectedBackground = data.backgrounds?.find((background) => background.id === state.backgroundId);
+  container.style.backgroundImage = `url("./public/${selectedBackground?.image || resolveBackground(battlefield)}")`;
   container.innerHTML = "";
   setActionCursor(container, "default");
   container.classList.toggle("setup-mode", state.phase === "setup");
@@ -103,6 +104,7 @@ export function renderBattlefield(container, data, state, handlers) {
     polygon.setAttribute("points", polygonPointsToString(hex.polygonPoints));
     polygon.dataset.hexId = String(hex.id);
     const classes = ["hex"];
+    if (state.obstacleBlockedHexIds?.has(hex.id)) classes.push("obstacle-blocked");
     if (reachableFootprints.has(hex.id)) classes.push("reachable");
     if (reachableFootprints.get(hex.id)?.has("rear")) classes.push("reachable-wide-rear");
     const occupancy = occupied.get(hex.id);
@@ -125,6 +127,35 @@ export function renderBattlefield(container, data, state, handlers) {
     svg.appendChild(polygon);
   }
   container.appendChild(svg);
+
+  const obstacleLayer = document.createElement("div");
+  obstacleLayer.className = "obstacle-layer";
+  const foregroundObstacleLayer = document.createElement("div");
+  foregroundObstacleLayer.className = "obstacle-layer foreground-obstacle-layer";
+  for (const obstacle of state.obstacles || []) {
+    const element = document.createElement("button");
+    element.type = "button";
+    element.className = `battle-obstacle ${obstacle.absolute ? "absolute" : "usual"} ${obstacle.foreground ? "foreground" : ""}`;
+    element.dataset.obstacleInstanceId = obstacle.instanceId;
+    element.title = `${obstacle.name} · blocks ${obstacle.blockedHexIds.length} hexes · right-click to remove`;
+    element.innerHTML = `<img src="./public/${obstacle.image}" alt="${obstacle.name}" />`;
+    if (obstacle.absolute) {
+      element.style.left = `${obstacle.width}px`;
+      element.style.top = `${obstacle.height}px`;
+    } else {
+      const anchor = grid.hexes.find((hex) => hex.id === obstacle.anchorHexId);
+      if (!anchor) continue;
+      element.style.left = `${anchor.centerX - 22}px`;
+      element.style.top = `${anchor.centerY + 28}px`;
+    }
+    element.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handlers.onObstacleRemove?.(obstacle.instanceId);
+    });
+    (obstacle.foreground ? foregroundObstacleLayer : obstacleLayer).appendChild(element);
+  }
+  container.appendChild(obstacleLayer);
 
   const stackLayer = document.createElement("div");
   stackLayer.className = "stack-layer";
@@ -215,6 +246,7 @@ export function renderBattlefield(container, data, state, handlers) {
     stackLayer.appendChild(element);
   }
   container.appendChild(stackLayer);
+  container.appendChild(foregroundObstacleLayer);
 }
 
 function setActionCursor(container, action) {

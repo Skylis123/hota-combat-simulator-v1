@@ -12,6 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
+import { allObstacleBlockedHexes, createObstacleInstance, obstacleBlockedHexes } from "../src/engine/obstacles.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -29,6 +30,15 @@ function gifDimensions(filePath) {
 }
 
 const failures = [];
+const battlefieldCatalog = JSON.parse(fs.readFileSync(path.join(root, "public", "data", "battlefield-catalog.json"), "utf8"));
+if (battlefieldCatalog.obstacles.length !== 125 || battlefieldCatalog.backgrounds.length !== 25 || battlefieldCatalog.missingGraphics.length !== 0) {
+  failures.push("Battlefield catalog must contain all 125 obstacles, all 25 backgrounds and no missing graphics.");
+}
+for (const entry of [...battlefieldCatalog.obstacles, ...battlefieldCatalog.backgrounds]) {
+  if (!fs.existsSync(path.join(root, "public", entry.image.replace(/^assets\//, "assets/")))) {
+    failures.push(`Missing battlefield catalog image: ${entry.image}`);
+  }
+}
 if (createInitialState().stackCount !== 1) failures.push("New stacks must default to a count of one.");
 if (data.scope?.town !== "Castle") failures.push("V1 data is not Castle-scoped.");
 if ((data.creatures || []).length !== 14) failures.push("Castle creature subset must contain 14 base/upgraded units.");
@@ -239,6 +249,14 @@ const championEdgeMovement = movementPlacementForHex(footprintGrid, championStac
 if (championEdgeMovement?.primaryHexId !== 1 || JSON.stringify(championEdgeMovement.hexIds) !== JSON.stringify([1, 0])) {
   failures.push("A wide Player stack must expose the first-column rear hex and resolve it to its legal primary destination.");
 }
+const testObstacleDefinition = { id: 999, name: "Test rock", blockedTiles: [0], absolute: false, image: "" };
+const testObstacle = createObstacleInstance(footprintGrid, testObstacleDefinition, 1);
+const obstacleState = { obstacles: [testObstacle] };
+const obstacleBlocked = allObstacleBlockedHexes(obstacleState);
+const obstacleWalker = createBattleStack({ creature: byCreatureId.get(0), owner: "player", hexId: 0, count: 1, createdAt: 0 });
+if (JSON.stringify(obstacleBlockedHexes(footprintGrid, testObstacleDefinition, 1)) !== JSON.stringify([1]) || !obstacleBlocked.has(1) || findMovementPath(footprintGrid, [obstacleWalker], obstacleWalker, 2, obstacleBlocked) !== null) {
+  failures.push("Obstacle footprints must map to blocked battle hexes and prevent ground pathfinding.");
+}
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (!/action-cursor="attack-up-left"[^}]*12-attack-down-left\.png/s.test(appCss) || !/action-cursor="attack-down-left"[^}]*10-attack-up-left\.png/s.test(appCss)) {
   failures.push("The two visually reversed left-diagonal sword frames must be mapped to their actual blade directions.");
@@ -273,6 +291,10 @@ if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack
   failures.push("The legacy global count field must be replaced by the stack count dialog.");
 }
 const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
+const screenshotAnalyzerSource = fs.readFileSync(path.join(root, "src", "engine", "screenshotAnalyzer.js"), "utf8");
+if (!mainSource.includes('addEventListener("paste"') || !mainSource.includes("analyzeBattlefieldScreenshot") || !screenshotAnalyzerSource.includes("identifyBackground") || !screenshotAnalyzerSource.includes("detectObstacles") || !screenshotAnalyzerSource.includes("detectStacks")) {
+  failures.push("Screenshot import must support clipboard paste and local background/obstacle/unit analysis.");
+}
 if (!mainSource.includes("onRosterQuickAdd") || !mainSource.includes("ARMY_SLOT_COUNT")) {
   failures.push("Roster quick-add must scan the configured army slots in order.");
 }
