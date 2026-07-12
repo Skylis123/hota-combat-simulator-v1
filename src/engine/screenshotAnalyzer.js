@@ -3,6 +3,8 @@ import { createObstacleInstance, obstacleBlockedHexes } from "./obstacles.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
+const contextPixelCache = new WeakMap();
+const templatePixelCache = new WeakMap();
 
 export async function analyzeBattlefieldScreenshot(file, data) {
   const source = await createImageBitmap(file);
@@ -12,38 +14,34 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const background = data.backgrounds.find((candidate) => candidate.id === backgroundId);
   const backgroundImage = await loadImage(`./public/${background.image}`);
   const backgroundCanvas = drawToCanvas(backgroundImage, WIDTH, HEIGHT);
+  const backgroundContext = backgroundCanvas.getContext("2d", { willReadFrequently: true });
   const terrain = inferTerrain(background);
 
-  const obstacles = await detectObstacles(screenshot, data, terrain);
+  const obstacles = await detectObstacles(screenshot, backgroundContext, data, terrain);
   const blocked = new Set(obstacles.flatMap((obstacle) => obstacle.blockedHexIds));
-  const stacks = await detectStacks(screenshot, backgroundCanvas.getContext("2d", { willReadFrequently: true }), data, blocked);
+  const stacks = await detectStacks(screenshot, backgroundContext, data, blocked);
   const recognizedCounts = await applyNativeOcrCounts(screenshotCanvas, stacks, data.battlefield.grid);
   return {
     backgroundId,
     obstacles,
     stacks,
     note: recognizedCounts
-      ? `${recognizedCounts} stack counts were read by native OCR; review low-confidence candidates before battle.`
-      : "Unit counts default to 1 when native OCR is unavailable or screenshot digits cannot be classified reliably; review imported stacks before battle."
+      ? `${recognizedCounts} stack counts were read automatically.`
+      : "Creature and obstacle recognition uses original game frames. Counts that cannot be read confidently remain 1 and can be edited with right-click."
   };
 }
 
 function normalizeBattlefield(image) {
   const targetRatio = WIDTH / HEIGHT;
   const sourceRatio = image.width / image.height;
-  let sx = 0;
-  let sy = 0;
   let sw = image.width;
   let sh = image.height;
-  if (sourceRatio > targetRatio) {
-    sw = image.height * targetRatio;
-  } else if (sourceRatio < targetRatio) {
-    sh = image.width / targetRatio;
-  }
+  if (sourceRatio > targetRatio) sw = image.height * targetRatio;
+  else if (sourceRatio < targetRatio) sh = image.width / targetRatio;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  canvas.getContext("2d").drawImage(image, sx, sy, sw, sh, 0, 0, WIDTH, HEIGHT);
+  canvas.getContext("2d").drawImage(image, 0, 0, sw, sh, 0, 0, WIDTH, HEIGHT);
   return canvas;
 }
 
@@ -66,60 +64,90 @@ function identifyBackground(canvas, backgrounds) {
   return best?.id || "cmbkgrtr";
 }
 
-async function detectObstacles(screenshot, data, terrain) {
+async function detectObstacles(screenshot, background, data, terrain) {
   const definitions = data.obstacles.filter((obstacle) =>
     obstacle.allowedTerrains.includes(terrain) || obstacle.specialBattlefields.includes(terrain) || obstacle.category === terrain
   );
+  const images = new Map();
+  for (const definition of definitions) images.set(definition.id, await loadImage(`./public/${definition.image}`));
   const candidates = [];
-  for (const definition of definitions) {
-    const image = await loadImage(`./public/${definition.image}`);
-    if (definition.absolute) {
-      const score = templateScore(screenshot, image, definition.width, definition.height, 5);
-      if (score > 0.7) candidates.push({ definition, anchorHexId: null, score });
-      continue;
-    }
+
+  for (const definition of definitions.filter((candidate) => candidate.absolute)) {
+    const image = images.get(definition.id);
+    const placement = bestCompositePlacement(screenshot, background, image, definition.width, definition.height, {
+      radiusX: 28, radiusY: 28, step: 4, allowFlip: true, sampleStep: 3
+    });
+    if (placement.correlation > 0.45 && placement.match > 0.82) candidates.push({ definition, anchorHexId: null, ...placement });
+  }
+
+  for (const definition of definitions.filter((candidate) => !candidate.absolute)) {
+    const image = images.get(definition.id);
     for (const anchor of data.battlefield.grid.hexes) {
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
-      const x = Math.round(anchor.centerX - 22);
-      const y = Math.round(anchor.centerY + 28 - image.height);
-      const score = templateScore(screenshot, image, x, y, 4);
-      if (score > 0.74) candidates.push({ definition, anchorHexId: anchor.id, score, blockedHexIds });
+      const placement = bestCompositePlacement(screenshot, background, image, Math.round(anchor.centerX - 22), Math.round(anchor.centerY + 50 - image.height), {
+        radiusX: 9, radiusY: 5, step: 2, allowFlip: false, sampleStep: 3
+      });
+      if (placement.correlation > 0.5 && placement.gain > 0.12 && placement.match > 0.72) candidates.push({ definition, anchorHexId: anchor.id, blockedHexIds, ...placement });
     }
   }
-  candidates.sort((left, right) => right.score - left.score);
+
+  candidates.sort((left, right) => (right.definition.absolute - left.definition.absolute) || (right.gain - left.gain));
   const accepted = [];
   const occupied = new Set();
   for (const candidate of candidates) {
     const blockedHexIds = candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, candidate.anchorHexId);
     if (blockedHexIds.some((hexId) => occupied.has(hexId))) continue;
+    if (candidate.definition.absolute && accepted.some((item) => item.absolute)) continue;
     const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, candidate.anchorHexId);
-    instance.detectionConfidence = candidate.score;
+    instance.detectionConfidence = candidate.gain;
+    instance.detectedFlip = candidate.flip;
     accepted.push(instance);
     blockedHexIds.forEach((hexId) => occupied.add(hexId));
-    if (candidate.definition.absolute || accepted.length >= 12) break;
+    if (accepted.length >= 12) break;
   }
   return accepted;
 }
 
 async function detectStacks(screenshot, background, data, blocked) {
-  const templates = await Promise.all(data.creatures.map(async (creature) => ({
-    creature,
-    image: await loadImage(creature.asset.previewImage.startsWith("assets/") ? `./public/${creature.asset.previewImage}` : creature.asset.previewImage)
-  })));
-  const candidates = [];
-  for (const hex of data.battlefield.grid.hexes) {
-    if (blocked.has(hex.id)) continue;
-    const residual = patchDifference(screenshot, background, hex.centerX - 26, hex.centerY - 42, 52, 58);
-    if (residual < 0.12) continue;
-    let best = null;
-    for (const template of templates) {
-      const score = templateScore(screenshot, template.image, Math.round(hex.centerX - 39), Math.round(hex.centerY - 66), 4, 78, 78);
-      if (!best || score > best.score) best = { creature: template.creature, score };
+  const templates = [];
+  for (const creature of data.creatures) {
+    const records = data.creatureDetection?.creatures?.[String(creature.creatureId)]?.frames || [];
+    for (const record of records) {
+      templates.push({ creature, record, image: await loadImage(`./public/${record.image}`) });
     }
-    if (best?.score > 0.48) candidates.push({ ...best, hex });
   }
-  candidates.sort((left, right) => right.score - left.score);
+
+  const candidates = [];
+  const badges = detectStackBadges(screenshot);
+  const digitTemplates = await loadDigitTemplates(data);
+  for (const badge of badges) badge.count = readBadgeCount(screenshot, badge, digitTemplates);
+  for (const badge of badges) {
+    const nearbyHexes = data.battlefield.grid.hexes.filter((hex) => !blocked.has(hex.id));
+    let best = null;
+    for (const hex of nearbyHexes) {
+      for (const template of templates) {
+        const twoHex = template.creature.battlefieldHexes === 2;
+        const aiSide = hex.centerX >= WIDTH / 2;
+        const expectedBadgeX = twoHex ? hex.centerX + (aiSide ? -44 : 75) : hex.centerX + 31;
+        const expectedBadgeY = hex.centerY + (twoHex && aiSide ? 16 : 32);
+        if (Math.abs(expectedBadgeX - badge.centerX) > 16 || Math.abs(expectedBadgeY - badge.centerY) > 16) continue;
+        // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
+        // Preserve the frame's internal left/top offsets; centering the cropped PNG
+        // lets a large neighboring creature win the score for the wrong hex.
+        const baseX = Math.round(hex.centerX - 202 + template.record.left);
+        const baseY = Math.round(hex.centerY - 226 + template.record.top);
+        const placement = bestCompositePlacement(screenshot, background, template.image, baseX, baseY, {
+          radiusX: 2, radiusY: 2, step: 2, allowFlip: true, sampleStep: 2
+        });
+        const quality = Math.max(0, placement.correlation) * 0.55 + placement.chroma * 0.3 + Math.max(0, placement.gain) * 0.15;
+        if (!best || quality > best.quality) best = { creature: template.creature, quality, hex, ...placement };
+      }
+    }
+    if (best?.correlation > 0.13 && best.chroma > 0.82 && best.quality > 0.34) candidates.push({ ...best, badge });
+  }
+
+  candidates.sort((left, right) => right.quality - left.quality);
   const accepted = [];
   const usedHexes = new Set();
   const slots = { player: 0, ai: 0 };
@@ -127,57 +155,270 @@ async function detectStacks(screenshot, background, data, blocked) {
     if (usedHexes.has(candidate.hex.id)) continue;
     const owner = candidate.hex.centerX < WIDTH / 2 ? "player" : "ai";
     if (slots[owner] >= 7) continue;
+    let primaryHex = candidate.hex;
+    if (candidate.creature.battlefieldHexes === 2 && owner === "player") {
+      primaryHex = data.battlefield.grid.hexes.find((hex) => hex.row === candidate.hex.row && hex.col === candidate.hex.col + 1) || candidate.hex;
+    }
     const stack = createBattleStack({
       creature: candidate.creature,
       owner,
-      hexId: candidate.hex.id,
-      count: 1,
+      hexId: primaryHex.id,
+      count: candidate.badge.count || 1,
       armySlot: slots[owner]++,
       createdAt: accepted.length
     });
-    stack.detectionConfidence = candidate.score;
+    stack.detectionConfidence = candidate.quality;
     accepted.push(stack);
     usedHexes.add(candidate.hex.id);
-    for (const neighbor of candidate.hex.neighbors) {
-      if (candidate.score < 0.62) usedHexes.add(neighbor);
+    if (candidate.creature.battlefieldHexes === 2) {
+      for (const neighbor of candidate.hex.neighbors) usedHexes.add(neighbor);
     }
   }
   return accepted;
 }
 
-function templateScore(context, image, x, y, step = 4, width = image.width, height = image.height) {
-  if (x >= WIDTH || y >= HEIGHT || x + width <= 0 || y + height <= 0) return 0;
-  const template = drawToCanvas(image, width, height).getContext("2d", { willReadFrequently: true }).getImageData(0, 0, width, height).data;
-  const screen = context.getImageData(Math.max(0, x), Math.max(0, y), Math.min(width, WIDTH - Math.max(0, x)), Math.min(height, HEIGHT - Math.max(0, y))).data;
-  const offsetX = Math.max(0, -x);
-  const offsetY = Math.max(0, -y);
-  const sampleWidth = Math.min(width - offsetX, WIDTH - Math.max(0, x));
-  const sampleHeight = Math.min(height - offsetY, HEIGHT - Math.max(0, y));
-  let error = 0;
-  let count = 0;
-  for (let py = 0; py < sampleHeight; py += step) {
-    for (let px = 0; px < sampleWidth; px += step) {
-      const templateIndex = ((py + offsetY) * width + px + offsetX) * 4;
-      const alpha = template[templateIndex + 3];
-      if (alpha < 160) continue;
-      const screenIndex = (py * sampleWidth + px) * 4;
-      error += Math.abs(template[templateIndex] - screen[screenIndex]);
-      error += Math.abs(template[templateIndex + 1] - screen[screenIndex + 1]);
-      error += Math.abs(template[templateIndex + 2] - screen[screenIndex + 2]);
-      count += 3;
+async function loadDigitTemplates(data) {
+  const records = data.creatureDetection?.digits?.tiny || [];
+  return Promise.all(records.map(async (record) => {
+    const image = await loadImage(`./public/${record.image}`);
+    const canvas = drawToCanvas(image, image.width, image.height);
+    const pixels = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, image.width, image.height).data;
+    const points = [];
+    for (let y = 0; y < image.height; y += 1) {
+      for (let x = 0; x < image.width; x += 1) {
+        const index = (y * image.width + x) * 4;
+        if (pixels[index + 3] > 0 && pixels[index] > 180) points.push([x, y]);
+      }
+    }
+    const minX = Math.min(...points.map(([x]) => x));
+    const maxX = Math.max(...points.map(([x]) => x));
+    const minY = Math.min(...points.map(([, y]) => y));
+    const maxY = Math.max(...points.map(([, y]) => y));
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+    const mask = new Uint8Array(width * height);
+    for (const [x, y] of points) mask[(y - minY) * width + x - minX] = 1;
+    return { digit: record.digit, width, height, mask };
+  }));
+}
+
+function readBadgeCount(context, badge, digits) {
+  if (!digits.length) return null;
+  const pixels = contextPixels(context);
+  const points = [];
+  for (let y = badge.minY; y < badge.minY + badge.height; y += 1) {
+    for (let x = badge.minX; x < badge.minX + badge.width; x += 1) {
+      const index = (y * WIDTH + x) * 4;
+      if (pixels[index] > 145 && pixels[index + 1] > 145 && pixels[index + 2] > 145) points.push([x, y]);
     }
   }
-  return count ? 1 - error / (count * 255) : 0;
+  const filteredPoints = points.filter(([x, y]) => points.some(([otherX, otherY]) =>
+    (otherX !== x || otherY !== y) && Math.abs(otherX - x) <= 1 && Math.abs(otherY - y) <= 1
+  ));
+  if (!filteredPoints.length) return null;
+  const minX = Math.min(...filteredPoints.map(([x]) => x));
+  const maxX = Math.max(...filteredPoints.map(([x]) => x));
+  const minY = Math.min(...filteredPoints.map(([, y]) => y));
+  const maxY = Math.max(...filteredPoints.map(([, y]) => y));
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  if (width > 22 || height > 9) return null;
+  const actual = new Uint8Array(width * height);
+  for (const [x, y] of filteredPoints) actual[(y - minY) * width + x - minX] = 1;
+  let best = null;
+  for (let value = 1; value <= 999; value += 1) {
+    const glyphs = String(value).split("").map((character) => digits[Number(character)]);
+    const candidateWidth = glyphs.reduce((sum, glyph) => sum + glyph.width, 0) + glyphs.length - 1;
+    const candidateHeight = Math.max(...glyphs.map((glyph) => glyph.height));
+    if (Math.abs(candidateWidth - width) > 2 || Math.abs(candidateHeight - height) > 2) continue;
+    const candidate = new Uint8Array(candidateWidth * candidateHeight);
+    let offsetX = 0;
+    for (const glyph of glyphs) {
+      for (let y = 0; y < glyph.height; y += 1) {
+        for (let x = 0; x < glyph.width; x += 1) {
+          if (glyph.mask[y * glyph.width + x]) candidate[y * candidateWidth + offsetX + x] = 1;
+        }
+      }
+      offsetX += glyph.width + 1;
+    }
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        let intersection = 0;
+        let union = 0;
+        for (let y = 0; y < height; y += 1) {
+          for (let x = 0; x < width; x += 1) {
+            const expectedX = x - dx;
+            const expectedY = y - dy;
+            const expected = expectedX >= 0 && expectedY >= 0 && expectedX < candidateWidth && expectedY < candidateHeight
+              ? candidate[expectedY * candidateWidth + expectedX]
+              : 0;
+            const observed = actual[y * width + x];
+            if (expected && observed) intersection += 1;
+            if (expected || observed) union += 1;
+          }
+        }
+        const score = union ? intersection / union : 0;
+        if (!best || score > best.score) best = { value, score };
+      }
+    }
+  }
+  return best?.score >= 0.4 ? best.value : null;
+}
+
+function detectStackBadges(context) {
+  const pixels = contextPixels(context);
+  const mask = new Uint8Array(WIDTH * HEIGHT);
+  for (let y = 0; y < HEIGHT; y += 1) {
+    for (let x = 0; x < WIDTH; x += 1) {
+      const index = y * WIDTH + x;
+      const pixel = index * 4;
+      const red = pixels[pixel];
+      const green = pixels[pixel + 1];
+      const blue = pixels[pixel + 2];
+      if (red >= 55 && red <= 220 && green <= 130 && blue >= 80 && blue >= green * 1.15 && red >= green * 0.8) mask[index] = 1;
+    }
+  }
+  const visited = new Uint8Array(mask.length);
+  const badges = [];
+  for (let start = 0; start < mask.length; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+    const queue = [start];
+    visited[start] = 1;
+    let cursor = 0;
+    let minX = WIDTH;
+    let maxX = 0;
+    let minY = HEIGHT;
+    let maxY = 0;
+    let area = 0;
+    while (cursor < queue.length) {
+      const index = queue[cursor++];
+      const x = index % WIDTH;
+      const y = Math.floor(index / WIDTH);
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      area += 1;
+      for (const neighbor of [index - 1, index + 1, index - WIDTH, index + WIDTH]) {
+        if (neighbor < 0 || neighbor >= mask.length || visited[neighbor] || !mask[neighbor]) continue;
+        const nx = neighbor % WIDTH;
+        if (Math.abs(nx - x) > 1) continue;
+        visited[neighbor] = 1;
+        queue.push(neighbor);
+      }
+    }
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+    if (area >= 40 && width >= 15 && width <= 48 && height >= 5 && height <= 20) {
+      badges.push({ minX, minY, width, height, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 });
+    }
+  }
+  return badges;
+}
+
+function bestCompositePlacement(screen, background, image, originX, originY, options) {
+  let best = { gain: -1, match: 0, correlation: -1, chroma: 0, x: originX, y: originY, flip: false };
+  const flips = options.allowFlip ? [false, true] : [false];
+  for (const flip of flips) {
+    for (let dy = -options.radiusY; dy <= options.radiusY; dy += options.step) {
+      for (let dx = -options.radiusX; dx <= options.radiusX; dx += options.step) {
+        const score = compositeScore(screen, background, image, originX + dx, originY + dy, flip, options.sampleStep);
+        if (score.correlation > best.correlation || (score.correlation === best.correlation && score.gain > best.gain)) {
+          best = { ...score, x: originX + dx, y: originY + dy, flip };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function compositeScore(screenContext, backgroundContext, image, x, y, flip, step) {
+  if (x >= WIDTH || y >= HEIGHT || x + image.width <= 0 || y + image.height <= 0) {
+    return { gain: -1, match: 0, correlation: -1, chroma: 0 };
+  }
+  let variants = templatePixelCache.get(image);
+  if (!variants) {
+    variants = new Map();
+    templatePixelCache.set(image, variants);
+  }
+  if (!variants.has(flip)) {
+    const templateCanvas = drawToCanvas(image, image.width, image.height, flip);
+    variants.set(flip, templateCanvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, image.width, image.height).data);
+  }
+  const template = variants.get(flip);
+  const screen = contextPixels(screenContext);
+  const background = contextPixels(backgroundContext);
+  let baselineError = 0;
+  let candidateError = 0;
+  let samples = 0;
+  let screenSum = 0;
+  let templateSum = 0;
+  let screenSquareSum = 0;
+  let templateSquareSum = 0;
+  let productSum = 0;
+  const screenRgb = [0, 0, 0];
+  const templateRgb = [0, 0, 0];
+  for (let py = 0; py < image.height; py += step) {
+    const sy = y + py;
+    if (sy < 0 || sy >= HEIGHT) continue;
+    for (let px = 0; px < image.width; px += step) {
+      const sx = x + px;
+      if (sx < 0 || sx >= WIDTH) continue;
+      const ti = (py * image.width + px) * 4;
+      const alpha = template[ti + 3] / 255;
+      if (alpha < 0.3) continue;
+      const si = (sy * WIDTH + sx) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const base = background[si + channel];
+        const expected = template[ti + channel] * alpha + base * (1 - alpha);
+        baselineError += Math.abs(screen[si + channel] - base);
+        candidateError += Math.abs(screen[si + channel] - expected);
+        const actual = screen[si + channel];
+        const reference = template[ti + channel];
+        screenSum += actual;
+        templateSum += reference;
+        screenSquareSum += actual * actual;
+        templateSquareSum += reference * reference;
+        productSum += actual * reference;
+        screenRgb[channel] += actual;
+        templateRgb[channel] += reference;
+      }
+      samples += 3;
+    }
+  }
+  if (!samples || baselineError < samples * 2) return { gain: -1, match: 0, correlation: -1, chroma: 0 };
+  const covariance = productSum - screenSum * templateSum / samples;
+  const screenVariance = screenSquareSum - screenSum * screenSum / samples;
+  const templateVariance = templateSquareSum - templateSum * templateSum / samples;
+  const correlation = covariance / Math.sqrt(Math.max(1, screenVariance * templateVariance));
+  const screenTotal = screenRgb.reduce((sum, value) => sum + value, 0) || 1;
+  const templateTotal = templateRgb.reduce((sum, value) => sum + value, 0) || 1;
+  const chroma = 1 - screenRgb.reduce((error, value, channel) => error + Math.abs(value / screenTotal - templateRgb[channel] / templateTotal), 0) / 3;
+  return {
+    gain: (baselineError - candidateError) / baselineError,
+    match: 1 - candidateError / (samples * 255),
+    correlation,
+    chroma
+  };
+}
+
+function contextPixels(context) {
+  if (!contextPixelCache.has(context)) contextPixelCache.set(context, context.getImageData(0, 0, WIDTH, HEIGHT).data);
+  return contextPixelCache.get(context);
 }
 
 function patchDifference(first, second, x, y, width, height) {
-  const left = first.getImageData(Math.max(0, x), Math.max(0, y), width, height).data;
-  const right = second.getImageData(Math.max(0, x), Math.max(0, y), width, height).data;
+  const safeX = Math.max(0, Math.round(x));
+  const safeY = Math.max(0, Math.round(y));
+  const safeWidth = Math.min(Math.round(width), WIDTH - safeX);
+  const safeHeight = Math.min(Math.round(height), HEIGHT - safeY);
+  const left = first.getImageData(safeX, safeY, safeWidth, safeHeight).data;
+  const right = second.getImageData(safeX, safeY, safeWidth, safeHeight).data;
   let difference = 0;
-  for (let index = 0; index < Math.min(left.length, right.length); index += 4) {
+  for (let index = 0; index < left.length; index += 4) {
     difference += Math.abs(left[index] - right[index]) + Math.abs(left[index + 1] - right[index + 1]) + Math.abs(left[index + 2] - right[index + 2]);
   }
-  return difference / (Math.min(left.length, right.length) / 4 * 3 * 255);
+  return difference / (left.length / 4 * 3 * 255);
 }
 
 function inferTerrain(background) {
@@ -201,11 +442,16 @@ function inferTerrain(background) {
   return "grass";
 }
 
-function drawToCanvas(image, width, height) {
+function drawToCanvas(image, width, height, flip = false) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+  const context = canvas.getContext("2d");
+  if (flip) {
+    context.translate(width, 0);
+    context.scale(-1, 1);
+  }
+  context.drawImage(image, 0, 0, width, height);
   return canvas;
 }
 

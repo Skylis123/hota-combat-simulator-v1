@@ -139,6 +139,7 @@ export function renderBattlefield(container, data, state, handlers) {
     element.dataset.obstacleInstanceId = obstacle.instanceId;
     element.title = `${obstacle.name} · blocks ${obstacle.blockedHexIds.length} hexes · right-click to remove`;
     element.innerHTML = `<img src="./public/${obstacle.image}" alt="${obstacle.name}" />`;
+    if (obstacle.detectedFlip) element.querySelector("img").style.transform = "scaleX(-1)";
     if (obstacle.absolute) {
       element.style.left = `${obstacle.width}px`;
       element.style.top = `${obstacle.height}px`;

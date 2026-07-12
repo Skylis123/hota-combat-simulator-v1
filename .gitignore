@@ -1,4 +1,6 @@
 node_modules/
 dist/
+public/assets/creatures/detection/*/idle-*.png
+scripts/__pycache__/
 .DS_Store
 *.log
