@@ -4,6 +4,7 @@
     "0": {
       "def": "cpkman.def",
       "portrait": "assets/creatures/detection/0/portrait.png",
+      "queuePortrait": "assets/creatures/detection/0/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/0/frame-0.png",
@@ -163,6 +164,7 @@
     "1": {
       "def": "chalbd.def",
       "portrait": "assets/creatures/detection/1/portrait.png",
+      "queuePortrait": "assets/creatures/detection/1/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/1/frame-0.png",
@@ -331,6 +333,7 @@
     "2": {
       "def": "clcbow.def",
       "portrait": "assets/creatures/detection/2/portrait.png",
+      "queuePortrait": "assets/creatures/detection/2/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/2/frame-0.png",
@@ -562,6 +565,7 @@
     "3": {
       "def": "chcbow.def",
       "portrait": "assets/creatures/detection/3/portrait.png",
+      "queuePortrait": "assets/creatures/detection/3/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/3/frame-0.png",
@@ -793,6 +797,7 @@
     "4": {
       "def": "cgriff.def",
       "portrait": "assets/creatures/detection/4/portrait.png",
+      "queuePortrait": "assets/creatures/detection/4/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/4/frame-0.png",
@@ -979,6 +984,7 @@
     "5": {
       "def": "crgrif.def",
       "portrait": "assets/creatures/detection/5/portrait.png",
+      "queuePortrait": "assets/creatures/detection/5/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/5/frame-0.png",
@@ -1165,6 +1171,7 @@
     "6": {
       "def": "csword.def",
       "portrait": "assets/creatures/detection/6/portrait.png",
+      "queuePortrait": "assets/creatures/detection/6/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/6/frame-0.png",
@@ -1387,6 +1394,7 @@
     "7": {
       "def": "ccrusd.def",
       "portrait": "assets/creatures/detection/7/portrait.png",
+      "queuePortrait": "assets/creatures/detection/7/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/7/frame-0.png",
@@ -1609,6 +1617,7 @@
     "8": {
       "def": "cmonkk.def",
       "portrait": "assets/creatures/detection/8/portrait.png",
+      "queuePortrait": "assets/creatures/detection/8/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/8/frame-0.png",
@@ -1813,6 +1822,7 @@
     "9": {
       "def": "czealt.def",
       "portrait": "assets/creatures/detection/9/portrait.png",
+      "queuePortrait": "assets/creatures/detection/9/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/9/frame-0.png",
@@ -2017,6 +2027,7 @@
     "10": {
       "def": "ccavlr.def",
       "portrait": "assets/creatures/detection/10/portrait.png",
+      "queuePortrait": "assets/creatures/detection/10/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/10/frame-0.png",
@@ -2176,6 +2187,7 @@
     "11": {
       "def": "cchamp.def",
       "portrait": "assets/creatures/detection/11/portrait.png",
+      "queuePortrait": "assets/creatures/detection/11/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/11/frame-0.png",
@@ -2335,6 +2347,7 @@
     "12": {
       "def": "cangel.def",
       "portrait": "assets/creatures/detection/12/portrait.png",
+      "queuePortrait": "assets/creatures/detection/12/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/12/frame-0.png",
@@ -2566,6 +2579,7 @@
     "13": {
       "def": "crangl.def",
       "portrait": "assets/creatures/detection/13/portrait.png",
+      "queuePortrait": "assets/creatures/detection/13/queue-portrait.png",
       "frames": [
         {
           "image": "assets/creatures/detection/13/frame-0.png",

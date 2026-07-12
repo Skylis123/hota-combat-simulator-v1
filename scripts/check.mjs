@@ -295,7 +295,7 @@ const screenshotAnalyzerSource = fs.readFileSync(path.join(root, "src", "engine"
 if (!mainSource.includes('addEventListener("paste"') || !mainSource.includes("analyzeBattlefieldScreenshot") || !screenshotAnalyzerSource.includes("identifyBackground") || !screenshotAnalyzerSource.includes("detectObstacles") || !screenshotAnalyzerSource.includes("detectStacks")) {
   failures.push("Screenshot import must support clipboard paste and local background/obstacle/unit analysis.");
 }
-if (!screenshotAnalyzerSource.includes("detectStackBadges") || !screenshotAnalyzerSource.includes("readBadgeCount") || !screenshotAnalyzerSource.includes("template.record.left") || !screenshotAnalyzerSource.includes("template.record.top")) {
+if (!screenshotAnalyzerSource.includes("detectStackBadges") || !screenshotAnalyzerSource.includes("readBadgeCount") || !screenshotAnalyzerSource.includes("template.record.left") || !screenshotAnalyzerSource.includes("template.record.top") || !screenshotAnalyzerSource.includes("inferAbilityFlags(template.creature).twoHex")) {
   failures.push("Screenshot stack recognition must be badge-gated, preserve DEF frame offsets, and read original bitmap-font counts.");
 }
 if (!mainSource.includes("onRosterQuickAdd") || !mainSource.includes("ARMY_SLOT_COUNT")) {

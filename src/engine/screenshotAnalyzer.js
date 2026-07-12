@@ -1,5 +1,7 @@
 import { createBattleStack, setSetupStackCount } from "./battleState.js";
 import { createObstacleInstance, obstacleBlockedHexes } from "./obstacles.js";
+import { inferAbilityFlags } from "./abilities.js";
+import { footprintHexes } from "./footprint.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
@@ -21,12 +23,13 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const blocked = new Set(obstacles.flatMap((obstacle) => obstacle.blockedHexIds));
   const stacks = await detectStacks(screenshot, backgroundContext, data, blocked);
   const recognizedCounts = await applyNativeOcrCounts(screenshotCanvas, stacks, data.battlefield.grid);
+  const bitmapCounts = stacks.filter((stack) => stack.screenshotCountRecognized).length;
   return {
     backgroundId,
     obstacles,
     stacks,
-    note: recognizedCounts
-      ? `${recognizedCounts} stack counts were read automatically.`
+    note: recognizedCounts + bitmapCounts
+      ? `${recognizedCounts + bitmapCounts} stack counts were read automatically.`
       : "Creature and obstacle recognition uses original game frames. Counts that cannot be read confidently remain 1 and can be edited with right-click."
   };
 }
@@ -125,9 +128,10 @@ async function detectStacks(screenshot, background, data, blocked) {
   for (const badge of badges) {
     const nearbyHexes = data.battlefield.grid.hexes.filter((hex) => !blocked.has(hex.id));
     let best = null;
+    const bestByCreature = new Map();
     for (const hex of nearbyHexes) {
       for (const template of templates) {
-        const twoHex = template.creature.battlefieldHexes === 2;
+        const twoHex = inferAbilityFlags(template.creature).twoHex;
         const aiSide = hex.centerX >= WIDTH / 2;
         const expectedBadgeX = twoHex ? hex.centerX + (aiSide ? -44 : 75) : hex.centerX + 31;
         const expectedBadgeY = hex.centerY + (twoHex && aiSide ? 16 : 32);
@@ -141,8 +145,15 @@ async function detectStacks(screenshot, background, data, blocked) {
           radiusX: 2, radiusY: 2, step: 2, allowFlip: true, sampleStep: 2
         });
         const quality = Math.max(0, placement.correlation) * 0.55 + placement.chroma * 0.3 + Math.max(0, placement.gain) * 0.15;
-        if (!best || quality > best.quality) best = { creature: template.creature, quality, hex, ...placement };
+        const candidate = { creature: template.creature, quality, hex, ...placement };
+        const previous = bestByCreature.get(template.creature.creatureId);
+        if (!previous || quality > previous.quality) bestByCreature.set(template.creature.creatureId, candidate);
+        if (!best || quality > best.quality) best = candidate;
       }
+    }
+    if (best?.creature.creatureId % 2 === 1) {
+      const baseCreature = bestByCreature.get(best.creature.creatureId - 1);
+      if (baseCreature && baseCreature.quality >= best.quality - 0.06) best = baseCreature;
     }
     if (best?.correlation > 0.13 && best.chroma > 0.82 && best.quality > 0.34) candidates.push({ ...best, badge });
   }
@@ -156,7 +167,7 @@ async function detectStacks(screenshot, background, data, blocked) {
     const owner = candidate.hex.centerX < WIDTH / 2 ? "player" : "ai";
     if (slots[owner] >= 7) continue;
     let primaryHex = candidate.hex;
-    if (candidate.creature.battlefieldHexes === 2 && owner === "player") {
+    if (inferAbilityFlags(candidate.creature).twoHex && owner === "player") {
       primaryHex = data.battlefield.grid.hexes.find((hex) => hex.row === candidate.hex.row && hex.col === candidate.hex.col + 1) || candidate.hex;
     }
     const stack = createBattleStack({
@@ -168,10 +179,10 @@ async function detectStacks(screenshot, background, data, blocked) {
       createdAt: accepted.length
     });
     stack.detectionConfidence = candidate.quality;
+    stack.screenshotCountRecognized = Boolean(candidate.badge.count);
     accepted.push(stack);
-    usedHexes.add(candidate.hex.id);
-    if (candidate.creature.battlefieldHexes === 2) {
-      for (const neighbor of candidate.hex.neighbors) usedHexes.add(neighbor);
+    for (const occupiedHexId of footprintHexes(data.battlefield.grid, stack) || [candidate.hex.id]) {
+      usedHexes.add(occupiedHexId);
     }
   }
   return accepted;
@@ -483,7 +494,7 @@ async function applyNativeOcrCounts(canvas, stacks, grid) {
         const distance = Math.hypot(center.x - (hex.centerX + 18), center.y - (hex.centerY + 10));
         return !best || distance < best.distance ? { stack, distance } : best;
       }, null);
-      if (nearest?.distance < 70 && nearest.stack.count === 1) {
+      if (nearest?.distance < 70 && nearest.stack.count === 1 && !nearest.stack.screenshotCountRecognized) {
         setSetupStackCount(nearest.stack, count);
         applied += 1;
       }
