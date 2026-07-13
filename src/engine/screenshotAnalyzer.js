@@ -5,8 +5,11 @@ import { footprintHexes } from "./footprint.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
+const BACKGROUND_FINGERPRINT = { x: 96, y: 0, width: 704, height: 104, sampleWidth: 64, sampleHeight: 8 };
 const contextPixelCache = new WeakMap();
 const templatePixelCache = new WeakMap();
+const templateAlphaDensityCache = new WeakMap();
+const scaledCreatureTemplateCache = new WeakMap();
 const imagePromiseCache = new Map();
 
 export async function analyzeBattlefieldScreenshot(file, data) {
@@ -67,18 +70,45 @@ function normalizeBattlefield(image, smoothing = true) {
 }
 
 function identifyBackground(canvas, backgrounds) {
+  const { x, y, width, height, sampleWidth, sampleHeight } = BACKGROUND_FINGERPRINT;
   const sampleCanvas = document.createElement("canvas");
-  sampleCanvas.width = 16;
-  sampleCanvas.height = 11;
-  sampleCanvas.getContext("2d").drawImage(canvas, 0, 0, 16, 11);
-  const pixels = sampleCanvas.getContext("2d").getImageData(0, 0, 16, 11).data;
+  sampleCanvas.width = sampleWidth;
+  sampleCanvas.height = sampleHeight;
+  sampleCanvas.getContext("2d").drawImage(canvas, x, y, width, height, 0, 0, sampleWidth, sampleHeight);
+  const pixels = sampleCanvas.getContext("2d").getImageData(0, 0, sampleWidth, sampleHeight).data;
   let best = null;
+  for (const background of backgrounds) {
+    const fingerprint = background.horizonFingerprint;
+    if (!fingerprint?.length) continue;
+    const pixelErrors = [];
+    for (let index = 0, pixel = 0; index < fingerprint.length; index += 3, pixel += 4) {
+      pixelErrors.push((
+        Math.abs(fingerprint[index] - pixels[pixel])
+        + Math.abs(fingerprint[index + 1] - pixels[pixel + 1])
+        + Math.abs(fingerprint[index + 2] - pixels[pixel + 2])
+      ) / 3);
+    }
+    // Heroes and selection glows can enter the skyline. A trimmed score keeps
+    // those local outliers from turning desert into dirt or grass into rough.
+    pixelErrors.sort((left, right) => left - right);
+    const inlierCount = Math.max(1, Math.floor(pixelErrors.length * 0.8));
+    const error = pixelErrors.slice(0, inlierCount).reduce((sum, value) => sum + value, 0) / inlierCount;
+    if (!best || error < best.error) best = { id: background.id, error };
+  }
+  if (best) return best.id;
+
+  // Backwards-compatible fallback for an older generated catalog.
+  const fallbackCanvas = document.createElement("canvas");
+  fallbackCanvas.width = 16;
+  fallbackCanvas.height = 11;
+  fallbackCanvas.getContext("2d").drawImage(canvas, 0, 0, 16, 11);
+  const fallbackPixels = fallbackCanvas.getContext("2d").getImageData(0, 0, 16, 11).data;
   for (const background of backgrounds) {
     let error = 0;
     for (let index = 0, pixel = 0; index < background.fingerprint.length; index += 3, pixel += 4) {
-      error += Math.abs(background.fingerprint[index] - pixels[pixel]);
-      error += Math.abs(background.fingerprint[index + 1] - pixels[pixel + 1]);
-      error += Math.abs(background.fingerprint[index + 2] - pixels[pixel + 2]);
+      error += Math.abs(background.fingerprint[index] - fallbackPixels[pixel]);
+      error += Math.abs(background.fingerprint[index + 1] - fallbackPixels[pixel + 1]);
+      error += Math.abs(background.fingerprint[index + 2] - fallbackPixels[pixel + 2]);
     }
     if (!best || error < best.error) best = { id: background.id, error };
   }
@@ -105,19 +135,46 @@ async function detectObstacles(screenshot, background, data, terrain) {
 
   for (const definition of definitions.filter((candidate) => !candidate.absolute)) {
     const image = images.get(definition.id);
+    const sparseTemplate = templateAlphaDensity(image) < 0.3;
+    const smallTemplate = image.width * image.height < 3000;
+    const needsWideRefinement = sparseTemplate || smallTemplate;
     const coarseCandidates = [];
     for (const anchor of data.battlefield.grid.hexes) {
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
       const placement = bestCompositePlacement(screenshot, background, image, Math.round(anchor.centerX - 22), Math.round(anchor.centerY + 50 - image.height), {
-        radiusX: 9, radiusY: 5, step: 6, allowFlip: false, sampleStep: 6
+        // DEF obstacle anchors vary by more than one quarter hex between
+        // graphics. Search the whole legal anchor neighbourhood coarsely,
+        // then refine only the best matches below.
+        radiusX: 18,
+        radiusY: 12,
+        step: smallTemplate ? 3 : 6,
+        allowFlip: false,
+        // A six-pixel placement/sampling lattice can skip most opaque pixels
+        // of small stumps, bones, and branches, so the right anchor never
+        // reaches the refinement shortlist. A three-pixel lattice for those
+        // templates is still cheap and is independent of any one fixture.
+        sampleStep: smallTemplate ? 3 : 6
       });
       coarseCandidates.push({ anchor, blockedHexIds, ...placement });
     }
     coarseCandidates.sort((left, right) => obstacleMatchQuality(right) - obstacleMatchQuality(left));
-    for (const coarse of coarseCandidates.slice(0, 12)) {
-      const placement = bestCompositePlacement(screenshot, background, image, coarse.x, coarse.y, {
-        radiusX: 3, radiusY: 3, step: 1, fixedFlip: coarse.flip, sampleStep: 3
+    const shortlist = coarseCandidates.slice(0, needsWideRefinement ? 24 : 12);
+    for (const coarse of shortlist) {
+      // Sparse graphics (bones, thin branches) alias badly on the six-pixel
+      // coarse lattice. Only those templates receive the wider intermediate
+      // refinement; dense rocks/ponds keep the fast direct path.
+      const intermediate = needsWideRefinement
+        ? bestCompositePlacement(screenshot, background, image, coarse.x, coarse.y, {
+          radiusX: 12, radiusY: 12, step: 3, fixedFlip: coarse.flip, sampleStep: 3
+        })
+        : coarse;
+      const placement = bestCompositePlacement(screenshot, background, image, intermediate.x, intermediate.y, {
+        radiusX: needsWideRefinement ? 2 : 3,
+        radiusY: needsWideRefinement ? 2 : 3,
+        step: 1,
+        fixedFlip: intermediate.flip,
+        sampleStep: needsWideRefinement ? 2 : 3
       });
       if (placement.correlation > 0.5 && placement.gain > 0.12 && placement.match > 0.72) {
         candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
@@ -174,7 +231,7 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
   for (const badge of badges) {
     const badgePlacements = ["player", "ai"]
       .map((owner) => locateBadgeOnGrid(badge, data.battlefield.grid, owner))
-      .filter((placement) => placement && !blocked.has(placement.primaryHex.id));
+      .filter(Boolean);
     if (!badgePlacements.length) continue;
     let best = null;
     const bestByCreature = new Map();
@@ -183,8 +240,18 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
       for (const creatureTemplates of templatesByCreature.values()) {
         let coarseBest = null;
         for (const template of representativeTemplates(creatureTemplates)) {
-          const candidate = scoreCreatureTemplate(screenshot, background, data.battlefield.grid, blocked, badgePlacement, template, true);
-          if (candidate && (!coarseBest || candidate.quality > coarseBest.quality)) coarseBest = candidate;
+          for (const scale of creatureTemplateScales(template)) {
+            const candidate = scoreCreatureTemplate(
+              screenshot,
+              background,
+              data.battlefield.grid,
+              blocked,
+              badgePlacement,
+              scaledCreatureTemplate(template, scale),
+              true
+            );
+            if (candidate && (!coarseBest || candidate.quality > coarseBest.quality)) coarseBest = candidate;
+          }
         }
         if (coarseBest) coarseCandidates.push(coarseBest);
       }
@@ -201,7 +268,7 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
           data.battlefield.grid,
           blocked,
           coarseCandidate,
-          template,
+          scaledCreatureTemplate(template, coarseCandidate.templateScale || 1),
           false
         );
         if (!candidate) continue;
@@ -238,10 +305,20 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
       createdAt: accepted.length
     });
     const footprint = footprintHexes(data.battlefield.grid, stack) || [candidate.primaryHex.id];
-    if (footprint.some((hexId) => usedHexes.has(hexId) || blocked.has(hexId))) continue;
+    // A mid-battle screenshot is authoritative: Heroes III can draw a tall
+    // foreground obstacle over a living stack and its badge. Rejecting that
+    // stack because the catalog footprint says "blocked" loses real units.
+    // Stack-to-stack overlap is still forbidden.
+    if (footprint.some((hexId) => usedHexes.has(hexId))) continue;
     ownerCounts[owner] += 1;
     stack.detectionConfidence = candidate.quality;
     stack.detectionAlternatives = candidate.detectionAlternatives;
+    stack.screenshotBadgeBounds = {
+      minX: candidate.badge.minX,
+      minY: candidate.badge.minY,
+      width: candidate.badge.width,
+      height: candidate.badge.height
+    };
     stack.screenshotCountDiagnostics = candidate.badge.countDiagnostics;
     stack.screenshotCountRecognized = Boolean(candidate.badge.count);
     accepted.push(stack);
@@ -261,30 +338,111 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
 }
 
 function representativeTemplates(templates) {
-  if (templates.length <= 3) return templates;
-  return [templates[0], templates[Math.floor((templates.length - 1) / 2)], templates[templates.length - 1]];
+  if (templates.length <= 6) return templates;
+  // DEF groups 0/2 cover ordinary movement and standing frames, while
+  // groups 7-10 contain the upright turn/idle variants commonly frozen in a
+  // combat screenshot. One representative per group makes the shortlist
+  // animation-independent without exhaustively scoring every attack frame.
+  const preferredGroups = new Set([0, 2, 7, 8, 9, 10]);
+  const representatives = [];
+  const seenGroups = new Set();
+  for (const template of templates) {
+    const groupId = Number(template.record.groupId);
+    if (!preferredGroups.has(groupId) || seenGroups.has(groupId)) continue;
+    representatives.push(template);
+    seenGroups.add(groupId);
+  }
+  return representatives.length >= 3
+    ? representatives
+    : [templates[0], templates[Math.floor((templates.length - 1) / 2)], templates[templates.length - 1]];
+}
+
+function creatureTemplateScales(template) {
+  // HD/HotA screenshots can render the battlefield at a different scale from
+  // the fixed-resolution UI. Small DEFs are the most affected; testing three
+  // bounded scales in the shortlist is substantially cheaper than resizing
+  // every frame and prevents a 70% Pikeman from being labelled as a full-size
+  // Griffin merely because their colors overlap.
+  return template.image.width * template.image.height < 7000 ? [0.7, 0.85, 1] : [0.85, 1];
+}
+
+function scaledCreatureTemplate(template, scale) {
+  if (scale === 1) return { ...template, templateScale: 1 };
+  let variants = scaledCreatureTemplateCache.get(template);
+  if (!variants) {
+    variants = new Map();
+    scaledCreatureTemplateCache.set(template, variants);
+  }
+  if (!variants.has(scale)) {
+    variants.set(scale, {
+      ...template,
+      image: drawToCanvas(
+        template.image,
+        Math.max(1, Math.round(template.image.width * scale)),
+        Math.max(1, Math.round(template.image.height * scale))
+      ),
+      record: {
+        ...template.record,
+        left: 202 + (template.record.left - 202) * scale,
+        top: 226 + (template.record.top - 226) * scale
+      },
+      templateScale: scale
+    });
+  }
+  return variants.get(scale);
 }
 
 function scoreCreatureTemplate(screen, background, grid, blocked, badgePlacement, template, coarse) {
-  const anchorHex = detectionAnchorHex(grid, badgePlacement, template.creature);
-  if (!anchorHex || blocked.has(anchorHex.id)) return null;
-  // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
-  // Preserve the frame's internal left/top offsets; centering the cropped PNG
-  // lets a large neighboring creature win the score for the wrong hex.
-  const baseX = Math.round(anchorHex.centerX - 202 + template.record.left);
-  const baseY = Math.round(anchorHex.centerY - 226 + template.record.top);
-  const placement = bestCompositePlacement(screen, background, template.image, baseX, baseY, {
-    radiusX: 2,
-    radiusY: 2,
-    step: 2,
-    fixedFlip: badgePlacement.owner === "ai",
-    sampleStep: coarse ? 4 : 2
-  });
-  const rawQuality = creatureMatchQuality(placement);
-  const sidePenalty = ownerSidePenalty(badgePlacement.owner, badgePlacement.primaryHex);
-  const badgePenalty = Math.min(0.08, Math.hypot(badgePlacement.dx, badgePlacement.dy) * 0.0025);
-  const quality = rawQuality - sidePenalty - badgePenalty;
-  return { ...badgePlacement, ...placement, creature: template.creature, quality, rawQuality, sidePenalty, badgePenalty };
+  let best = null;
+  const inheritedPrimary = !coarse
+    && badgePlacement.creature?.creatureId === template.creature.creatureId
+    && badgePlacement.primaryHex
+    ? [badgePlacement.primaryHex]
+    : null;
+  for (const primaryHex of inheritedPrimary || creaturePrimaryHexHypotheses(grid, badgePlacement, template.creature)) {
+    const hypothesis = { ...badgePlacement, primaryHex };
+    const anchorHex = detectionAnchorHex(grid, hypothesis, template.creature);
+    if (!anchorHex) continue;
+    // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
+    // Preserve the frame's internal left/top offsets; centering the cropped PNG
+    // lets a large neighboring creature win the score for the wrong hex.
+    const baseX = Math.round(anchorHex.centerX - 202 + template.record.left);
+    const baseY = Math.round(anchorHex.centerY - 226 + template.record.top);
+    const inheritedAlignment = !coarse
+      && badgePlacement.creature?.creatureId === template.creature.creatureId
+      && badgePlacement.primaryHex?.id === primaryHex.id;
+    const originX = baseX + (inheritedAlignment ? Number(badgePlacement.alignmentDx || 0) : 0);
+    const originY = baseY + (inheritedAlignment ? Number(badgePlacement.alignmentDy || 0) : 0);
+    const placement = bestCompositePlacement(screen, background, template.image, originX, originY, {
+      // The coarse pass covers normalization/crop drift in a 15-position
+      // lattice. The fine pass inherits that translation and checks only the
+      // surrounding 3x3 pixels for every animation frame.
+      radiusX: coarse ? 6 : 1,
+      radiusY: coarse ? 3 : 1,
+      step: coarse ? 3 : 1,
+      fixedFlip: badgePlacement.owner === "ai",
+      sampleStep: coarse ? 4 : 2
+    });
+    const rawQuality = creatureMatchQuality(placement);
+    const sidePenalty = ownerSidePenalty(badgePlacement.owner, primaryHex);
+    const badgePenalty = Math.min(0.08, Math.hypot(badgePlacement.dx, badgePlacement.dy) * 0.0025);
+    const quality = rawQuality - sidePenalty - badgePenalty;
+    const candidate = {
+      ...badgePlacement,
+      primaryHex,
+      ...placement,
+      creature: template.creature,
+      quality,
+      rawQuality,
+      sidePenalty,
+      badgePenalty,
+      templateScale: template.templateScale || 1,
+      alignmentDx: placement.x - baseX,
+      alignmentDy: placement.y - baseY
+    };
+    if (!best || candidate.quality > best.quality) best = candidate;
+  }
+  return best;
 }
 
 function locateBadgeOnGrid(badge, grid, owner) {
@@ -295,9 +453,26 @@ function locateBadgeOnGrid(badge, grid, owner) {
     const dx = badge.centerX - (hex.centerX + badgeOffsetX);
     const dy = badge.centerY - (hex.centerY + badgeOffsetY);
     const distance = dx * dx + dy * dy;
-    if (!best || distance < best.distance) best = { primaryHex: hex, owner, distance, dx, dy };
+    if (!best || distance < best.distance) best = { primaryHex: hex, badgeAnchorHex: hex, owner, distance, dx, dy };
   }
   return best && Math.abs(best.dx) <= 18 && Math.abs(best.dy) <= 20 ? best : null;
+}
+
+function creaturePrimaryHexHypotheses(grid, placement, creature) {
+  const badgeAnchorHex = placement.badgeAnchorHex || placement.primaryHex;
+  const candidates = [badgeAnchorHex];
+  if (inferAbilityFlags(creature).twoHex) {
+    // The badge is attached to the visually trailing half in some DEFs. Only
+    // wide creatures need this second legal hypothesis, avoiding the previous
+    // 3x cost for every template while retaining exact template verification.
+    const primaryCol = badgeAnchorHex.col + (placement.owner === "ai" ? -1 : 1);
+    const adjacentPrimary = grid.hexes.find((hex) => hex.row === badgeAnchorHex.row && hex.col === primaryCol);
+    if (adjacentPrimary) candidates.push(adjacentPrimary);
+  }
+  return candidates.filter((primaryHex) => {
+    const stackLike = { creature, owner: placement.owner, hexId: primaryHex.id };
+    return Boolean(footprintHexes(grid, stackLike));
+  });
 }
 
 function detectionAnchorHex(grid, placement, creature) {
@@ -465,7 +640,10 @@ function detectStackBadges(context) {
     }
     const width = maxX - minX + 1;
     const height = maxY - minY + 1;
-    if (area >= 40 && width >= 15 && width <= 48 && height >= 5 && height <= 20) {
+    // A normalized Heroes III count badge is a short horizontal bar. Purple
+    // creature/shadow fragments can form similarly sized blobs, but they are
+    // close to square or much taller (the browser false-positive was 19x18).
+    if (area >= 40 && width >= 15 && width <= 48 && height >= 5 && height <= 12 && width >= height * 1.35) {
       badges.push({ minX, minY, width, height, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 });
     }
   }
@@ -612,6 +790,22 @@ function drawToCanvas(image, width, height, flip = false) {
   }
   context.drawImage(image, 0, 0, width, height);
   return canvas;
+}
+
+function templateAlphaDensity(image) {
+  if (templateAlphaDensityCache.has(image)) return templateAlphaDensityCache.get(image);
+  const pixels = drawToCanvas(image, image.width, image.height)
+    .getContext("2d", { willReadFrequently: true })
+    .getImageData(0, 0, image.width, image.height).data;
+  let opaque = 0;
+  let samples = 0;
+  for (let index = 3; index < pixels.length; index += 16) {
+    if (pixels[index] > 76) opaque += 1;
+    samples += 1;
+  }
+  const density = samples ? opaque / samples : 0;
+  templateAlphaDensityCache.set(image, density);
+  return density;
 }
 
 function loadImage(src) {

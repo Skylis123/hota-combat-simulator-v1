@@ -56,6 +56,7 @@ const summary = {
     hexId: stack.hexId,
     armySlot: stack.armySlot,
     ...(includeDiagnostics ? {
+      badge: stack.screenshotBadgeBounds,
       alternatives: stack.detectionAlternatives,
       countDiagnostics: stack.screenshotCountDiagnostics
     } : {})
@@ -113,6 +114,57 @@ if (process.argv.includes("--assert-archangel-reference")) {
     throw new Error(`Unexpected stump placement: ${stump?.detectedLeft}, ${stump?.detectedTop}`);
   }
 }
+if (process.argv.includes("--assert-champion-reference")) {
+  assertScene(summary, {
+    backgroundId: "cmbkgrmt",
+    stacks: [
+      "ai:Champion:15@88",
+      "player:Archangel:5@1",
+      "player:Archangel:5@31",
+      "player:Archangel:5@61",
+      "player:Archangel:5@91",
+      "player:Archangel:5@121",
+      "player:Archangel:5@151"
+    ],
+    obstacles: ["106@null"]
+  });
+  assertArmySlots(summary, [
+    "ai:Champion@88#0",
+    "player:Archangel@1#0",
+    "player:Archangel@31#1",
+    "player:Archangel@61#2",
+    "player:Archangel@91#3",
+    "player:Archangel@121#4",
+    "player:Archangel@151#5"
+  ]);
+}
+if (process.argv.includes("--assert-desert-reference")) {
+  assertScene(summary, {
+    backgroundId: "cmbkdes",
+    stacks: [
+      "ai:Angel:26@89",
+      "player:Archangel:5@1",
+      "player:Archangel:5@31",
+      "player:Archangel:5@61",
+      "player:Archangel:5@91",
+      "player:Archangel:5@121",
+      "player:Archangel:5@151"
+    ],
+    obstacles: ["1@110", "16@106", "18@67"]
+  });
+  assertArmySlots(summary, [
+    "ai:Angel@89#0",
+    "player:Archangel@1#0",
+    "player:Archangel@31#1",
+    "player:Archangel@61#2",
+    "player:Archangel@91#3",
+    "player:Archangel@121#4",
+    "player:Archangel@151#5"
+  ]);
+  assertObstaclePlacement(summary, 16, 125, 296, 3);
+  assertObstaclePlacement(summary, 1, 278, 338, 3);
+  assertObstaclePlacement(summary, 18, 387, 212, 3);
+}
 console.log(JSON.stringify(summary, null, 2));
 
 function assertScene(actual, expectedScene) {
@@ -123,5 +175,24 @@ function assertScene(actual, expectedScene) {
   const obstacleSignature = actual.obstacles.map(({ id, anchorHexId }) => `${id}@${anchorHexId}`).sort();
   if (JSON.stringify(obstacleSignature) !== JSON.stringify([...expectedScene.obstacles].sort())) {
     throw new Error(`Unexpected obstacles: ${obstacleSignature.join(", ")}`);
+  }
+}
+
+function assertArmySlots(actual, expectedSlots) {
+  const slots = actual.stacks
+    .map(({ creature, owner, hexId, armySlot }) => `${owner}:${creature}@${hexId}#${armySlot}`)
+    .sort();
+  const expected = [...expectedSlots].sort();
+  if (JSON.stringify(slots) !== JSON.stringify(expected)) {
+    throw new Error(`Unexpected army slots: ${slots.join(", ")}`);
+  }
+}
+
+function assertObstaclePlacement(actual, id, expectedLeft, expectedTop, tolerance) {
+  const obstacle = actual.obstacles.find((candidate) => candidate.id === id);
+  if (!obstacle
+      || Math.abs(obstacle.detectedLeft - expectedLeft) > tolerance
+      || Math.abs(obstacle.detectedTop - expectedTop) > tolerance) {
+    throw new Error(`Unexpected obstacle ${id} placement: ${obstacle?.detectedLeft}, ${obstacle?.detectedTop}`);
   }
 }

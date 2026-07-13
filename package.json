@@ -16,5 +16,8 @@
     "combat-ai",
     "simulator"
   ],
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.2"
+  }
 }

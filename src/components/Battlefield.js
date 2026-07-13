@@ -189,6 +189,13 @@ export function renderBattlefield(container, data, state, handlers) {
     element.style.top = `${visualPosition.centerY}px`;
     element.dataset.stackId = stack.id;
     element.dataset.hexId = String(stack.hexId);
+    if (Number.isFinite(stack.detectionConfidence)) {
+      element.dataset.detectionConfidence = stack.detectionConfidence.toFixed(4);
+    }
+    if (stack.screenshotBadgeBounds) {
+      const { minX, minY, width, height } = stack.screenshotBadgeBounds;
+      element.dataset.screenshotBadge = `${minX},${minY},${width},${height}`;
+    }
     element.title = stackTitle(state, stack);
     element.draggable = state.phase === "setup";
     element.innerHTML = `

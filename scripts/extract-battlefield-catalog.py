@@ -37,6 +37,13 @@ def fingerprint(image: Image.Image):
     return [channel for pixel in sample.getdata() for channel in pixel]
 
 
+def horizon_fingerprint(image: Image.Image):
+    # The first 104 battlefield pixels contain the terrain skyline and are not
+    # darkened by the combat-grid overlay. Ignore the hero area at far left.
+    sample = image.convert("RGB").crop((96, 0, 800, 104)).resize((64, 8), Image.Resampling.BILINEAR)
+    return [channel for pixel in sample.getdata() for channel in pixel]
+
+
 def main() -> int:
     reference_config = ROOT / "_reference_vcmi" / "config" / "obstacles.json"
     if not reference_config.exists():
@@ -111,6 +118,7 @@ def main() -> int:
                 "width": image.width,
                 "height": image.height,
                 "fingerprint": fingerprint(image),
+                "horizonFingerprint": horizon_fingerprint(image),
             }
         )
 
