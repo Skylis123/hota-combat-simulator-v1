@@ -359,8 +359,16 @@ const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
   detectedLeft: 123.5,
   detectedTop: 77.25
 });
-if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
-  failures.push("Screenshot-detected obstacle coordinates must override manual anchor rendering.");
+if (detectedRenderPosition?.left !== manualRenderPosition?.left || detectedRenderPosition?.top !== manualRenderPosition?.top) {
+  failures.push("Imported usual obstacles must use the same grid anchor as manually placed obstacles.");
+}
+const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
+  ...absoluteMarginObstacle,
+  detectedLeft: 123.5,
+  detectedTop: 77.25
+});
+if (detectedAbsolutePosition?.left !== 123.5 || detectedAbsolutePosition?.top !== 77.25) {
+  failures.push("Screenshot-detected absolute obstacles must preserve their fixed image coordinates.");
 }
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {

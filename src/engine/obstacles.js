@@ -61,10 +61,10 @@ export function createObstacleInstance(grid, definition, anchorHexId = null) {
 }
 
 export function obstacleRenderPosition(grid, obstacle) {
-  if (Number.isFinite(obstacle?.detectedLeft) && Number.isFinite(obstacle?.detectedTop)) {
-    return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
-  }
   if (obstacle?.absolute) {
+    if (Number.isFinite(obstacle.detectedLeft) && Number.isFinite(obstacle.detectedTop)) {
+      return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
+    }
     return { left: obstacle.width, top: obstacle.height };
   }
   const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
