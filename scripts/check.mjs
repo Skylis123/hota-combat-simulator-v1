@@ -347,20 +347,22 @@ if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, absoluteMarginObst
   failures.push("Absolute/fixed obstacles must remain exempt from the usual footprint margins.");
 }
 const renderAnchor = battlefieldHex(5, 5);
-const manualRenderObstacle = { ...marginObstacle, anchorHexId: renderAnchor.id, height: 2 };
-const manualRenderPosition = obstacleRenderPosition(battlefieldGrid, manualRenderObstacle);
-const expectedBottomLeftX = Math.min(...renderAnchor.polygonPoints.map(([x]) => x));
-const expectedBottomY = Math.max(...renderAnchor.polygonPoints.map(([, y]) => y));
-if (manualRenderPosition?.left !== expectedBottomLeftX || manualRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
-  failures.push("Manual usual obstacles must render from the hex bottom-left with the original 42 * height + 10 Y offset.");
-}
-const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
-  ...manualRenderObstacle,
-  detectedLeft: 123.5,
-  detectedTop: 77.25
-});
-if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
-  failures.push("Screenshot-detected obstacle coordinates must override manual anchor rendering.");
+for (const obstacleId of [20, 21, 22]) {
+  const definition = battlefieldCatalog.obstacles.find((obstacle) => obstacle.id === obstacleId);
+  const instance = createObstacleInstance(battlefieldGrid, definition, renderAnchor.id);
+  const occupiedHexes = instance.blockedHexIds.map((hexId) => battlefieldGrid.hexes.find((hex) => hex.id === hexId));
+  const centerX = occupiedHexes.reduce((sum, hex) => sum + hex.centerX, 0) / occupiedHexes.length;
+  const centerY = occupiedHexes.reduce((sum, hex) => sum + hex.centerY, 0) / occupiedHexes.length;
+  const expectedLeft = centerX - definition.imageWidth / 2;
+  const expectedTop = centerY - definition.imageHeight / 2;
+  const rendered = obstacleRenderPosition(battlefieldGrid, {
+    ...instance,
+    detectedLeft: 123.5,
+    detectedTop: 77.25
+  });
+  if (rendered?.left !== expectedLeft || rendered?.top !== expectedTop) {
+    failures.push(`${definition.name} must center its sprite on the mean center of all blocked hexes.`);
+  }
 }
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {

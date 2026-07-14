@@ -4,8 +4,6 @@ const ORIGINAL_COLS = 17;
 const VISIBLE_COL_OFFSET = 1;
 const USUAL_OBSTACLE_MIN_VISIBLE_COL = 2;
 const USUAL_OBSTACLE_MAX_VISIBLE_COL = 12;
-const HEX_ROW_STEP = 42;
-const OBSTACLE_Y_OFFSET = 10;
 
 export function obstacleBlockedHexes(grid, obstacle, anchorHexId = obstacle?.anchorHexId) {
   if (!obstacle) return [];
@@ -61,21 +59,30 @@ export function createObstacleInstance(grid, definition, anchorHexId = null) {
 }
 
 export function obstacleRenderPosition(grid, obstacle) {
-  if (Number.isFinite(obstacle?.detectedLeft) && Number.isFinite(obstacle?.detectedTop)) {
-    return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
-  }
   if (obstacle?.absolute) {
+    if (Number.isFinite(obstacle.detectedLeft) && Number.isFinite(obstacle.detectedTop)) {
+      return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
+    }
     return { left: obstacle.width, top: obstacle.height };
   }
-  const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
-  if (!anchor) return null;
-  const polygonX = anchor.polygonPoints?.map(([x]) => x) || [];
-  const polygonY = anchor.polygonPoints?.map(([, y]) => y) || [];
-  const bottomLeftX = polygonX.length ? Math.min(...polygonX) : anchor.centerX - 22;
-  const bottomY = polygonY.length ? Math.max(...polygonY) : anchor.centerY + 28;
+
+  const blockedHexIds = obstacle?.blockedHexIds?.length
+    ? obstacle.blockedHexIds
+    : obstacleBlockedHexes(grid, obstacle, obstacle?.anchorHexId);
+  const occupiedHexes = blockedHexIds
+    .map((hexId) => grid.hexes.find((hex) => hex.id === hexId))
+    .filter(Boolean);
+  if (!occupiedHexes.length) return null;
+
+  const centerX = occupiedHexes.reduce((sum, hex) => sum + hex.centerX, 0) / occupiedHexes.length;
+  const centerY = occupiedHexes.reduce((sum, hex) => sum + hex.centerY, 0) / occupiedHexes.length;
+  const imageWidth = Number.isFinite(obstacle.imageWidth) ? obstacle.imageWidth : 0;
+  const imageHeight = Number.isFinite(obstacle.imageHeight) ? obstacle.imageHeight : 0;
+  const artOffsetX = Number.isFinite(obstacle.artOffsetX) ? obstacle.artOffsetX : 0;
+  const artOffsetY = Number.isFinite(obstacle.artOffsetY) ? obstacle.artOffsetY : 0;
   return {
-    left: bottomLeftX,
-    top: bottomY - (HEX_ROW_STEP * definitionHeight(obstacle) + OBSTACLE_Y_OFFSET)
+    left: centerX - imageWidth / 2 + artOffsetX,
+    top: centerY - imageHeight / 2 + artOffsetY
   };
 }
 
