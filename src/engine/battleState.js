@@ -15,6 +15,7 @@ export function createInitialState() {
     stacks: [],
     turnQueue: [],
     activeStackId: null,
+    lastMovedOwner: null,
     winner: null,
     hoveredStackId: null,
     reachable: new Set(),
@@ -72,6 +73,7 @@ export function startBattle(state) {
   state.phase = "battle";
   state.winner = null;
   state.round = 1;
+  state.lastMovedOwner = null;
   state.attackPreview = null;
   for (const stack of state.stacks) {
     stack.alive = stack.count > 0;
@@ -107,6 +109,7 @@ export function resetBattle(state) {
   state.attackPreview = null;
   state.selectedObstacleId = null;
   state.round = 1;
+  state.lastMovedOwner = null;
   state.actionLog.unshift("Battle reset to setup.");
 }
 

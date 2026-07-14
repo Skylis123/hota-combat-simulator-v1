@@ -2,6 +2,7 @@ import { createBattleStack } from "./battleState.js";
 import { createObstacleInstance, obstacleBlockedHexes } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
+import { detectTurnBarRoster } from "./turnBarAnalyzer.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
@@ -15,6 +16,14 @@ const imagePromiseCache = new Map();
 export async function analyzeBattlefieldScreenshot(file, data) {
   const startedAt = performance.now();
   const source = await createImageBitmap(file);
+  // The native queue is outside the normalized battlefield crop, so start
+  // reading it from the full screenshot while background preparation runs.
+  const turnRosterPromise = detectTurnBarRoster(source, data).catch((error) => ({
+    detected: false,
+    lowerBoundRoster: [],
+    entries: [],
+    note: `Turn-bar analysis was skipped: ${error.message}`
+  }));
   const screenshotCanvas = normalizeBattlefield(source);
   const countCanvas = normalizeBattlefield(source, false);
   const screenshot = screenshotCanvas.getContext("2d", { willReadFrequently: true });
@@ -27,22 +36,33 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const terrain = inferTerrain(background);
   const preparedAt = performance.now();
 
-  const obstacles = await detectObstacles(screenshot, backgroundContext, data, terrain);
+  const [obstacles, turnRoster] = await Promise.all([
+    detectObstacles(screenshot, backgroundContext, data, terrain),
+    turnRosterPromise
+  ]);
   const obstaclesAt = performance.now();
   const blocked = new Set(obstacles.flatMap((obstacle) => obstacle.blockedHexIds));
-  const stacks = await detectStacks(screenshot, backgroundContext, data, blocked, countContext);
+  const stacks = await detectStacks(screenshot, backgroundContext, data, blocked, countContext, turnRoster);
+  applyRosterCounts(stacks, turnRoster);
   const stacksAt = performance.now();
   // Native TextDetector OCR is intentionally not used for Heroes III badges:
   // its general-purpose glyph model confuses the game's tiny bitmap 5/6/1.
   const bitmapCounts = stacks.filter((stack) => stack.screenshotCountRecognized).length;
+  const rosterStacks = (turnRoster?.lowerBoundRoster || [])
+    .reduce((sum, entry) => sum + Number(entry.instances || 0), 0);
+  const rosterNote = rosterStacks
+    ? `The native turn bar provided identification priors for ${rosterStacks} known stacks.`
+    : "No usable native turn-bar roster was found; battlefield matching used the legacy fallback.";
   const completedAt = performance.now();
   return {
     backgroundId,
     obstacles,
     stacks,
+    turnRoster,
+    stackDetectionDiagnostics: stacks.detectionDiagnostics,
     note: bitmapCounts
-      ? `${bitmapCounts} stack counts were read automatically.`
-      : "Creature and obstacle recognition uses original game frames. Counts that cannot be read confidently remain 1 and can be edited with right-click.",
+      ? `${rosterNote} ${bitmapCounts} stack counts were read automatically.`
+      : `${rosterNote} Counts that cannot be read confidently remain 1 and can be edited with right-click.`,
     timings: {
       prepareMs: preparedAt - startedAt,
       obstaclesMs: obstaclesAt - preparedAt,
@@ -51,6 +71,64 @@ export async function analyzeBattlefieldScreenshot(file, data) {
       totalMs: completedAt - startedAt
     }
   };
+}
+
+export function applyRosterCounts(stacks, turnRoster) {
+  const countSlots = new Map();
+  for (const entry of turnRoster?.lowerBoundRoster || []) {
+    const key = `${entry.owner}:${entry.creatureId}`;
+    const count = Math.trunc(Number(entry.count));
+    if (!Number.isInteger(count) || count < 1) continue;
+    const slots = countSlots.get(key) || [];
+    for (let index = 0; index < Math.max(1, Number(entry.instances) || 1); index += 1) slots.push(count);
+    countSlots.set(key, slots);
+  }
+
+  for (const [key, availableCounts] of countSlots) {
+    const [owner, creatureId] = key.split(":");
+    const matchingStacks = stacks.filter((stack) =>
+      stack.owner === owner && Number(stack.creature.creatureId) === Number(creatureId)
+    );
+    const remaining = [...availableCounts];
+    const exactMatches = new Set();
+    // Exact badge reads establish the mapping when one creature type appears
+    // in several differently sized stacks (for example 20 + four split 1s).
+    for (const stack of matchingStacks.filter((candidate) => candidate.screenshotCountRecognized)) {
+      const exactIndex = remaining.indexOf(stack.count);
+      if (exactIndex >= 0) {
+        remaining.splice(exactIndex, 1);
+        exactMatches.add(stack);
+      }
+    }
+    const unresolved = matchingStacks.filter((stack) => !exactMatches.has(stack));
+    if (unresolved.length !== remaining.length) continue;
+
+    // A low-resolution badge can turn 1 into 41. Use its approximate value to
+    // consume the nearest remaining roster count; exact reads were protected
+    // above. Truly unread badges are filled only when the remainder is
+    // unambiguous.
+    for (const stack of unresolved.filter((candidate) => candidate.screenshotCountRecognized)) {
+      if (!remaining.length) break;
+      let nearestIndex = 0;
+      for (let index = 1; index < remaining.length; index += 1) {
+        if (Math.abs(remaining[index] - stack.count) < Math.abs(remaining[nearestIndex] - stack.count)) nearestIndex = index;
+      }
+      setImportedStackCount(stack, remaining.splice(nearestIndex, 1)[0]);
+      exactMatches.add(stack);
+    }
+    const unread = unresolved.filter((stack) => !exactMatches.has(stack));
+    if (unread.length === remaining.length && (remaining.length === 1 || new Set(remaining).size === 1)) {
+      unread.forEach((stack, index) => setImportedStackCount(stack, remaining[index]));
+    }
+  }
+}
+
+function setImportedStackCount(stack, count) {
+  stack.count = count;
+  stack.initialCount = count;
+  stack.hpTotal = count * Math.max(1, Number(stack.creature.stats.hp || 1));
+  stack.wound = 0;
+  stack.screenshotCountFromTurnBar = true;
 }
 
 function normalizeBattlefield(image, smoothing = true) {
@@ -201,7 +279,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
   return accepted;
 }
 
-async function detectStacks(screenshot, background, data, blocked, countContext = screenshot) {
+async function detectStacks(screenshot, background, data, blocked, countContext = screenshot, roster = null) {
   const templateRecords = data.creatures.flatMap((creature) =>
     (data.creatureDetection?.creatures?.[String(creature.creatureId)]?.frames || [])
       .map((record) => ({ creature, record }))
@@ -217,8 +295,10 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
     if (!templatesByCreature.has(creatureId)) templatesByCreature.set(creatureId, []);
     templatesByCreature.get(creatureId).push(template);
   }
+  const rosterCapacityMap = rosterCapacities(roster);
+  const hasRosterPrior = rosterCapacityMap.size > 0;
 
-  const candidates = [];
+  const candidateGroups = [];
   const badges = detectStackBadges(screenshot);
   const digitTemplates = await loadDigitTemplates(data);
   for (const badge of badges) {
@@ -258,7 +338,15 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
     }
     coarseCandidates.sort((left, right) => right.quality - left.quality);
     const coarseFloor = (coarseCandidates[0]?.quality ?? 0) - 0.08;
-    const shortlist = coarseCandidates.filter((candidate, index) => index < 6 || (index < 10 && candidate.quality >= coarseFloor));
+    const legacyShortlist = coarseCandidates.filter((candidate, index) => index < 6 || (index < 10 && candidate.quality >= coarseFloor));
+    // The native queue is only a lower bound: the visible strip can be clipped
+    // and conservative recognition intentionally leaves uncertain cards
+    // unknown. Always keep the normal visual shortlist, while guaranteeing
+    // that every known roster creature also reaches the detailed scorer.
+    const rosterShortlist = hasRosterPrior
+      ? coarseCandidates.filter((candidate) => rosterCapacityMap.has(`${candidate.owner}:${candidate.creature.creatureId}`))
+      : [];
+    const shortlist = [...new Set([...rosterShortlist, ...legacyShortlist])];
     for (const coarseCandidate of shortlist) {
       const creatureTemplates = templatesByCreature.get(coarseCandidate.creature.creatureId) || [];
       for (const template of creatureTemplates) {
@@ -278,17 +366,29 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
         if (!best || candidate.quality > best.quality) best = candidate;
       }
     }
-    const alternatives = [...bestByCreature.values()]
-      .sort((left, right) => right.quality - left.quality)
+    const rankedCandidates = [...bestByCreature.values()]
+      .sort((left, right) => right.quality - left.quality);
+    const alternatives = rankedCandidates
       .slice(0, 5)
       .map(({ creature, owner, quality, rawQuality, sidePenalty, correlation, chroma, gain, match }) => ({
         creatureId: creature.creatureId, name: creature.name, owner, quality, rawQuality, sidePenalty, correlation, chroma, gain, match
-      }));
+    }));
     if (best) best.detectionAlternatives = alternatives;
-    if (best?.correlation > 0.13 && best.chroma > 0.82 && best.quality > 0.34) candidates.push({ ...best, badge });
+    if (best) {
+      candidateGroups.push({
+        badge,
+        best: { ...best, badge },
+        alternatives: rankedCandidates.map((candidate) => ({ ...candidate, badge }))
+      });
+    }
   }
 
-  candidates.sort((left, right) => right.quality - left.quality);
+  // Known roster entries compete globally for their lower-bound
+  // multiplicities. Unassigned badges retain the strict legacy visual
+  // fallback, so a clipped or unrecognized queue card cannot delete a real
+  // battlefield stack.
+  const rosterAssignment = assignStackCandidatesToRoster(candidateGroups, roster, { minimumQuality: -0.15 });
+  const candidates = mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment);
   const accepted = [];
   const usedHexes = new Set();
   const ownerCounts = { player: 0, ai: 0 };
@@ -334,7 +434,200 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
       })
       .forEach((stack, armySlot) => { stack.armySlot = armySlot; });
   }
+  accepted.detectionDiagnostics = {
+    badgeCount: badges.length,
+    candidateGroupCount: candidateGroups.length,
+    groups: candidateGroups.map((group) => ({
+      badge: {
+        minX: group.badge.minX,
+        minY: group.badge.minY,
+        count: group.badge.count
+      },
+      alternatives: group.alternatives.slice(0, 8).map((candidate) => ({
+        owner: candidate.owner,
+        creatureId: candidate.creature.creatureId,
+        name: candidate.creature.name,
+        quality: candidate.quality,
+        primaryHexId: candidate.primaryHex.id
+      }))
+    }))
+  };
   return accepted;
+}
+
+/**
+ * Selects at most one alternative from each detected badge while respecting
+ * a roster multiset. This is a small capacity-constrained dynamic program,
+ * not a greedy pass: the best result is chosen across all badges together.
+ *
+ * Supported roster forms include turnBarAnalyzer's
+ * `{ lowerBoundRoster: [...] }`, a flat array of
+ * `{ owner, creatureId, instances }`, and `{ player: [...], ai: [...] }`.
+ * `count` is intentionally not treated as multiplicity because it is the
+ * number of creatures inside a stack; `instances` is the stack multiplicity.
+ * Returns `null` when there is no usable roster so callers can retain their
+ * existing fallback unchanged.
+ */
+export function assignStackCandidatesToRoster(candidateGroups, roster, options = {}) {
+  const capacities = rosterCapacities(roster);
+  if (!capacities.size) return null;
+  const countHints = rosterCountHints(roster);
+
+  const capacityKeys = [...capacities.keys()].sort();
+  const capacityValues = capacityKeys.map((key) => capacities.get(key));
+  const capacityIndex = new Map(capacityKeys.map((key, index) => [key, index]));
+  const minimumQuality = Number.isFinite(options.minimumQuality) ? options.minimumQuality : -Infinity;
+  const assignmentBonus = Number.isFinite(options.assignmentBonus) ? options.assignmentBonus : 0;
+  const candidateFilter = typeof options.candidateFilter === "function" ? options.candidateFilter : () => true;
+  const groups = (candidateGroups || []).map((group, groupIndex) => {
+    const alternatives = Array.isArray(group?.alternatives) ? group.alternatives : [];
+    const bestByCapacity = new Map();
+    for (const candidate of alternatives) {
+      const creatureId = Number(candidate?.creature?.creatureId ?? candidate?.creatureId);
+      const owner = candidate?.owner;
+      const key = `${owner}:${creatureId}`;
+      const index = capacityIndex.get(key);
+      const quality = candidateQuality(candidate) + rosterCountEvidence(candidate, countHints.get(key));
+      if (index === undefined || !Number.isFinite(quality) || quality < minimumQuality || !candidateFilter(candidate)) continue;
+      const previous = bestByCapacity.get(index);
+      if (!previous || quality > previous.quality) bestByCapacity.set(index, { candidate, quality });
+    }
+    return {
+      groupIndex,
+      alternatives: [...bestByCapacity.entries()].map(([capacity, value]) => ({ capacity, ...value }))
+    };
+  });
+
+  const initialUsage = new Array(capacityKeys.length).fill(0);
+  let states = new Map([[usageKey(initialUsage), { usage: initialUsage, score: 0, assignments: [] }]]);
+  for (const group of groups) {
+    const nextStates = new Map(states);
+    for (const state of states.values()) {
+      for (const alternative of group.alternatives) {
+        if (state.usage[alternative.capacity] >= capacityValues[alternative.capacity]) continue;
+        const usage = [...state.usage];
+        usage[alternative.capacity] += 1;
+        const next = {
+          usage,
+          score: state.score + alternative.quality + assignmentBonus,
+          assignments: [...state.assignments, { groupIndex: group.groupIndex, candidate: alternative.candidate }]
+        };
+        const key = usageKey(usage);
+        const previous = nextStates.get(key);
+        if (isBetterAssignment(next, previous)) nextStates.set(key, next);
+      }
+    }
+    states = nextStates;
+  }
+
+  let best = null;
+  for (const state of states.values()) {
+    if (isBetterAssignment(state, best)) best = state;
+  }
+  return (best?.assignments || [])
+    .sort((left, right) => left.groupIndex - right.groupIndex)
+    .map((assignment) => assignment.candidate);
+}
+
+export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment) {
+  const assignedBadges = new Set((rosterAssignment || []).map((candidate) => candidate.badge));
+  const fallback = (candidateGroups || [])
+    .filter((group) => rosterAssignment === null || !assignedBadges.has(group.badge))
+    .map((group) => group.best)
+    .filter(isLegacyStackCandidate);
+  if (rosterAssignment === null) return fallback.sort((left, right) => right.quality - left.quality);
+
+  const rosterCandidates = new Set(rosterAssignment);
+  return [...rosterAssignment, ...fallback].sort((left, right) =>
+    Number(rosterCandidates.has(right)) - Number(rosterCandidates.has(left))
+      || right.quality - left.quality
+  );
+}
+
+function isLegacyStackCandidate(candidate) {
+  return candidate?.correlation > 0.13 && candidate.chroma > 0.82 && candidate.quality > 0.34;
+}
+
+function rosterCountHints(roster) {
+  const hints = new Map();
+  const entries = Array.isArray(roster?.lowerBoundRoster)
+    ? roster.lowerBoundRoster
+    : (Array.isArray(roster) ? roster : []);
+  for (const entry of entries) {
+    const owner = String(entry?.owner || "").toLowerCase();
+    const creatureId = Number(entry?.creatureId);
+    const count = Math.trunc(Number(entry?.count));
+    if (!["player", "ai"].includes(owner) || !Number.isInteger(creatureId) || !Number.isInteger(count) || count < 1) continue;
+    const key = `${owner}:${creatureId}`;
+    if (!hints.has(key)) hints.set(key, new Set());
+    hints.get(key).add(count);
+  }
+  return hints;
+}
+
+function rosterCountEvidence(candidate, allowedCounts) {
+  const observed = Math.trunc(Number(candidate?.badge?.count));
+  if (!allowedCounts?.size || !Number.isInteger(observed) || observed < 1) return 0;
+  const confidence = Math.max(0, Math.min(1, Number(candidate?.badge?.countDiagnostics?.selected?.score || 0.5)));
+  return allowedCounts.has(observed) ? 0.3 * confidence : -0.2 * confidence;
+}
+
+function rosterCapacities(roster) {
+  const capacities = new Map();
+  const add = (owner, creatureId, multiplicity = 1) => {
+    const normalizedOwner = String(owner || "").toLowerCase();
+    const normalizedCreatureId = Number(creatureId);
+    const normalizedMultiplicity = Math.max(0, Math.floor(Number(multiplicity)));
+    if (!["player", "ai"].includes(normalizedOwner) || !Number.isInteger(normalizedCreatureId) || !normalizedMultiplicity) return;
+    const key = `${normalizedOwner}:${normalizedCreatureId}`;
+    capacities.set(key, (capacities.get(key) || 0) + normalizedMultiplicity);
+  };
+  const addEntry = (entry, fallbackOwner) => {
+    if (Number.isInteger(Number(entry))) return add(fallbackOwner, Number(entry), 1);
+    if (!entry || typeof entry !== "object") return;
+    add(
+      entry.owner || fallbackOwner,
+      entry.creatureId ?? entry.id,
+      entry.instances ?? entry.multiplicity ?? entry.capacity ?? 1
+    );
+  };
+  const addOwnerCollection = (owner, collection) => {
+    if (Array.isArray(collection)) collection.forEach((entry) => addEntry(entry, owner));
+    else if (collection && typeof collection === "object") {
+      for (const [creatureId, multiplicity] of Object.entries(collection)) add(owner, creatureId, multiplicity);
+    }
+  };
+
+  if (Array.isArray(roster)) roster.forEach((entry) => addEntry(entry));
+  else if (roster && typeof roster === "object") {
+    if (Array.isArray(roster.lowerBoundRoster)) roster.lowerBoundRoster.forEach((entry) => addEntry(entry));
+    else if (Array.isArray(roster.entries)) roster.entries.forEach((entry) => addEntry(entry));
+    else {
+      addOwnerCollection("player", roster.player);
+      addOwnerCollection("ai", roster.ai);
+    }
+  }
+  return capacities;
+}
+
+function candidateQuality(candidate) {
+  return Number(candidate?.quality ?? candidate?.score ?? candidate?.confidence);
+}
+
+function usageKey(usage) {
+  return usage.join(",");
+}
+
+function isBetterAssignment(candidate, previous) {
+  if (!previous) return true;
+  // Once the caller's noise floor has removed implausible matches, roster
+  // multiplicity is stronger evidence than a single unusually high sprite
+  // correlation. Fill the maximum number of known stacks first, then choose
+  // the highest-scoring assignment among solutions of that cardinality.
+  if (candidate.assignments.length !== previous.assignments.length) {
+    return candidate.assignments.length > previous.assignments.length;
+  }
+  return candidate.score > previous.score;
 }
 
 function representativeTemplates(templates) {
@@ -647,7 +940,73 @@ function detectStackBadges(context) {
       badges.push({ minX, minY, width, height, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 });
     }
   }
+  // The yellow active-stack outline can touch the purple badge and make its
+  // connected component too tall. Heroes III still draws the independent
+  // two-pixel green HP baseline, so recover those selected badges from that
+  // invariant without loosening the purple-fragment filter globally.
+  for (const baseline of detectBadgeBaselines(pixels)) {
+    const minY = baseline.minY - 10;
+    if (minY < 0 || badges.some((badge) => {
+      const overlapX = Math.min(badge.minX + badge.width, baseline.minX + baseline.width)
+        - Math.max(badge.minX, baseline.minX);
+      return overlapX > 0 && Math.abs(badge.minY - minY) <= 3;
+    })) continue;
+    badges.push({
+      minX: baseline.minX,
+      minY,
+      width: baseline.width,
+      height: 9,
+      centerX: baseline.minX + (baseline.width - 1) / 2,
+      centerY: minY + 4
+    });
+  }
   return badges;
+}
+
+function detectBadgeBaselines(pixels) {
+  const mask = new Uint8Array(WIDTH * HEIGHT);
+  for (let index = 0; index < mask.length; index += 1) {
+    const pixel = index * 4;
+    const red = pixels[pixel];
+    const green = pixels[pixel + 1];
+    const blue = pixels[pixel + 2];
+    if (green > 80 && green > red * 1.25 && green > blue * 1.25) mask[index] = 1;
+  }
+  const visited = new Uint8Array(mask.length);
+  const baselines = [];
+  for (let start = 0; start < mask.length; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+    const queue = [start];
+    visited[start] = 1;
+    let cursor = 0;
+    let minX = WIDTH;
+    let maxX = 0;
+    let minY = HEIGHT;
+    let maxY = 0;
+    let area = 0;
+    while (cursor < queue.length) {
+      const index = queue[cursor++];
+      const x = index % WIDTH;
+      const y = Math.floor(index / WIDTH);
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      area += 1;
+      for (const neighbor of [index - 1, index + 1, index - WIDTH, index + WIDTH]) {
+        if (neighbor < 0 || neighbor >= mask.length || visited[neighbor] || !mask[neighbor]) continue;
+        if (Math.abs((neighbor % WIDTH) - x) > 1) continue;
+        visited[neighbor] = 1;
+        queue.push(neighbor);
+      }
+    }
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+    if (width >= 24 && width <= 48 && height >= 1 && height <= 3 && area >= width * 1.5) {
+      baselines.push({ minX, minY, width, height });
+    }
+  }
+  return baselines;
 }
 
 function bestCompositePlacement(screen, background, image, originX, originY, options) {

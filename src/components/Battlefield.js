@@ -2,6 +2,7 @@ import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver
 import { polygonPointsToString } from "../engine/hexGrid.js";
 import { footprintHexes, movementPlacementForHex, placementPreview, stackVisualPosition } from "../engine/footprint.js";
 import { inferAbilityFlags } from "../engine/abilities.js";
+import { obstacleRenderPosition } from "../engine/obstacles.js";
 
 export function renderBattlefield(container, data, state, handlers) {
   const battlefield = data.battlefield;
@@ -141,18 +142,10 @@ export function renderBattlefield(container, data, state, handlers) {
     element.title = `${obstacle.name} · blocks ${obstacle.blockedHexIds.length} hexes · right-click to remove`;
     element.innerHTML = `<img src="./public/${obstacle.image}" alt="${obstacle.name}" />`;
     if (obstacle.detectedFlip) element.querySelector("img").style.transform = "scaleX(-1)";
-    if (hasDetectedPosition) {
-      element.style.left = `${obstacle.detectedLeft}px`;
-      element.style.top = `${obstacle.detectedTop}px`;
-    } else if (obstacle.absolute) {
-      element.style.left = `${obstacle.width}px`;
-      element.style.top = `${obstacle.height}px`;
-    } else {
-      const anchor = grid.hexes.find((hex) => hex.id === obstacle.anchorHexId);
-      if (!anchor) continue;
-      element.style.left = `${anchor.centerX - 22}px`;
-      element.style.top = `${anchor.centerY + 28}px`;
-    }
+    const renderPosition = obstacleRenderPosition(grid, obstacle);
+    if (!renderPosition) continue;
+    element.style.left = `${renderPosition.left}px`;
+    element.style.top = `${renderPosition.top}px`;
     element.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       event.stopPropagation();

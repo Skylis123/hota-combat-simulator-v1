@@ -49,6 +49,7 @@ const summary = {
     detectedTop
   })),
   ...(includeDiagnostics ? { timings: result.timings } : {}),
+  ...(includeDiagnostics ? { stackDetectionDiagnostics: result.stackDetectionDiagnostics } : {}),
   stacks: result.stacks.map((stack) => ({
     creature: stack.creature.name,
     owner: stack.owner,

@@ -1,4 +1,4 @@
-import { pendingTurnOrder } from "../engine/turnOrder.js";
+import { computeTurnOrder, pendingTurnOrder } from "../engine/turnOrder.js";
 
 export function renderTurnOrder(container, state, handlers = {}) {
   container.innerHTML = "";
@@ -7,9 +7,7 @@ export function renderTurnOrder(container, state, handlers = {}) {
     return;
   }
 
-  const order = state.phase === "battle" ? pendingTurnOrder(state) : [...state.stacks]
-    .sort((a, b) => (b.creature.stats.speed || 0) - (a.creature.stats.speed || 0))
-    .map((stack) => stack.id);
+  const order = state.phase === "battle" ? pendingTurnOrder(state) : computeTurnOrder(state.stacks);
 
   for (const stackId of order) {
     const stack = state.stacks.find((candidate) => candidate.id === stackId);

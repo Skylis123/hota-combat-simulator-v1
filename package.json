@@ -8,7 +8,7 @@
     "prepare:data": "node scripts/prepare-data.mjs",
     "dev": "node scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs && node scripts/test-roster-assignment.mjs"
   },
   "keywords": [
     "hota",

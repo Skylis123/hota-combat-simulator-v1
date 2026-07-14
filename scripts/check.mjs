@@ -12,7 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
-import { allObstacleBlockedHexes, createObstacleInstance, obstacleBlockedHexes } from "../src/engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, obstacleBlockedHexes, obstacleRenderPosition } from "../src/engine/obstacles.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -120,6 +120,58 @@ if (waitStack(waitState, slowWaiter)) {
 slowWaiter.statuses.acted = true;
 if (nextActiveStack(waitState) !== fastWaiter.id) {
   failures.push("After the slow waiting stack acts, the next waiting stack must receive its delayed turn.");
+}
+const tiedPlayerOne = createBattleStack({ creature: { name: "P1", stats: { hp: 10, speed: 5 } }, owner: "player", hexId: 2, count: 1, createdAt: 2, armySlot: 0 });
+const tiedPlayerTwo = createBattleStack({ creature: { name: "P2", stats: { hp: 10, speed: 5 } }, owner: "player", hexId: 3, count: 1, createdAt: 3, armySlot: 1 });
+const tiedAiOne = createBattleStack({ creature: { name: "A1", stats: { hp: 10, speed: 5 } }, owner: "ai", hexId: 4, count: 1, createdAt: 4, armySlot: 0 });
+const tiedAiTwo = createBattleStack({ creature: { name: "A2", stats: { hp: 10, speed: 5 } }, owner: "ai", hexId: 5, count: 1, createdAt: 5, armySlot: 1 });
+if (JSON.stringify(computeTurnOrder([tiedPlayerTwo, tiedAiTwo, tiedAiOne, tiedPlayerOne])) !== JSON.stringify([
+  tiedPlayerOne.id, tiedAiOne.id, tiedPlayerTwo.id, tiedAiTwo.id
+])) {
+  failures.push("Equal-speed stacks must alternate Player/AI while preserving army-slot order on each side.");
+}
+const fasterPlayer = createBattleStack({ creature: { name: "Fast P", stats: { hp: 10, speed: 6 } }, owner: "player", hexId: 6, count: 1, createdAt: 6, armySlot: 0 });
+if (JSON.stringify(computeTurnOrder([fasterPlayer, tiedPlayerOne, tiedAiOne])) !== JSON.stringify([
+  fasterPlayer.id, tiedAiOne.id, tiedPlayerOne.id
+])) {
+  failures.push("Equal-speed choice must continue alternating from the side that acted in the previous speed group.");
+}
+if (JSON.stringify(computeTurnOrder([tiedPlayerOne, tiedAiOne], { initialLastOwner: "player" })) !== JSON.stringify([
+  tiedAiOne.id, tiedPlayerOne.id
+])) {
+  failures.push("A new round must preserve equal-speed alternation from the side that ended the previous round.");
+}
+const roundBoundaryState = {
+  stacks: [tiedPlayerOne, tiedAiOne],
+  turnQueue: [tiedPlayerOne.id, tiedAiOne.id],
+  activeStackId: tiedAiOne.id,
+  lastMovedOwner: "player",
+  round: 1
+};
+tiedPlayerOne.statuses.acted = true;
+tiedAiOne.statuses.acted = true;
+if (nextActiveStack(roundBoundaryState) !== tiedPlayerOne.id
+    || roundBoundaryState.round !== 2
+    || roundBoundaryState.lastMovedOwner !== "ai") {
+  failures.push("Round rollover must record the final acting side before building the next equal-speed queue.");
+}
+tiedPlayerOne.statuses.acted = false;
+tiedAiOne.statuses.acted = false;
+const dynamicPlayerFast = createBattleStack({ creature: { name: "Dynamic P10", stats: { hp: 10, speed: 10 } }, owner: "player", hexId: 7, count: 1, createdAt: 7, armySlot: 0 });
+const dynamicAiMiddle = createBattleStack({ creature: { name: "Dynamic A9", stats: { hp: 10, speed: 9 } }, owner: "ai", hexId: 8, count: 1, createdAt: 8, armySlot: 0 });
+const dynamicPlayerTie = createBattleStack({ creature: { name: "Dynamic P8", stats: { hp: 10, speed: 8 } }, owner: "player", hexId: 9, count: 1, createdAt: 9, armySlot: 1 });
+const dynamicAiTie = createBattleStack({ creature: { name: "Dynamic A8", stats: { hp: 10, speed: 8 } }, owner: "ai", hexId: 10, count: 1, createdAt: 10, armySlot: 1 });
+const dynamicTurnState = {
+  stacks: [dynamicPlayerFast, dynamicAiMiddle, dynamicPlayerTie, dynamicAiTie],
+  turnQueue: computeTurnOrder([dynamicPlayerFast, dynamicAiMiddle, dynamicPlayerTie, dynamicAiTie]),
+  activeStackId: dynamicPlayerFast.id,
+  lastMovedOwner: null,
+  round: 1
+};
+dynamicPlayerFast.statuses.acted = true;
+dynamicAiMiddle.alive = false;
+if (nextActiveStack(dynamicTurnState) !== dynamicAiTie.id) {
+  failures.push("A stack killed before its turn must not influence later equal-speed alternation as if it had acted.");
 }
 const resetState = createInitialState();
 resetState.stacks = [
@@ -257,7 +309,53 @@ const obstacleWalker = createBattleStack({ creature: byCreatureId.get(0), owner:
 if (JSON.stringify(obstacleBlockedHexes(footprintGrid, testObstacleDefinition, 1)) !== JSON.stringify([1]) || !obstacleBlocked.has(1) || findMovementPath(footprintGrid, [obstacleWalker], obstacleWalker, 2, obstacleBlocked) !== null) {
   failures.push("Obstacle footprints must map to blocked battle hexes and prevent ground pathfinding.");
 }
+const battlefieldGrid = data.battlefield.grid;
+const battlefieldHex = (row, col) => battlefieldGrid.hexes.find((hex) => hex.row === row && hex.col === col);
+const marginObstacle = { id: 1000, name: "Margin test", blockedTiles: [0], absolute: false, width: 1, height: 1, image: "" };
+const offsetMarginObstacle = { ...marginObstacle, id: 1001, blockedTiles: [1], width: 2 };
+const wideMarginObstacle = { ...marginObstacle, id: 1002, blockedTiles: [0, 1], width: 2 };
+const emptyBattlefieldState = { stacks: [], obstacles: [] };
+if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 1).id)
+    || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 2).id)
+    || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 12).id)
+    || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 13).id)) {
+  failures.push("Usual obstacles must keep every blocked footprint hex inside visible columns 2 through 12.");
+}
+if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, offsetMarginObstacle, battlefieldHex(5, 1).id)
+    || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wideMarginObstacle, battlefieldHex(5, 12).id)) {
+  failures.push("Obstacle margin validation must inspect blockedTiles rather than rejecting or accepting an anchor alone.");
+}
+const absoluteMarginObstacle = {
+  ...marginObstacle,
+  id: 1003,
+  absolute: true,
+  blockedTiles: [battlefieldHex(5, 0).engineId],
+  width: 17,
+  height: 23
+};
+if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, absoluteMarginObstacle)) {
+  failures.push("Absolute/fixed obstacles must remain exempt from the usual footprint margins.");
+}
+const renderAnchor = battlefieldHex(5, 5);
+const manualRenderObstacle = { ...marginObstacle, anchorHexId: renderAnchor.id, height: 2 };
+const manualRenderPosition = obstacleRenderPosition(battlefieldGrid, manualRenderObstacle);
+const expectedBottomLeftX = Math.min(...renderAnchor.polygonPoints.map(([x]) => x));
+const expectedBottomY = Math.max(...renderAnchor.polygonPoints.map(([, y]) => y));
+if (manualRenderPosition?.left !== expectedBottomLeftX || manualRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
+  failures.push("Manual usual obstacles must render from the hex bottom-left with the original 42 * height + 10 Y offset.");
+}
+const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
+  ...manualRenderObstacle,
+  detectedLeft: 123.5,
+  detectedTop: 77.25
+});
+if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
+  failures.push("Screenshot-detected obstacle coordinates must override manual anchor rendering.");
+}
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
+if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {
+  failures.push("Usual obstacle placement must not depend on image-height CSS translation.");
+}
 if (!/action-cursor="attack-up-left"[^}]*12-attack-down-left\.png/s.test(appCss) || !/action-cursor="attack-down-left"[^}]*10-attack-up-left\.png/s.test(appCss)) {
   failures.push("The two visually reversed left-diagonal sword frames must be mapped to their actual blade directions.");
 }

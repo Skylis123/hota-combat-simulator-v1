@@ -784,10 +784,6 @@ button.primary {
   pointer-events: auto;
 }
 
-.battle-obstacle.usual {
-  transform: translateY(-100%);
-}
-
 .battle-obstacle.detected-position {
   transform: none;
 }
