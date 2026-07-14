@@ -74,6 +74,16 @@ for (const creature of data.creatures || []) {
   }
 }
 
+const halberdierAsset = data.creatures.find((creature) => creature.creatureId === 1)?.asset;
+if (
+  halberdierAsset?.idleAnimation !== "assets/creatures/animations/1/idle.gif"
+  || halberdierAsset?.assetStatus !== "EXTRACTED"
+  || halberdierAsset?.fallbackReason !== null
+  || !String(halberdierAsset?.sourceArchive || "").includes("HotA.lod")
+) {
+  failures.push("Halberdier must expose the verified HotA idle animation and provenance in simulator data.");
+}
+
 for (const creature of data.creatures) {
   const requiredAnimations = ["idle.gif", "move.gif", "hit.gif", "defend.gif", "death.gif", "corpse.png", "attack-up.gif", "attack-front.gif", "attack-down.gif"];
   if (inferAbilityFlags(creature).ranged) requiredAnimations.push("shoot-up.gif", "shoot-front.gif", "shoot-down.gif");

@@ -96,6 +96,33 @@ if (process.argv.includes("--assert-unknown-reference")) {
   }
 }
 
+if (process.argv.includes("--assert-hota-halberdier-mixed")) {
+  assertRoster([
+    "player:Archangel:20:1",
+    "ai:Archangel:10:1",
+    "player:Griffin:4:1",
+    "player:Halberdier:1:1",
+    "player:Pikeman:12:1",
+    "player:Archer:5:1",
+    "player:Pikeman:1:2"
+  ]);
+  if (result.roundBreakIndex !== 8) throw new Error(`Unexpected round divider: ${result.roundBreakIndex}`);
+}
+
+if (process.argv.includes("--assert-hota-halberdier-ai")) {
+  assertRoster([
+    "player:Champion:1:1",
+    "player:Zealot:1:1",
+    "player:Cavalier:1:1",
+    "player:Crusader:1:1",
+    "player:Griffin:4:1",
+    "ai:Halberdier:22:5",
+    "player:Monk:2:1",
+    "player:Pikeman:1:1"
+  ]);
+  if (result.roundBreakIndex !== 12) throw new Error(`Unexpected round divider: ${result.roundBreakIndex}`);
+}
+
 function assertRoster(expected) {
   const actual = result.lowerBoundRoster
     .map(({ owner, creatureName, count, instances }) => `${owner}:${creatureName}:${count}:${instances}`)

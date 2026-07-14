@@ -52,17 +52,18 @@
       }
     },
     "1": {
-      "def": "chalbd.def",
-      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "def": "CHALBD.def",
+      "archive": "VCMI heroes3DataPatch/content/sprites (HotA creature assets)",
+      "sourceSha256": "db6f472b6a34d2e991f52e7f543276091017de26c2c9e25d6b744fb46d7c4264",
       "animations": {
         "move": {
           "groupIndex": 0,
-          "frameCount": 6,
+          "frameCount": 8,
           "durationMs": 90
         },
         "idle": {
           "groupIndex": 2,
-          "frameCount": 8,
+          "frameCount": 9,
           "durationMs": 140
         },
         "hit": {
@@ -72,12 +73,12 @@
         },
         "defend": {
           "groupIndex": 4,
-          "frameCount": 12,
+          "frameCount": 9,
           "durationMs": 90
         },
         "death": {
           "groupIndex": 5,
-          "frameCount": 4,
+          "frameCount": 7,
           "durationMs": 110
         },
         "corpse": {
@@ -85,17 +86,17 @@
         },
         "attack-up": {
           "groupIndex": 10,
-          "frameCount": 6,
+          "frameCount": 8,
           "durationMs": 80
         },
         "attack-front": {
           "groupIndex": 11,
-          "frameCount": 6,
+          "frameCount": 8,
           "durationMs": 80
         },
         "attack-down": {
           "groupIndex": 12,
-          "frameCount": 7,
+          "frameCount": 8,
           "durationMs": 80
         }
       }

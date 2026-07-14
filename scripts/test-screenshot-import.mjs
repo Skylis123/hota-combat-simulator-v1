@@ -166,6 +166,27 @@ if (process.argv.includes("--assert-desert-reference")) {
   assertObstaclePlacement(summary, 1, 278, 338, 3);
   assertObstaclePlacement(summary, 18, 387, 212, 3);
 }
+if (process.argv.includes("--assert-hota-halberdier-mixed")) {
+  const halberdier = summary.stacks.find(({ creature, owner, count, hexId }) => (
+    creature === "Halberdier" && owner === "player" && count === 1 && hexId === 90
+  ));
+  const wrongPikeman = summary.stacks.find(({ creature, owner, count, hexId }) => (
+    creature === "Pikeman" && owner === "player" && count === 1 && hexId === 90
+  ));
+  if (!halberdier || wrongPikeman) {
+    throw new Error("The HotA Halberdier at player hex 90 was not classified correctly.");
+  }
+}
+if (process.argv.includes("--assert-hota-halberdier-ai")) {
+  const actual = summary.stacks
+    .filter(({ owner, count }) => owner === "ai" && count === 22)
+    .map(({ creature, hexId }) => `${creature}@${hexId}`)
+    .sort();
+  const expected = [14, 44, 89, 134, 164].map((hexId) => `Halberdier@${hexId}`).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`Unexpected HotA Halberdier stacks: ${actual.join(", ")}`);
+  }
+}
 console.log(JSON.stringify(summary, null, 2));
 
 function assertScene(actual, expectedScene) {

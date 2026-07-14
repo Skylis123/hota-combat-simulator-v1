@@ -394,12 +394,12 @@
       ],
       "asset": {
         "displayImage": "assets/creatures/png/1.png",
-        "idleAnimation": null,
+        "idleAnimation": "assets/creatures/animations/1/idle.gif",
         "previewImage": "assets/creatures/png/1.png",
         "spritesheet": "assets/creatures/spritesheets/1.png",
-        "assetStatus": "PARTIAL_EXTRACTED",
-        "sourceArchive": "Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
-        "fallbackReason": "idleAnimation missing; using preview PNG"
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "Horn of the Abyss\\HotA.lod (verified via VCMI heroes3DataPatch)",
+        "fallbackReason": null
       }
     },
     {
