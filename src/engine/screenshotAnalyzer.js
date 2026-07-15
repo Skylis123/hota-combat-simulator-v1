@@ -34,10 +34,15 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const backgroundCanvas = drawToCanvas(backgroundImage, WIDTH, HEIGHT);
   const backgroundContext = backgroundCanvas.getContext("2d", { willReadFrequently: true });
   const terrain = inferTerrain(background);
+  const obstacleBackgroundContext = prepareObstacleDetectionBackground(
+    screenshot,
+    backgroundContext,
+    data.battlefield.grid
+  );
   const preparedAt = performance.now();
 
   const [detectedObstacles, turnRoster] = await Promise.all([
-    detectObstacles(screenshot, backgroundContext, data, terrain),
+    detectObstacles(screenshot, obstacleBackgroundContext, data, terrain),
     turnRosterPromise
   ]);
   const obstaclesAt = performance.now();
@@ -200,6 +205,85 @@ function identifyBackground(canvas, backgrounds) {
   return best?.id || "cmbkgrtr";
 }
 
+function prepareObstacleDetectionBackground(screenshotContext, backgroundContext, grid) {
+  const screenshot = contextPixels(screenshotContext);
+  const cleanBackground = contextPixels(backgroundContext);
+  const canvas = drawToCanvas(backgroundContext.canvas, WIDTH, HEIGHT);
+  const adjustedContext = canvas.getContext("2d", { willReadFrequently: true });
+  const adjustedImage = adjustedContext.getImageData(0, 0, WIDTH, HEIGHT);
+  let adjustedHexes = 0;
+
+  for (const hex of grid.hexes) {
+    const points = hex.polygonPoints || [];
+    if (points.length < 3) continue;
+    const minX = Math.max(0, Math.floor(Math.min(...points.map(([x]) => x))) + 3);
+    const maxX = Math.min(WIDTH - 1, Math.ceil(Math.max(...points.map(([x]) => x))) - 3);
+    const minY = Math.max(0, Math.floor(Math.min(...points.map(([, y]) => y))) + 3);
+    const maxY = Math.min(HEIGHT - 1, Math.ceil(Math.max(...points.map(([, y]) => y))) - 3);
+    const channelRatios = [[], [], []];
+    // The native game paints movement/reachability as a dark translucent fill
+    // over complete hexes. Sample the full inset hex instead of only its
+    // centre: tall cacti and two-hex creatures can cover that centre while
+    // enough ground remains visible around their silhouette.
+    for (let y = minY; y <= maxY; y += 3) {
+      for (let x = minX; x <= maxX; x += 3) {
+        if (!pointInPolygon(x + 0.5, y + 0.5, points)) continue;
+        const index = (y * WIDTH + x) * 4;
+        const baseTotal = cleanBackground[index] + cleanBackground[index + 1] + cleanBackground[index + 2];
+        const screenTotal = screenshot[index] + screenshot[index + 1] + screenshot[index + 2];
+        if (baseTotal < 90 || screenTotal < 30) continue;
+        const chromaDistance = [0, 1, 2].reduce((sum, channel) => sum + Math.abs(
+          screenshot[index + channel] / screenTotal - cleanBackground[index + channel] / baseTotal
+        ), 0);
+        if (chromaDistance > 0.16) continue;
+        for (let channel = 0; channel < 3; channel += 1) {
+          const base = cleanBackground[index + channel];
+          if (base < 20) continue;
+          channelRatios[channel].push(screenshot[index + channel] / base);
+        }
+      }
+    }
+
+    if (channelRatios.some((ratios) => ratios.length < 12)) continue;
+    const ratios = channelRatios.map(median).map((ratio) => Math.max(0.2, Math.min(1, ratio)));
+    // Leave ordinary battlefield pixels untouched. The threshold is well
+    // above the roughly half-bright native reachability overlay, yet below
+    // normal capture/compression variation.
+    if (ratios.reduce((sum, ratio) => sum + ratio, 0) / 3 > 0.78) continue;
+    adjustedHexes += 1;
+
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        if (!pointInPolygon(x + 0.5, y + 0.5, points)) continue;
+        const index = (y * WIDTH + x) * 4;
+        for (let channel = 0; channel < 3; channel += 1) {
+          adjustedImage.data[index + channel] = Math.round(cleanBackground[index + channel] * ratios[channel]);
+        }
+      }
+    }
+  }
+
+  if (!adjustedHexes) return backgroundContext;
+  adjustedContext.putImageData(adjustedImage, 0, 0);
+  return adjustedContext;
+}
+
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function pointInPolygon(x, y, points) {
+  let inside = false;
+  for (let index = 0, previous = points.length - 1; index < points.length; previous = index, index += 1) {
+    const [xi, yi] = points[index];
+    const [xj, yj] = points[previous];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 async function detectObstacles(screenshot, background, data, terrain) {
   const definitions = data.obstacles.filter((obstacle) =>
     obstacle.allowedTerrains.includes(terrain) || obstacle.specialBattlefields.includes(terrain) || obstacle.category === terrain
@@ -263,7 +347,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
         fixedFlip: intermediate.flip,
         sampleStep: needsWideRefinement ? 2 : 3
       });
-      if (placement.correlation > 0.5 && placement.gain > 0.12 && placement.match > 0.72) {
+      if (placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72) {
         candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
       }
     }
@@ -273,10 +357,16 @@ async function detectObstacles(screenshot, background, data, terrain) {
   const accepted = [];
   const occupied = new Set();
   for (const candidate of candidates) {
-    const blockedHexIds = candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, candidate.anchorHexId);
+    if (accepted.some((item) => (
+      item.id === candidate.definition.id
+      && Math.abs(item.detectedLeft - candidate.x) < candidate.definition.imageWidth * 0.35
+      && Math.abs(item.detectedTop - candidate.y) < candidate.definition.imageHeight * 0.35
+    ))) continue;
+    const anchorHexId = candidate.anchorHexId;
+    const blockedHexIds = candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId);
     if (blockedHexIds.some((hexId) => occupied.has(hexId))) continue;
     if (candidate.definition.absolute && accepted.some((item) => item.absolute)) continue;
-    const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, candidate.anchorHexId);
+    const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, anchorHexId);
     instance.detectionConfidence = candidate.gain;
     instance.detectedFlip = candidate.flip;
     instance.detectedLeft = candidate.x;
