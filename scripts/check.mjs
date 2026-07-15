@@ -18,6 +18,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const dataPath = path.join(root, "public", "data", "simulator-v1-data.json");
 const data = JSON.parse(fs.readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
+const factoryDataPath = path.join(root, "public", "data", "factory-creatures.json");
+const factoryData = JSON.parse(fs.readFileSync(factoryDataPath, "utf8").replace(/^\uFEFF/, ""));
 
 function pngDimensions(filePath) {
   const buffer = fs.readFileSync(filePath);
@@ -31,8 +33,8 @@ function gifDimensions(filePath) {
 
 const failures = [];
 const battlefieldCatalog = JSON.parse(fs.readFileSync(path.join(root, "public", "data", "battlefield-catalog.json"), "utf8"));
-if (battlefieldCatalog.obstacles.length !== 125 || battlefieldCatalog.backgrounds.length !== 25 || battlefieldCatalog.missingGraphics.length !== 0) {
-  failures.push("Battlefield catalog must contain all 125 obstacles, all 25 backgrounds and no missing graphics.");
+if (battlefieldCatalog.obstacles.length !== 140 || battlefieldCatalog.backgrounds.length !== 26 || battlefieldCatalog.missingGraphics.length !== 0) {
+  failures.push("Battlefield catalog must contain all 140 obstacles, all 26 backgrounds and no missing graphics.");
 }
 for (const entry of [...battlefieldCatalog.obstacles, ...battlefieldCatalog.backgrounds]) {
   if (!fs.existsSync(path.join(root, "public", entry.image.replace(/^assets\//, "assets/")))) {
@@ -42,6 +44,76 @@ for (const entry of [...battlefieldCatalog.obstacles, ...battlefieldCatalog.back
 if (createInitialState().stackCount !== 1) failures.push("New stacks must default to a count of one.");
 if (data.scope?.town !== "Castle") failures.push("V1 data is not Castle-scoped.");
 if ((data.creatures || []).length !== 14) failures.push("Castle creature subset must contain 14 base/upgraded units.");
+const expectedFactoryIds = [138, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185];
+const factoryIds = (factoryData.creatures || []).map((creature) => creature.creatureId);
+if (JSON.stringify(factoryIds) !== JSON.stringify(expectedFactoryIds)) {
+  failures.push(`Factory creature roster must contain the 16 audited HotA IDs in order: ${factoryIds.join(", ")}.`);
+}
+const factoryLines = factoryData.town?.creatureLines || [];
+const factoryTierSevenLines = factoryLines.filter((line) => line.tier === 7);
+if (
+  factoryData.town?.name !== "Factory"
+  || factoryData.town?.nativeTerrain !== "wasteland"
+  || factoryData.town?.battlefield !== "wasteland_rocks"
+  || factoryLines.length !== 8
+  || factoryTierSevenLines.length !== 2
+  || JSON.stringify(factoryTierSevenLines.map((line) => line.branch).sort()) !== JSON.stringify(["gantry", "serpentarium"])
+) {
+  failures.push("Factory data must expose eight creature lines, both T7 branches, and the Wasteland battlefield contract.");
+}
+const wastelandBackground = battlefieldCatalog.backgrounds.find((background) => background.id === "wasteland_rocks");
+const wastelandObstacles = battlefieldCatalog.obstacles.filter((obstacle) => obstacle.category === "wasteland");
+if (wastelandBackground?.town !== "Factory" || wastelandObstacles.length !== 15) {
+  failures.push(`Factory battlefield catalog must expose the Wasteland background and 15 obstacles (found ${wastelandObstacles.length}).`);
+}
+if (JSON.stringify(wastelandObstacles.map((obstacle) => obstacle.id)) !== JSON.stringify(Array.from({ length: 15 }, (_, index) => 200 + index))) {
+  failures.push("Wasteland obstacle IDs must be the complete audited range 200-214.");
+}
+
+const detectionManifest = JSON.parse(fs.readFileSync(path.join(root, "public", "assets", "creatures", "detection", "manifest.json"), "utf8"));
+const battleAnimationManifest = JSON.parse(fs.readFileSync(path.join(root, "public", "assets", "creatures", "animations", "castle-battle-animations.json"), "utf8"));
+if (Object.keys(detectionManifest.creatures || {}).length !== 30 || Object.keys(battleAnimationManifest.creatures || {}).length !== 30) {
+  failures.push("Creature manifests must contain all 14 Castle and all 16 Factory creatures.");
+}
+const larvaAnimation = battleAnimationManifest.summonOnlyCreatures?.["10001"];
+if (!larvaAnimation?.summonOnly || detectionManifest.creatures?.["10001"]) {
+  failures.push("Sandworm Larva must be animation-ready as a summon-only creature and excluded from screenshot recruitment detection.");
+}
+for (const asset of [
+  "assets/creatures/png/10001.png",
+  "assets/creatures/spritesheets/10001.png",
+  "assets/creatures/animations/10001/idle.gif",
+  "assets/creatures/animations/10001/corpse.png"
+]) {
+  if (!fs.existsSync(path.join(root, "public", asset))) failures.push(`Missing summon-only Sandworm Larva asset: ${asset}.`);
+}
+for (const creature of factoryData.creatures || []) {
+  const creatureId = String(creature.creatureId);
+  const detection = detectionManifest.creatures?.[creatureId];
+  const animation = battleAnimationManifest.creatures?.[creatureId];
+  if (!detection || !Array.isArray(detection.frames) || detection.frames.length === 0) {
+    failures.push(`Factory detection manifest is missing frames for ${creature.name} (${creatureId}).`);
+  }
+  if (!animation) failures.push(`Factory animation manifest is missing ${creature.name} (${creatureId}).`);
+  const exportedAnimations = (creature.asset?.battleAnimationActions || []).map((action) => (
+    action === "corpse"
+      ? creature.asset?.corpseImage
+      : `${creature.asset?.battleAnimationRoot}/${action}.gif`
+  ));
+  for (const asset of [
+    creature.asset?.displayImage,
+    creature.asset?.spritesheet,
+    creature.asset?.corpseImage,
+    detection?.portrait,
+    detection?.queuePortrait,
+    ...(detection?.frames || []).map((frame) => frame.image),
+    ...exportedAnimations
+  ]) {
+    if (!asset || !fs.existsSync(path.join(root, "public", asset))) {
+      failures.push(`Missing Factory asset for ${creature.name}: ${asset || "undefined"}`);
+    }
+  }
+}
 if (data.battlefield?.grid?.hexCount !== 165) failures.push("Visible grid must contain 165 hexes.");
 if (!fs.existsSync(path.join(root, "public", data.battlefield.background.image))) failures.push("Battlefield background is missing.");
 const topHex = data.battlefield.grid.hexes.find((hex) => hex.row === 0 && hex.col === 0);

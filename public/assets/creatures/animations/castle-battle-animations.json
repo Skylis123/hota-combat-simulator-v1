@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "source": "Heroes III creature DEF groups",
+  "source": "Heroes III and Horn of the Abyss creature animation groups",
   "creatures": {
     "0": {
       "def": "cpkman.def",
@@ -838,6 +838,1227 @@
           "durationMs": 80
         }
       }
+    },
+    "138": {
+      "def": "CHALF.def",
+      "sourceAsset": "CHalf.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "a94b3b69f20bf71adebf3140b077840b9c6df752a805bef7ee45e72da13a7ea1",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 11,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 24,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 24,
+          "durationMs": 80
+        }
+      }
+    },
+    "171": {
+      "def": "CHALFB.def",
+      "sourceAsset": "CHALFB.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "11d01ec06347c0f8f6eed4b451c2ecf8d1c8a081dbfc0c777a401f13efc1a014",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 11,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 14,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 24,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 24,
+          "durationMs": 80
+        }
+      }
+    },
+    "172": {
+      "def": "CMECHAN.def",
+      "sourceAsset": "CMECHAN.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "449752b4afa8641d43654628f1d304c0be4e8147e793bb1536a9b7e845e6de8c",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "173": {
+      "def": "CENGINE.def",
+      "sourceAsset": "CENGINE.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "8ac963c79523f48688b8f77a04523b9e7f9d3d4afdda82ae1d3aba60df307903",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "174": {
+      "def": "CARMADL.def",
+      "sourceAsset": "CARMADL.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "ae7956b071639f0285bf1d02fa508b0e157b9aee878df39aba4f8c09dca446f1",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 11,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 3,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 17,
+          "durationMs": 80
+        }
+      }
+    },
+    "175": {
+      "def": "CBLWARM.def",
+      "sourceAsset": "CBLWARM.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "1ad031328f8504312c0d88f53eaa7d6b5bdf057985b4737c7b16b66b4574d995",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 11,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 3,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 17,
+          "durationMs": 80
+        }
+      }
+    },
+    "176": {
+      "def": "CAUTO.def",
+      "sourceAsset": "CAUTO.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "028055f1bf9bd26aef4c17a4f44dedc93eed7cf8ef9783d65706429fe5f3aa34",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 5,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "177": {
+      "def": "CHAUTO.def",
+      "sourceAsset": "CHAUTO.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "ac91b81b7a64b31efcc838e65bd43f5ac137597afded11117152f6b328eea0b8",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 5,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "178": {
+      "def": "CSANDW.def",
+      "sourceAsset": "CSANDWX.json",
+      "sourceFormat": "vcmi-json-png",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "b50d6bfa4eb78c4840d0c25e7b71104c5d98d75e26cb6a9b007305b73850a118",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 5,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 7,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 6,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 5,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 4,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 4,
+          "durationMs": 80
+        }
+      }
+    },
+    "179": {
+      "def": "COLGOI.def",
+      "sourceAsset": "COLGOIX.json",
+      "sourceFormat": "vcmi-json-png",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "024137d6f4115647e14e5b5a4176882a3344c6df2944e50e2c40c384737c3567",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 5,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 7,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 6,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 5,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 4,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 4,
+          "durationMs": 80
+        }
+      }
+    },
+    "180": {
+      "def": "CGNSLING.def",
+      "sourceAsset": "CGNSLING.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "2c39028a4ab8b93c695542822166e163b3d98f26a15721d3ffa33083af6c5d95",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 12,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 9,
+          "durationMs": 80
+        }
+      }
+    },
+    "181": {
+      "def": "CBOUNTHT.def",
+      "sourceAsset": "CBOUNTHT.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "3f83175f399db3f2fb5b14339e7ee88350e6237ec3b5ba57e95f248e5d83eb04",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 12,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 3,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupId": 14,
+          "groupIndex": 13,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupId": 15,
+          "groupIndex": 14,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "182": {
+      "def": "COUATL.def",
+      "sourceAsset": "COUATL.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "f7d9821a41ede914d99087b05ab73af3f9389ea4dcaf077d1ce8ee73a66b6346",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 11,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 19,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 4,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 11,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "183": {
+      "def": "RCOUATL.def",
+      "sourceAsset": "COUATR.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "ca267ba9df0bc437bc1e260a0e9b7816dd2669dc177a830cb54e4961e2204aa5",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 11,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 24,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 4,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 13,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "184": {
+      "def": "CDREAD.def",
+      "sourceAsset": "CDREAD.json",
+      "sourceFormat": "vcmi-json-png",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "bfa80666ba510ee27a67dae0cb38badcb15b4f9f5ee0b004dfc2a3db3aa3956e",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 11,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 20,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 13,
+          "durationMs": 80
+        }
+      }
+    },
+    "185": {
+      "def": "CJUGGER.def",
+      "sourceAsset": "CJUGGER.json",
+      "sourceFormat": "vcmi-json-png",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "c3082480cecc92303b09e9e4b7c828cebba1af599bc0f86d65fdaf572a09c375",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 11,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 20,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 13,
+          "durationMs": 80
+        }
+      }
+    }
+  },
+  "summonOnlyCreatures": {
+    "10001": {
+      "def": "CLARVA.def",
+      "sourceAsset": "CLARVA.def",
+      "sourceFormat": "def",
+      "archive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+      "sourceSha256": "79ebc029166392dd1f6032bad6a65064490b9e0d4fb3b72790f7377d6c26ebd3",
+      "animations": {
+        "move": {
+          "groupId": 0,
+          "groupIndex": 0,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupId": 2,
+          "groupIndex": 2,
+          "frameCount": 4,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupId": 3,
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupId": 4,
+          "groupIndex": 4,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "death": {
+          "groupId": 5,
+          "groupIndex": 5,
+          "frameCount": 7,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last rendered death frame, centered by the simulator"
+        },
+        "attack-up": {
+          "groupId": 10,
+          "groupIndex": 9,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupId": 11,
+          "groupIndex": 10,
+          "frameCount": 6,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupId": 12,
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupId": 13,
+          "groupIndex": 12,
+          "frameCount": 5,
+          "durationMs": 80
+        }
+      },
+      "summonOnly": true
     }
   }
 }

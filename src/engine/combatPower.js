@@ -1,4 +1,5 @@
 import { inferAbilityFlags } from "./abilities.js";
+import { isFactoryEffectImmune } from "./factoryAbilities.js";
 
 const CONFIDENCE = {
   CONFIRMED: "CONFIRMED",
@@ -44,6 +45,10 @@ export function applyStatusModifiersToEvaluation(stack) {
 
   for (const effect of effects) {
     const type = String(effect.type || "").toLowerCase();
+    if (isFactoryEffectImmune(stack, effect)) {
+      notes.push(`${effect.type || "Effect"} ignored by creature immunity.`);
+      continue;
+    }
     if (type === "age") {
       hpPerUnit *= 0.5;
       notes.push("Age-like effect halves hpPerUnit in confirmed HotA runtime fixtures.");
@@ -157,11 +162,13 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
   const count = Number(attacker.count || 0);
   const averagePerUnit = (attackerEval.damageMin + attackerEval.damageMax) / 2;
   const base = averagePerUnit * count;
-  const statDelta = attackerEval.attack - defenderEval.defense;
+  const abilities = inferAbilityFlags(attacker.creature || attacker);
+  const defenseIgnore = options.mode === "ranged" ? Number(abilities.rangedDefenseIgnore || 0) : 0;
+  const effectiveDefense = defenderEval.defense * Math.max(0, 1 - defenseIgnore);
+  const statDelta = attackerEval.attack - effectiveDefense;
   const factor = statDelta >= 0
     ? 1 + Math.min(3, 0.05 * statDelta)
     : Math.max(0.3, 1 - 0.025 * Math.abs(statDelta));
-  const abilities = inferAbilityFlags(attacker.creature || attacker);
   const includeMultiHit = options.includeMultiHit !== false;
   const hitMultiplier = includeMultiHit && abilities.doubleAttack ? 2 : 1;
   const meleePenalty = options.mode === "melee" && abilities.ranged && !abilities.noMeleePenalty ? 0.5 : 1;
@@ -172,7 +179,8 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
   const joustingMultiplier = joustingPercent / 100;
   const defenderId = Number((defender.creature || defender).creatureId);
   const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
-  const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * rangePenalty * joustingPercent * hateMultiplier) / 100));
+  const luckMultiplier = abilities.positiveLuck ? 25 / 24 : 1;
+  const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * rangePenalty * joustingPercent * hateMultiplier * luckMultiplier) / 100));
 
   return {
     damage,
@@ -181,8 +189,11 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
     hitMultiplier,
     meleePenalty,
     rangePenalty,
+    defenseIgnore,
+    effectiveDefense,
     joustingMultiplier,
     hateMultiplier,
+    luckMultiplier,
     confidence: CONFIDENCE.CONFIRMED,
     evidence: "Uses confirmed deterministic AI damage shape: mean min/max * count, attack/defense factor, double attack where flagged."
   };
@@ -201,11 +212,13 @@ export function calculateRolledDamage(attacker, defender, battleState = null, op
   const rng = typeof options.rng === "function" ? options.rng : Math.random;
   const roll = Math.min(0.999999999999, Math.max(0, Number(rng())));
   const base = minimumBase + Math.floor(roll * (maximumBase - minimumBase + 1));
-  const statDelta = attackerEval.attack - defenderEval.defense;
+  const abilities = inferAbilityFlags(attacker.creature || attacker);
+  const defenseIgnore = options.mode === "ranged" ? Number(abilities.rangedDefenseIgnore || 0) : 0;
+  const effectiveDefense = defenderEval.defense * Math.max(0, 1 - defenseIgnore);
+  const statDelta = attackerEval.attack - effectiveDefense;
   const factor = statDelta >= 0
     ? 1 + Math.min(3, 0.05 * statDelta)
     : Math.max(0.3, 1 - 0.025 * Math.abs(statDelta));
-  const abilities = inferAbilityFlags(attacker.creature || attacker);
   const meleePenalty = options.mode === "melee" && abilities.ranged && !abilities.noMeleePenalty ? 0.5 : 1;
   const rangePenalty = options.mode === "ranged" ? Number(options.rangePenalty ?? 1) : 1;
   const joustingPercent = options.mode === "melee" && abilities.jousting && !inferAbilityFlags(defender.creature || defender).joustingImmune
@@ -213,7 +226,9 @@ export function calculateRolledDamage(attacker, defender, battleState = null, op
     : 100;
   const defenderId = Number((defender.creature || defender).creatureId);
   const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
-  const damage = Math.max(1, Math.trunc((base * factor * meleePenalty * rangePenalty * joustingPercent * hateMultiplier) / 100));
+  const luckyStrike = Boolean(abilities.positiveLuck && Math.min(0.999999999999, Math.max(0, Number(rng()))) < 1 / 24);
+  const luckMultiplier = luckyStrike ? 2 : 1;
+  const damage = Math.max(1, Math.trunc((base * factor * meleePenalty * rangePenalty * joustingPercent * hateMultiplier * luckMultiplier) / 100));
   return {
     damage,
     base,
@@ -222,8 +237,12 @@ export function calculateRolledDamage(attacker, defender, battleState = null, op
     factor,
     meleePenalty,
     rangePenalty,
+    defenseIgnore,
+    effectiveDefense,
     joustingMultiplier: joustingPercent / 100,
     hateMultiplier,
+    luckyStrike,
+    luckMultiplier,
     confidence: CONFIDENCE.CONFIRMED,
     evidence: "Execution roll is inclusive across count*minDamage..count*maxDamage; AI scoring remains deterministic expected damage."
   };

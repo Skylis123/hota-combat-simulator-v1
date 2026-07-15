@@ -1,5 +1,6 @@
 import { loadSimulatorData } from "./data/loader.js";
 import { renderCreatureList } from "./components/CreatureList.js";
+import { renderTownSelector } from "./components/TownSelector.js";
 import { renderBattlefield } from "./components/Battlefield.js";
 import { renderStackInfo } from "./components/StackInfo.js";
 import { renderTurnOrder } from "./components/TurnOrderBar.js";
@@ -11,16 +12,35 @@ import { defendStack, moveStack, waitStack } from "./engine/actions.js";
 import { attackOption, chooseBestAttack, executeAttack, performAiTurn } from "./engine/combat.js";
 import { findMovementPath, reachableHexes } from "./engine/movement.js";
 import { canStackOccupy, footprintHexes, movementPlacementForHex, occupiedHexesForStacks } from "./engine/footprint.js";
-import { chooseBestResurrection, executeResurrection, resurrectionCandidates } from "./engine/creatureAbilities.js";
+import {
+  activateDetonation,
+  activateTemporaryInvulnerability,
+  chooseBestHeatStroke,
+  chooseBestRepair,
+  chooseBestResurrection,
+  executeCorpseDevour,
+  executeHeatStroke,
+  executeRepair,
+  executeResurrection,
+  heatStrokeOptions,
+  repairApproachOptions,
+  repairCandidates,
+  resurrectionCandidates
+} from "./engine/creatureAbilities.js";
+import { factoryAbilityFor } from "./engine/factoryAbilities.js";
 import { ARMY_SLOT_COUNT, deployAllArmies, stackInArmySlot } from "./engine/armyDeployment.js";
 import { selectPointerAttack } from "./engine/battleInteraction.js";
 import { renderObstacleMenu } from "./components/ObstacleMenu.js";
 import { renderBackgroundMenu } from "./components/BackgroundMenu.js";
 import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, generateObstacleLayout } from "./engine/obstacles.js";
 import { analyzeBattlefieldScreenshot } from "./engine/screenshotAnalyzer.js";
+import { selectedTown, simulatorTowns } from "./engine/towns.js";
 
 const elements = {
   dataStatus: document.querySelector("#data-status"),
+  setupTitle: document.querySelector("#setup-title"),
+  townList: document.querySelector("#town-list"),
+  unitsTitle: document.querySelector("#units-title"),
   creatureList: document.querySelector("#creature-list"),
   obstacleMenu: document.querySelector("#obstacle-menu"),
   backgroundMenu: document.querySelector("#background-menu"),
@@ -51,6 +71,11 @@ const elements = {
   battleActions: document.querySelector("#battle-actions"),
   attackBestAction: document.querySelector("#attack-best-action"),
   resurrectAction: document.querySelector("#resurrect-action"),
+  repairAction: document.querySelector("#repair-action"),
+  detonationAction: document.querySelector("#detonation-action"),
+  invulnerabilityAction: document.querySelector("#invulnerability-action"),
+  corpseDevourAction: document.querySelector("#corpse-devour-action"),
+  heatStrokeAction: document.querySelector("#heat-stroke-action"),
   waitAction: document.querySelector("#wait-action"),
   defendAction: document.querySelector("#defend-action"),
   battleLog: document.querySelector("#battle-log"),
@@ -69,9 +94,12 @@ let importedImageFile = null;
 async function boot() {
   try {
     data = await loadSimulatorData();
+    const towns = simulatorTowns(data);
+    if (!towns.some((town) => String(town.townType) === String(state.selectedTownType))) {
+      state.selectedTownType = towns[0]?.townType ?? state.selectedTownType;
+    }
     elements.dataStatus.textContent = "Loaded";
     elements.dataStatus.classList.add("ok");
-    elements.battlefieldTitle.textContent = `${data.battlefield.name} · ${data.battlefield.grid.hexCount} visible hexes`;
     bindEvents();
     render();
   } catch (error) {
@@ -107,7 +135,7 @@ function bindEvents() {
 
   elements.clearField.addEventListener("click", () => {
     if (battleAnimationPending) return;
-    state = createInitialState();
+    state = createInitialState({ selectedTownType: state.selectedTownType });
     render();
   });
 
@@ -163,6 +191,57 @@ function bindEvents() {
     const target = validTargets.find((candidate) => candidate.id === selected?.id) || chooseBestResurrection(state, archangel)?.target;
     if (!target) return;
     executeResurrection(state, archangel, target);
+    updateReachable();
+    render();
+  });
+
+  elements.repairAction.addEventListener("click", async () => {
+    const repairer = activePlayerStack();
+    if (!repairer || battleAnimationPending) return;
+    const choice = selectedRepairChoice(repairer) || chooseBestRepair(state, repairer, data.battlefield.grid);
+    if (!choice) return;
+    await runAnimatedAction(
+      () => choice.approachPath?.length > 1
+        ? animateStackMove(elements.battlefield, data.battlefield.grid, repairer, choice.approachPath)
+        : Promise.resolve(),
+      () => executeRepair(state, repairer, choice.target, {
+        grid: data.battlefield.grid,
+        approachHex: choice.approachHex
+      })
+    );
+  });
+
+  elements.detonationAction.addEventListener("click", () => {
+    const stack = activePlayerStack();
+    if (!stack || battleAnimationPending) return;
+    activateDetonation(state, stack);
+    updateReachable();
+    render();
+  });
+
+  elements.invulnerabilityAction.addEventListener("click", () => {
+    const stack = activePlayerStack();
+    if (!stack || battleAnimationPending) return;
+    activateTemporaryInvulnerability(state, stack);
+    updateReachable();
+    render();
+  });
+
+  elements.corpseDevourAction.addEventListener("click", async () => {
+    const stack = activePlayerStack();
+    if (!stack || battleAnimationPending) return;
+    const choice = bestCorpseDevourChoice(stack);
+    if (!choice) return;
+    await runAnimatedAction(
+      () => Promise.resolve(),
+      () => executeCorpseDevour(state, data.battlefield.grid, stack, choice.destinationHexId)
+    );
+  });
+
+  elements.heatStrokeAction.addEventListener("click", () => {
+    const stack = activePlayerStack();
+    if (!stack || battleAnimationPending) return;
+    executeHeatStroke(state, data.battlefield.grid, stack);
     updateReachable();
     render();
   });
@@ -255,6 +334,48 @@ function activePlayerStack() {
   return stack?.owner === "player" ? stack : null;
 }
 
+function selectedRepairChoice(repairer) {
+  const selected = state.stacks.find((candidate) => candidate.id === state.selectedStackId);
+  if (!selected || !repairCandidates(state, repairer).some((candidate) => candidate.id === selected.id)) return null;
+  const approach = repairApproachOptions(data.battlefield.grid, state, repairer, selected).reduce((best, candidate) => (
+    !best || candidate.approachPath.length < best.approachPath.length ? candidate : best
+  ), null);
+  return approach ? { target: selected, ...approach } : null;
+}
+
+function bestCorpseDevourChoice(stack) {
+  const availableCorpses = (state.corpses || []).filter((corpse) => !corpse.consumed && !corpse.removed);
+  if (!availableCorpses.length) return null;
+  const selectedStackId = state.selectedStackId;
+  let best = null;
+  for (const corpse of availableCorpses) {
+    const destinationHexId = (corpse.hexIds || [corpse.hexId])[0];
+    const selectedPriority = corpse.stackId === selectedStackId ? 1 : 0;
+    if (
+      !best
+      || selectedPriority > best.selectedPriority
+      || (selectedPriority === best.selectedPriority && corpse.round > best.corpse.round)
+    ) {
+      best = { destinationHexId, corpse, selectedPriority };
+    }
+  }
+  return best;
+}
+
+function selectedHeatStrokeChoice(stack) {
+  const selected = state.stacks.find((candidate) => candidate.id === state.selectedStackId);
+  if (!selected || selected.id === stack.id) return null;
+  return heatStrokeOptions(data.battlefield.grid, state, stack)
+    .filter((option) => option.targets.some((target) => target.id === selected.id))
+    .reduce((best, option) => (
+      !best
+      || option.score > best.score
+      || (option.score === best.score && option.targets.length > best.targets.length)
+        ? option
+        : best
+    ), null);
+}
+
 function isHexOccupied(hexId, exceptStackId = null) {
   return occupiedHexesForStacks(data.battlefield.grid, state.stacks, exceptStackId).has(hexId);
 }
@@ -262,6 +383,20 @@ function isHexOccupied(hexId, exceptStackId = null) {
 function onSelectCreature(creatureId) {
   state.selectedCreatureId = creatureId;
   state.selectedStackId = null;
+  render();
+}
+
+function onTownSelect(townType) {
+  const town = simulatorTowns(data).find((candidate) => String(candidate.townType) === String(townType));
+  if (!town) return;
+  state.selectedTownType = townType;
+  state.selectedCreatureId = null;
+  if (state.phase === "setup") {
+    if (town.battlefield && data.backgrounds.some((background) => background.id === town.battlefield)) {
+      state.backgroundId = town.battlefield;
+    }
+    if (town.nativeTerrain) state.obstacleCategory = town.nativeTerrain;
+  }
   render();
 }
 
@@ -522,9 +657,16 @@ function onObstacleRemove(instanceId) {
 function onBackgroundSelect(backgroundId) {
   if (state.phase !== "setup") return;
   state.backgroundId = backgroundId;
+  const background = data.backgrounds.find((candidate) => candidate.id === backgroundId);
+  if (background?.terrain) {
+    state.obstacleCategory = background.terrain;
+    render();
+    return;
+  }
   const aliases = {
     cmbkcf: "cursed_ground", cmbkef: "evil_fog", cmbkff: "fiery_fields", cmbkhg: "holy_ground",
-    cmbklp: "lucid_pools", cmbkmag: "magic_clouds", cmbkmc: "magic_clouds", cmbkrk: "rocklands"
+    cmbklp: "lucid_pools", cmbkmag: "magic_clouds", cmbkmc: "magic_clouds", cmbkrk: "rocklands",
+    wasteland_rocks: "wasteland"
   };
   if (aliases[backgroundId]) state.obstacleCategory = aliases[backgroundId];
   else if (backgroundId.includes("sn")) state.obstacleCategory = "snow";
@@ -569,6 +711,21 @@ async function analyzeImportedImage() {
   try {
     const result = await analyzeBattlefieldScreenshot(importedImageFile, data);
     state.backgroundId = result.backgroundId || state.backgroundId;
+    const detectedFactionCounts = new Map();
+    for (const stack of result.stacks) {
+      const faction = String(stack.creature?.faction || "").trim().toLowerCase();
+      if (faction) detectedFactionCounts.set(faction, Number(detectedFactionCounts.get(faction) || 0) + 1);
+    }
+    const detectedFaction = [...detectedFactionCounts.entries()]
+      .sort((left, right) => right[1] - left[1])[0]?.[0];
+    const importedTown = simulatorTowns(data).find((town) => (
+      (detectedFaction && String(town.name || "").trim().toLowerCase() === detectedFaction)
+      || town.battlefield === result.backgroundId
+    ));
+    if (importedTown) {
+      state.selectedTownType = importedTown.townType;
+      if (importedTown.nativeTerrain) state.obstacleCategory = importedTown.nativeTerrain;
+    }
     state.obstacles = result.obstacles;
     refreshObstacleBlocking();
     state.stacks = result.stacks;
@@ -703,6 +860,12 @@ function updateReachable() {
 
 function render() {
   updateReachable();
+  const town = selectedTown(data, state);
+  const townName = town?.name || "Town";
+  const background = data.backgrounds.find((candidate) => candidate.id === state.backgroundId);
+  elements.setupTitle.textContent = `${townName} Combat Setup`;
+  elements.unitsTitle.textContent = `${townName} Units`;
+  elements.battlefieldTitle.textContent = `${background?.name || data.battlefield.name} · ${data.battlefield.grid.hexCount} visible hexes`;
   const canStart = state.phase === "setup" && state.stacks.some((stack) => stack.owner === "player") && state.stacks.some((stack) => stack.owner === "ai");
   elements.startBattle.disabled = !canStart;
   elements.battleActions.classList.toggle("hidden", state.phase !== "battle" || !activePlayerStack());
@@ -714,7 +877,40 @@ function render() {
   elements.resurrectAction.classList.toggle("hidden", resurrectionTargets.length === 0 && !active?.resurrectionUsed);
   elements.resurrectAction.disabled = resurrectionTargets.length === 0;
   elements.resurrectAction.textContent = active?.resurrectionUsed ? "Resurrection Used" : "Resurrect Ally";
+  const factoryAbility = active ? factoryAbilityFor(active) : null;
+  const repairChoice = factoryAbility?.repair
+    ? selectedRepairChoice(active) || chooseBestRepair(state, active, data.battlefield.grid)
+    : null;
+  elements.repairAction.classList.toggle("hidden", !factoryAbility?.repair);
+  elements.repairAction.disabled = !repairChoice;
+  elements.repairAction.textContent = Number(active?.repairUsesRemaining || 0) > 0 ? "Repair Ally" : "Repair Used";
 
+  elements.detonationAction.classList.toggle("hidden", !factoryAbility?.detonation);
+  elements.detonationAction.disabled = !factoryAbility?.detonation || Boolean(active?.detonationActive);
+  elements.detonationAction.textContent = active?.detonationActive ? "Detonation Armed" : "Arm Detonation";
+
+  elements.invulnerabilityAction.classList.toggle("hidden", !factoryAbility?.temporaryInvulnerability);
+  elements.invulnerabilityAction.disabled = !factoryAbility?.temporaryInvulnerability
+    || Number(active?.invulnerabilityUsesRemaining || 0) <= 0
+    || Boolean(active?.invulnerable);
+  elements.invulnerabilityAction.textContent = Number(active?.invulnerabilityUsesRemaining || 0) > 0
+    ? "Meditation"
+    : "Meditation Used";
+
+  const corpseChoice = factoryAbility?.corpseDevour ? bestCorpseDevourChoice(active) : null;
+  elements.corpseDevourAction.classList.toggle("hidden", !factoryAbility?.corpseDevour);
+  elements.corpseDevourAction.disabled = !corpseChoice || Number(active?.corpseDevourUsesRemaining || 0) <= 0;
+  elements.corpseDevourAction.textContent = Number(active?.corpseDevourUsesRemaining || 0) > 0 ? "Devour Corpse" : "Devour Used";
+
+  elements.heatStrokeAction.classList.toggle("hidden", !factoryAbility?.heatStroke);
+  elements.heatStrokeAction.disabled = !factoryAbility?.heatStroke
+    || Boolean(active?.heatStrokeActive)
+    || Number(active?.heatStrokeUsesRemaining || 0) <= 0;
+  elements.heatStrokeAction.textContent = active?.heatStrokeActive
+    ? "Heat Stroke Armed"
+    : Number(active?.heatStrokeUsesRemaining || 0) > 0 ? "Heat Stroke" : "Heat Stroke Used";
+
+  renderTownSelector(elements.townList, data, state, onTownSelect);
   renderCreatureList(elements.creatureList, data, state, {
     onSelect: onSelectCreature,
     onOwnerSelect: onRosterOwnerSelect,

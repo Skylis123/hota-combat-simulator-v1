@@ -2,7 +2,24 @@ import { inferAbilityFlags } from "./abilities.js";
 import { calculateExpectedDamage, calculateHpLossValue, calculateRolledDamage, calculateTargetPriority } from "./combatPower.js";
 import { findMovementPath, findPath, findStackPath } from "./movement.js";
 import { canStackOccupy, stacksAreAdjacent } from "./footprint.js";
-import { chooseBestResurrection, executeResurrection } from "./creatureAbilities.js";
+import {
+  activateDetonation,
+  activateTemporaryInvulnerability,
+  breathSplashTarget,
+  canUsePreemptiveShot,
+  chooseBestCorpseDevour,
+  chooseBestHeatStroke,
+  chooseBestRepair,
+  chooseBestResurrection,
+  consumePreemptiveShot,
+  executeCorpseDevour,
+  executeHeatStroke,
+  executeRepair,
+  executeResurrection,
+  resolveArmedFactoryAttack
+} from "./creatureAbilities.js";
+import { applyCombatDamage } from "./combatDamage.js";
+import { factoryAbilityFor, isStackInvulnerable } from "./factoryAbilities.js";
 import { distanceByBreadthFirst } from "./hexGrid.js";
 import { nextActiveStack } from "./turnOrder.js";
 
@@ -56,7 +73,7 @@ function findApproachOptions(grid, state, attacker, target) {
 }
 
 export function attackOptions(grid, state, attacker, target) {
-  if (!attacker || !target || attacker.owner === target.owner || target.alive === false) {
+  if (!attacker || !target || attacker.owner === target.owner || target.alive === false || isStackInvulnerable(target)) {
     return [];
   }
   if (canUseRangedAttack(attacker, grid, target, state)) {
@@ -102,7 +119,7 @@ export function chooseAdvanceHex(grid, state, stack) {
 export function chooseAdvanceOption(grid, state, stack) {
   const plan = choosePursuitPlan(grid, state, stack);
   if (!plan) return { hexId: stack.hexId, path: [stack.hexId], target: null, score: -Infinity, turnsToReach: Infinity };
-  const speed = Math.max(0, Number(stack.creature.stats.speed || 0));
+  const speed = stack.heatStrokeActive ? 0 : Math.max(0, Number(stack.creature.stats.speed || 0));
   const stepIndex = Math.min(speed, plan.path.length - 1);
   const bestHex = plan.path[stepIndex];
   return {
@@ -118,10 +135,12 @@ function choosePursuitPlan(grid, state, stack) {
   let best = null;
   const speed = Math.max(1, Number(stack.creature.stats.speed || 0));
   for (const target of livingEnemies(state, stack)) {
+    if (isStackInvulnerable(target)) continue;
     for (const candidate of grid.hexes) {
       if (!canStackOccupy(grid, state.stacks, stack, candidate.id, state.obstacleBlockedHexIds)) continue;
       if (!stacksAreAdjacent(grid, stack, target, candidate.id)) continue;
-      const path = inferAbilityFlags(stack.creature).flying
+      const movementAbilities = inferAbilityFlags(stack.creature);
+      const path = movementAbilities.flying || movementAbilities.underground
         ? findPath(grid, stack.hexId, candidate.id)
         : findStackPath(grid, state.stacks, stack, stack.hexId, candidate.id, Infinity, state.obstacleBlockedHexIds);
       if (!path) continue;
@@ -139,9 +158,9 @@ function choosePursuitPlan(grid, state, stack) {
 }
 
 export function executeAttack(state, grid, attacker, target, option = attackOption(grid, state, attacker, target)) {
-  if (!option.canAttack) {
+  if (!option.canAttack || isStackInvulnerable(target)) {
     state.actionLog.unshift(`${attacker.label} cannot attack ${target.label}.`);
-    return { ok: false, reason: option.reason };
+    return { ok: false, reason: isStackInvulnerable(target) ? "target_invulnerable" : option.reason };
   }
 
   const moved = option.approachHex !== attacker.hexId;
@@ -151,42 +170,115 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
   const mode = option.mode === "ranged" ? "ranged" : "melee";
   const rangePenalty = mode === "ranged" && distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
   const abilities = inferAbilityFlags(attacker.creature);
+  attacker.suppressRetaliationThisAttack = Boolean(attacker.heatStrokeActive || attacker.detonationActive);
   const requestedStrikes = abilities.doubleAttack ? 2 : 1;
   const strikes = mode === "ranged" ? Math.min(requestedStrikes, Math.max(1, Number(attacker.shotsRemaining || 0))) : requestedStrikes;
-  if (mode === "ranged") attacker.shotsRemaining = Math.max(0, Number(attacker.shotsRemaining || 0) - strikes);
 
   attacker.statuses.defending = false;
   const attackLog = [];
+  const splashLog = [];
   let retaliation = null;
+  let preemptive = null;
+
+  const preemptiveContext = { incomingMode: mode, grid, state };
+  if (canUsePreemptiveShot(target, preemptiveContext)) {
+    consumePreemptiveShot(target, preemptiveContext);
+    const preemptiveRangePenalty = distanceByBreadthFirst(grid, target.hexId, attacker.hexId) > 10 ? 0.5 : 1;
+    const preemptiveDamage = calculateRolledDamage(target, attacker, state, {
+      mode: "ranged",
+      rangePenalty: preemptiveRangePenalty,
+      rng: state.rng
+    }).damage;
+    const preemptiveResult = applyCombatDamage(state, grid, attacker, preemptiveDamage, {
+      source: target,
+      kind: "preemptive_shot"
+    });
+    target.statuses.retaliated = true;
+    target.retaliationsUsed = Number(target.retaliationsUsed || 0) + 1;
+    preemptive = {
+      attacker: target.id,
+      target: attacker.id,
+      damage: preemptiveResult.damage,
+      before: preemptiveResult.before,
+      after: preemptiveResult.after
+    };
+  }
+
+  if (attacker.alive === false) {
+    attacker.statuses.acted = true;
+    state.actionLog.unshift(`${target.label} fires first for ${preemptive?.damage || 0}; ${attacker.label}'s attack is cancelled.`);
+    finishAction(state);
+    return { ok: true, mode, moved, attackLog, splashLog, retaliation, preemptive, cancelledByPreemptive: true };
+  }
+
+  if (mode === "ranged") attacker.shotsRemaining = Math.max(0, Number(attacker.shotsRemaining || 0) - strikes);
 
   for (let strike = 1; strike <= strikes; strike += 1) {
     if (attacker.alive === false || target.alive === false) break;
     const damage = calculateRolledDamage(attacker, target, state, { mode, movementSteps, rangePenalty, rng: state.rng }).damage;
-    const before = snapshotHp(target);
-    applyDamage(target, damage);
-    attackLog.push({ strike, attacker: attacker.id, target: target.id, damage, before, after: snapshotHp(target) });
+    const result = applyCombatDamage(state, grid, target, damage, { source: attacker, kind: mode });
+    attackLog.push({
+      strike,
+      attacker: attacker.id,
+      target: target.id,
+      damage: result.damage,
+      before: result.before,
+      after: result.after
+    });
+
+    if (abilities.breathAttack) {
+      const splashTarget = breathSplashTarget(grid, state, attacker, target, option);
+      if (splashTarget) {
+        const splashDamage = calculateRolledDamage(attacker, splashTarget, state, {
+          mode: "melee",
+          movementSteps,
+          rng: state.rng
+        }).damage;
+        const splashResult = applyCombatDamage(state, grid, splashTarget, splashDamage, {
+          source: attacker,
+          kind: "breath_splash"
+        });
+        splashLog.push({
+          strike,
+          attacker: attacker.id,
+          target: splashTarget.id,
+          damage: splashResult.damage,
+          before: splashResult.before,
+          after: splashResult.after
+        });
+      }
+    }
+
+    if (strike === 1 && (attacker.heatStrokeActive || attacker.detonationActive)) {
+      splashLog.push(...resolveArmedFactoryAttack(state, grid, attacker, target));
+    }
+
+    if (attacker.alive === false) break;
 
     if (strike === 1 && mode === "melee" && target.alive !== false && canRetaliate(target, attacker)) {
       const retaliationDamage = calculateRolledDamage(target, attacker, state, { mode: "melee", movementSteps: 0, rng: state.rng }).damage;
-      const retaliationBefore = snapshotHp(attacker);
-      applyDamage(attacker, retaliationDamage);
+      const retaliationResult = applyCombatDamage(state, grid, attacker, retaliationDamage, {
+        source: target,
+        kind: "retaliation"
+      });
       target.statuses.retaliated = true;
       target.retaliationsUsed = Number(target.retaliationsUsed || 0) + 1;
       retaliation = {
         attacker: target.id,
         target: attacker.id,
-        damage: retaliationDamage,
-        before: retaliationBefore,
-        after: snapshotHp(attacker)
+        damage: retaliationResult.damage,
+        before: retaliationResult.before,
+        after: retaliationResult.after
       };
     }
   }
 
   attacker.statuses.acted = true;
-  const actionText = describeAttack(attacker, target, mode, moved, attackLog, retaliation);
+  attacker.suppressRetaliationThisAttack = false;
+  const actionText = describeAttack(attacker, target, mode, moved, attackLog, retaliation, preemptive, splashLog);
   state.actionLog.unshift(actionText);
   finishAction(state);
-  return { ok: true, mode, moved, attackLog, retaliation };
+  return { ok: true, mode, moved, attackLog, splashLog, retaliation, preemptive };
 }
 
 export async function performAiTurn(state, grid, hooks = {}) {
@@ -194,10 +286,60 @@ export async function performAiTurn(state, grid, hooks = {}) {
   if (!stack || stack.owner !== "ai" || stack.alive === false) return;
 
   const attack = chooseBestAttack(grid, state, stack);
+  const factoryAbility = factoryAbilityFor(stack);
+  if (
+    factoryAbility?.detonation
+    && !stack.detonationActive
+    && !stack.detonationResolved
+    && attack
+    && detonationValue(grid, state, stack, attack.target) > 0
+  ) {
+    await hooks.beforeAbility?.(stack, attack.target, "detonation");
+    activateDetonation(state, stack);
+    return;
+  }
+  if (
+    factoryAbility?.temporaryInvulnerability
+    && Number(stack.invulnerabilityUsesRemaining || 0) > 0
+    && !stack.invulnerable
+    && (
+      factoryAbility.temporaryInvulnerability.activationConsumesTurn === false
+      || Number(stack.hpTotal || 0) <= Number(stack.initialCount || stack.count || 0) * Number(stack.creature.stats.hp || 1) * 0.5
+    )
+  ) {
+    await hooks.beforeAbility?.(stack, stack, "meditation");
+    activateTemporaryInvulnerability(state, stack);
+    return;
+  }
   const resurrection = chooseBestResurrection(state, stack);
-  if (resurrection && (!attack || resurrection.score > attack.score)) {
+  const repair = chooseBestRepair(state, stack, grid);
+  const heatStroke = chooseBestHeatStroke(grid, state, stack);
+  const corpseDevour = chooseBestCorpseDevour(state, grid, stack);
+  const attackScore = attack?.score ?? -Infinity;
+  const special = [
+    resurrection && { kind: "resurrection", score: resurrection.score, choice: resurrection },
+    repair && { kind: "repair", score: repair.score, choice: repair },
+    heatStroke && heatStroke.score > 0 && { kind: "heat_stroke", score: heatStroke.score, choice: heatStroke },
+    corpseDevour && !attack && { kind: "corpse_devour", score: corpseDevour.score, choice: corpseDevour }
+  ].filter(Boolean).reduce((best, candidate) => (!best || candidate.score > best.score ? candidate : best), null);
+  if (special?.score > attackScore && special.kind === "resurrection") {
     await hooks.beforeAbility?.(stack, resurrection.target, "resurrection");
     executeResurrection(state, stack, resurrection.target);
+    return;
+  }
+  if (special?.score > attackScore && special.kind === "repair") {
+    await hooks.beforeAbility?.(stack, repair.target, "repair");
+    executeRepair(state, stack, repair.target, { grid, approachHex: repair.approachHex });
+    return;
+  }
+  if (special?.score > attackScore && special.kind === "heat_stroke") {
+    await hooks.beforeAbility?.(stack, heatStroke.targets, "heat_stroke");
+    executeHeatStroke(state, grid, stack, heatStroke);
+    return;
+  }
+  if (special?.kind === "corpse_devour") {
+    await hooks.beforeAbility?.(stack, corpseDevour.corpse, "corpse_devour");
+    executeCorpseDevour(state, grid, stack, corpseDevour.destinationHexId);
     return;
   }
   const advance = chooseAdvanceOption(grid, state, stack);
@@ -225,6 +367,22 @@ export async function performAiTurn(state, grid, hooks = {}) {
   finishAction(state);
 }
 
+function detonationValue(grid, state, stack, primaryTarget) {
+  const damage = 40 * Math.max(1, Number(stack.count || 1));
+  const targetHexes = footprintHexes(grid, primaryTarget) || [primaryTarget.hexId];
+  let value = -calculateHpLossValue(stack, Number(stack.hpTotal || 0)).value;
+  for (const target of state.stacks || []) {
+    if (target.id === stack.id || target.alive === false || isStackInvulnerable(target)) continue;
+    const inRange = (footprintHexes(grid, target) || [target.hexId]).some((hexId) => (
+      targetHexes.some((origin) => distanceByBreadthFirst(grid, origin, hexId) <= 2)
+    ));
+    if (!inRange) continue;
+    const loss = calculateHpLossValue(target, damage).value;
+    value += target.owner === stack.owner ? -loss : loss;
+  }
+  return value;
+}
+
 function scoreAttackOption(grid, attacker, target, option) {
   if (option.mode === "ranged") {
     const rangePenalty = distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
@@ -240,31 +398,13 @@ function scoreAttackOption(grid, attacker, target, option) {
 }
 
 function canRetaliate(defender, attacker) {
+  if (attacker?.suppressRetaliationThisAttack || attacker?.heatStrokeActive || attacker?.detonationActive) return false;
   const attackerAbilities = inferAbilityFlags(attacker.creature);
   if (attackerAbilities.noRetaliation) return false;
   const defenderAbilities = inferAbilityFlags(defender.creature);
   const limit = defenderAbilities.retaliationLimit ?? 1;
   if (Number(defender.retaliationsUsed || 0) >= limit) return false;
   return defender.alive !== false && defender.count > 0;
-}
-
-function applyDamage(stack, damage) {
-  const hpPerUnit = Math.max(1, Number(stack.creature.stats.hp || 1));
-  const currentTotal = Number.isFinite(stack.hpTotal)
-    ? stack.hpTotal
-    : Math.max(0, stack.count * hpPerUnit - Number(stack.wound || 0));
-  const nextTotal = Math.max(0, currentTotal - Math.max(0, Math.trunc(damage)));
-  stack.hpTotal = nextTotal;
-  if (nextTotal <= 0) {
-    stack.count = 0;
-    stack.wound = 0;
-    stack.alive = false;
-    stack.statuses.acted = true;
-    return;
-  }
-  stack.count = Math.ceil(nextTotal / hpPerUnit);
-  stack.wound = stack.count * hpPerUnit - nextTotal;
-  stack.alive = true;
 }
 
 function finishAction(state) {
@@ -281,18 +421,13 @@ function finishAction(state) {
   state.selectedStackId = state.activeStackId;
 }
 
-function snapshotHp(stack) {
-  return {
-    count: stack.count,
-    hpTotal: stack.hpTotal,
-    wound: stack.wound
-  };
-}
-
-function describeAttack(attacker, target, mode, moved, attackLog, retaliation) {
+function describeAttack(attacker, target, mode, moved, attackLog, retaliation, preemptive, splashLog) {
   const totalDamage = attackLog.reduce((sum, entry) => sum + entry.damage, 0);
+  const splashDamage = splashLog.reduce((sum, entry) => sum + entry.damage, 0);
   const movement = moved ? "moves and " : "";
   const targetState = target.alive === false ? "target killed" : `${target.count} left`;
+  const preemptiveText = preemptive ? ` Preemptive shot: ${preemptive.damage}.` : "";
+  const splashText = splashDamage ? ` Breath splash: ${splashDamage}.` : "";
   const retaliationText = retaliation ? ` Retaliation: ${retaliation.damage}.` : "";
-  return `${attacker.label} ${movement}${mode === "ranged" ? "shoots" : "attacks"} ${target.label} for ${totalDamage}. ${targetState}.${retaliationText}`;
+  return `${attacker.label} ${movement}${mode === "ranged" ? "shoots" : "attacks"} ${target.label} for ${totalDamage}. ${targetState}.${preemptiveText}${splashText}${retaliationText}`;
 }

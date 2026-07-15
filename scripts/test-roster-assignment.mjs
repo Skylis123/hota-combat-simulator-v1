@@ -49,6 +49,31 @@ const ownerResult = assignStackCandidatesToRoster([
 });
 assert.deepEqual(ownerResult.map((entry) => entry.label), ["player", "ai"], "Owner capacities must be independent.");
 
+const factoryResult = assignStackCandidatesToRoster([
+  {
+    alternatives: [
+      candidate("factory-grenadier", "player", 171, 0.91),
+      candidate("castle-archer", "player", 2, 0.7)
+    ]
+  },
+  {
+    alternatives: [
+      candidate("factory-bounty-hunter", "ai", 181, 0.9),
+      candidate("castle-marksman", "ai", 3, 0.72)
+    ]
+  }
+], {
+  lowerBoundRoster: [
+    { owner: "player", creatureId: 171, instances: 1 },
+    { owner: "ai", creatureId: 181, instances: 1 }
+  ]
+});
+assert.deepEqual(
+  factoryResult.map((entry) => entry.label),
+  ["factory-grenadier", "factory-bounty-hunter"],
+  "Screenshot roster assignment must preserve Factory creature IDs and owners."
+);
+
 const multiplicityResult = assignStackCandidatesToRoster([
   { alternatives: [candidate("first", "player", 0, 0.7)] },
   { alternatives: [candidate("second", "player", 0, 0.6)] },

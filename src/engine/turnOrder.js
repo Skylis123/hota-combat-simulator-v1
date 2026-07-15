@@ -1,3 +1,5 @@
+import { beginFactoryStackTurn, resetFactoryRoundState } from "./factoryAbilities.js";
+
 export function computeTurnOrder(stacks, options = {}) {
   const { ascendingSpeed = false, initialLastOwner = null } = options;
   const bySpeed = new Map();
@@ -46,7 +48,7 @@ export function nextActiveStack(state) {
   }
 
   const pending = pendingTurnOrder(state);
-  if (pending.length) return pending[0];
+  if (pending.length) return beginStackTurn(state, pending[0]);
   for (const stack of state.stacks) {
     stack.statuses.acted = false;
     stack.statuses.waiting = false;
@@ -54,10 +56,11 @@ export function nextActiveStack(state) {
     stack.statuses.retaliated = false;
     stack.retaliationsUsed = 0;
     stack.defenseBonus = 0;
+    resetFactoryRoundState(stack);
   }
   state.round += 1;
   state.turnQueue = computeTurnOrder(state.stacks, { initialLastOwner: state.lastMovedOwner });
-  return state.turnQueue[0] || null;
+  return beginStackTurn(state, state.turnQueue[0] || null);
 }
 
 export function pendingTurnOrder(state) {
@@ -76,4 +79,13 @@ export function pendingTurnOrder(state) {
     { ascendingSpeed: true, initialLastOwner: lastAvailableOwner }
   );
   return [...available, ...waiting];
+}
+
+function beginStackTurn(state, stackId) {
+  if (!stackId) return null;
+  const stack = state.stacks.find((candidate) => candidate.id === stackId);
+  if (beginFactoryStackTurn(stack)) {
+    state.actionLog?.unshift(`${stack.label} is no longer invulnerable.`);
+  }
+  return stackId;
 }

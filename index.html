@@ -12,17 +12,10 @@
         <header class="panel-header">
           <div>
             <p class="eyebrow">Simulator V1</p>
-            <h1>Castle Combat Setup</h1>
+            <h1 id="setup-title">Castle Combat Setup</h1>
           </div>
           <span id="data-status" class="status-pill">Loading</span>
         </header>
-
-        <section class="control-block">
-          <label class="field-label" for="town-select">Town</label>
-          <select id="town-select" disabled>
-            <option>Castle</option>
-          </select>
-        </section>
 
         <nav id="setup-menu-tabs" class="setup-menu-tabs" aria-label="Battlefield setup menus">
           <button type="button" class="active" data-setup-tab="units">Units</button>
@@ -32,7 +25,9 @@
         </nav>
 
         <section class="setup-menu-panel active" data-setup-panel="units">
-          <div class="section-title">Castle Units</div>
+          <div class="section-title">Town</div>
+          <div id="town-list" class="town-list" role="group" aria-label="Unit town"></div>
+          <div id="units-title" class="section-title">Castle Units</div>
           <div id="creature-list" class="creature-list"></div>
         </section>
         <section class="setup-menu-panel" data-setup-panel="obstacles">
@@ -85,6 +80,11 @@
             <div id="battle-actions" class="battle-actions hidden">
               <button id="attack-best-action" type="button">Attack Best</button>
               <button id="resurrect-action" type="button" class="hidden">Resurrect Ally</button>
+              <button id="repair-action" type="button" class="hidden">Repair Ally</button>
+              <button id="detonation-action" type="button" class="hidden">Arm Detonation</button>
+              <button id="invulnerability-action" type="button" class="hidden">Meditation</button>
+              <button id="corpse-devour-action" type="button" class="hidden">Devour Corpse</button>
+              <button id="heat-stroke-action" type="button" class="hidden">Heat Stroke</button>
               <button id="wait-action" type="button">Wait</button>
               <button id="defend-action" type="button">Defend</button>
               <span class="battle-hint">Click an enemy stack to attack.</span>

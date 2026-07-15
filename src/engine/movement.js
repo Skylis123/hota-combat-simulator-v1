@@ -67,15 +67,16 @@ export function findStackPath(grid, stacks, stack, fromHexId, destinationHexId, 
 function movementPaths(grid, stacks, stack, extraBlocked = null) {
   const paths = new Map();
   if (!stack) return paths;
-  const speed = Math.max(0, Number(stack.creature.stats.speed || 0));
-  const flying = inferAbilityFlags(stack.creature).flying;
+  const speed = stack.heatStrokeActive ? 0 : Math.max(0, Number(stack.creature.stats.speed || 0));
+  const movementAbilities = inferAbilityFlags(stack.creature);
+  const ignoresInterveningOccupancy = movementAbilities.flying || movementAbilities.underground;
   const lookup = buildHexLookup(grid);
   const parents = new Map([[stack.hexId, null]]);
   const distances = new Map([[stack.hexId, 0]]);
   const queue = [stack.hexId];
   paths.set(stack.hexId, [stack.hexId]);
 
-  if (flying) {
+  if (ignoresInterveningOccupancy) {
     for (const destination of grid.hexes) {
       if (!canStackOccupy(grid, stacks, stack, destination.id, extraBlocked)) continue;
       const path = findPath(grid, stack.hexId, destination.id, new Set(), speed);

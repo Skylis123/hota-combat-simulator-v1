@@ -1,17 +1,14 @@
 import { inferAbilityFlags } from "../engine/abilities.js";
+import { resolveCreatureBattleAnimation } from "../engine/assetResolver.js";
 import { stackVisualPosition } from "../engine/footprint.js";
 
-const CASTLE_MIN_ID = 0;
-const CASTLE_MAX_ID = 13;
-
-export function supportsBattleAnimation(stack) {
-  const creatureId = Number(stack?.creature?.creatureId);
-  return creatureId >= CASTLE_MIN_ID && creatureId <= CASTLE_MAX_ID;
+export function supportsBattleAnimation(stack, animation = "idle") {
+  return Boolean(resolveCreatureBattleAnimation(stack?.creature, animation));
 }
 
 export async function animateStackMove(container, grid, stack, path) {
   const destinationHexId = path?.[path.length - 1];
-  if (!supportsBattleAnimation(stack) || stack.hexId === destinationHexId) return;
+  if (!supportsBattleAnimation(stack, "move") || stack.hexId === destinationHexId) return;
   validatePath(grid, stack.hexId, path);
   const origin = stackVisualPosition(grid, stack);
   if (!origin) return;
@@ -26,7 +23,6 @@ export async function animateStackMove(container, grid, stack, path) {
 }
 
 export async function animateStackAttack(container, grid, attacker, target, option) {
-  if (!supportsBattleAnimation(attacker)) return;
   const approachPath = option.approachPath;
   validatePath(grid, attacker.hexId, approachPath);
   const approachHexId = approachPath[approachPath.length - 1];
@@ -35,12 +31,14 @@ export async function animateStackAttack(container, grid, attacker, target, opti
   const targetHex = stackVisualPosition(grid, target);
   if (!origin || !approach || !targetHex) return;
 
-  const firstAnimation = approachHexId === attacker.hexId ? attackName(approach, targetHex, option.mode) : "move";
+  const animation = attackName(approach, targetHex, option.mode);
+  if (!supportsBattleAnimation(attacker, animation)) return;
+  if (approachHexId !== attacker.hexId && !supportsBattleAnimation(attacker, "move")) return;
+  const firstAnimation = approachHexId === attacker.hexId ? animation : "move";
   const actor = createActor(container, attacker, origin, firstAnimation);
   const original = hideOriginalStack(container, attacker.id);
   try {
     if (approachHexId !== attacker.hexId) await moveActorAlongPath(actor, grid, approachPath);
-    const animation = attackName(approach, targetHex, option.mode);
     setFacing(actor, targetHex.centerX < approach.centerX);
     setAnimation(actor, attacker, animation);
     await wait(animation.endsWith("down") ? 900 : 820);
@@ -67,11 +65,11 @@ export async function animateAttackResult(container, grid, attacker, target, res
 }
 
 async function animateStackStrike(container, grid, attacker, target, mode) {
-  if (!supportsBattleAnimation(attacker)) return;
   const attackerPosition = stackVisualPosition(grid, attacker);
   const targetPosition = stackVisualPosition(grid, target);
   if (!attackerPosition || !targetPosition) return;
   const animation = attackName(attackerPosition, targetPosition, mode);
+  if (!supportsBattleAnimation(attacker, animation)) return;
   const actor = createActor(container, attacker, attackerPosition, animation);
   const original = hideOriginalStack(container, attacker.id);
   setFacing(actor, targetPosition.centerX < attackerPosition.centerX);
@@ -106,11 +104,12 @@ function syncStackSnapshot(container, grid, stack, snapshot) {
 }
 
 async function animateRetaliation(container, grid, defender, attacker) {
-  if (!supportsBattleAnimation(defender) || defender.alive === false) return;
+  if (defender.alive === false) return;
   const defenderPosition = stackVisualPosition(grid, defender);
   const attackerPosition = stackVisualPosition(grid, attacker);
   if (!defenderPosition || !attackerPosition) return;
   const animation = attackName(defenderPosition, attackerPosition, "melee");
+  if (!supportsBattleAnimation(defender, animation)) return;
   const actor = createActor(container, defender, defenderPosition, animation);
   const original = hideOriginalStack(container, defender.id);
   setFacing(actor, attackerPosition.centerX < defenderPosition.centerX);
@@ -127,7 +126,7 @@ export async function animateStackDefend(container, grid, stack) {
 }
 
 async function animateReaction(container, grid, stack, animation) {
-  if (!supportsBattleAnimation(stack)) return;
+  if (!supportsBattleAnimation(stack, animation)) return;
   const position = stackVisualPosition(grid, stack);
   if (!position) return;
   const actor = createActor(container, stack, position, animation, animation !== "death");
@@ -156,12 +155,11 @@ function createActor(container, stack, hex, animation, showCount = true) {
 
 function setAnimation(actor, stack, animation) {
   const image = actor.querySelector("img");
+  const resolved = resolveCreatureBattleAnimation(stack.creature, animation);
+  if (!resolved) return;
   actor.dataset.animation = animation;
-  image.src = `${assetRoot(stack)}/${animation}.gif?play=${Date.now()}`;
-}
-
-function assetRoot(stack) {
-  return `./public/assets/creatures/animations/${stack.creature.creatureId}`;
+  const separator = resolved.src.includes("?") ? "&" : "?";
+  image.src = `${resolved.src}${separator}play=${Date.now()}`;
 }
 
 function setFacing(actor, facingLeft) {

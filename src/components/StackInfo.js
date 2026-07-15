@@ -89,6 +89,10 @@ function renderStatuses(stack) {
   if (stack.statuses.waiting) statuses.push("Wait");
   if (stack.statuses.defending) statuses.push(`Defend +${stack.defenseBonus}`);
   if (stack.statuses.retaliated) statuses.push("Retaliated");
+  if (stack.detonationActive) statuses.push("Detonation armed");
+  if (stack.heatStrokeActive) statuses.push("Heat Stroke armed");
+  if (stack.invulnerable) statuses.push("Invulnerable");
+  if (Number(stack.extraStrikes || 0) > 0) statuses.push(`Extra strikes +${stack.extraStrikes}`);
   return `<div class="status-line">${statuses.join(" / ") || "Ready"}</div>`;
 }
 

@@ -36,13 +36,20 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const terrain = inferTerrain(background);
   const preparedAt = performance.now();
 
-  const [obstacles, turnRoster] = await Promise.all([
+  const [detectedObstacles, turnRoster] = await Promise.all([
     detectObstacles(screenshot, backgroundContext, data, terrain),
     turnRosterPromise
   ]);
   const obstaclesAt = performance.now();
-  const blocked = new Set(obstacles.flatMap((obstacle) => obstacle.blockedHexIds));
+  const blocked = new Set(detectedObstacles.flatMap((obstacle) => obstacle.blockedHexIds));
   const stacks = await detectStacks(screenshot, backgroundContext, data, blocked, countContext, turnRoster);
+  const occupiedByStacks = new Set(stacks.flatMap((stack) => footprintHexes(data.battlefield.grid, stack) || [stack.hexId]));
+  // A legal Heroes III stack cannot occupy an obstacle-blocked hex. This also
+  // removes large Wasteland templates that can otherwise use a unit sprite at
+  // one edge to create a false positive far across the battlefield.
+  const obstacles = detectedObstacles.filter((obstacle) => (
+    !(obstacle.blockedHexIds || []).some((hexId) => occupiedByStacks.has(hexId))
+  ));
   applyRosterCounts(stacks, turnRoster);
   const stacksAt = performance.now();
   // Native TextDetector OCR is intentionally not used for Heroes III badges:
@@ -208,7 +215,9 @@ async function detectObstacles(screenshot, background, data, terrain) {
     const placement = bestCompositePlacement(screenshot, background, image, definition.width, definition.height, {
       radiusX: 28, radiusY: 28, step: 4, allowFlip: true, sampleStep: 3
     });
-    if (placement.correlation > 0.45 && placement.match > 0.82) candidates.push({ definition, anchorHexId: null, ...placement });
+    if (placement.correlation > 0.45 && placement.gain > 0.08 && placement.match > 0.82) {
+      candidates.push({ definition, anchorHexId: null, ...placement });
+    }
   }
 
   for (const definition of definitions.filter((candidate) => !candidate.absolute)) {
@@ -1118,7 +1127,9 @@ function patchDifference(first, second, x, y, width, height) {
 }
 
 function inferTerrain(background) {
+  if (background?.terrain) return String(background.terrain).trim().toLowerCase();
   const text = `${background.id} ${background.name}`.toLowerCase();
+  if (background.id === "wasteland_rocks" || text.includes("wasteland")) return "wasteland";
   if (background.id === "cmbkcf") return "cursed_ground";
   if (background.id === "cmbkef") return "evil_fog";
   if (background.id === "cmbkff") return "fiery_fields";

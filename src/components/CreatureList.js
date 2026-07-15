@@ -1,5 +1,6 @@
 import { abilityBadges } from "../engine/abilities.js";
 import { resolveCreatureImage } from "../engine/assetResolver.js";
+import { selectedTown, townRosterRows } from "../engine/towns.js";
 
 export function renderCreatureList(container, data, state, handlers) {
   container.innerHTML = "";
@@ -19,17 +20,19 @@ export function renderCreatureList(container, data, state, handlers) {
   hint.className = "roster-quick-add-hint";
   hint.textContent = "Right-click a unit to add it to the first free army slot.";
   container.append(ownerSelector, hint);
-  const tiers = data.town.tiers || [];
+  const town = selectedTown(data, state);
+  const rows = townRosterRows(town);
 
-  for (const tier of tiers) {
+  for (const rosterRow of rows) {
     const row = document.createElement("div");
     row.className = "tier-row";
     const tierLabel = document.createElement("div");
     tierLabel.className = "tier-label";
-    tierLabel.textContent = `T${tier.tier}`;
+    tierLabel.textContent = rosterRow.label;
+    if (rosterRow.title) tierLabel.title = rosterRow.title;
     row.appendChild(tierLabel);
 
-    for (const entry of [tier.base, tier.upgrade]) {
+    for (const entry of rosterRow.entries) {
       const creature = data.creatures.find((candidate) => candidate.creatureId === entry.creatureId);
       if (!creature) continue;
       const card = document.createElement("button");
@@ -54,5 +57,12 @@ export function renderCreatureList(container, data, state, handlers) {
     }
 
     container.appendChild(row);
+  }
+
+  if (rows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "roster-empty";
+    empty.textContent = town ? `No ${town.name} units are available.` : "No town roster is available.";
+    container.appendChild(empty);
   }
 }

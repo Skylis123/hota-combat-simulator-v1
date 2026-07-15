@@ -1,3 +1,5 @@
+import { factoryAbilityFor } from "./factoryAbilities.js";
+
 const ABILITY_PATTERNS = [
   ["ranged", ["ranged", "shoot", "shooter"]],
   ["flying", ["flying", "fly"]],
@@ -62,6 +64,8 @@ export function inferAbilityFlags(creature) {
   if ((creature?.stats?.shots || 0) > 0) flags.ranged = true;
   const exactCastle = CASTLE_ABILITIES[creature?.creatureId];
   if (exactCastle) Object.assign(flags, exactCastle);
+  const exactFactory = factoryAbilityFor(creature);
+  if (exactFactory?.flags) Object.assign(flags, exactFactory.flags);
   return flags;
 }
 
@@ -81,6 +85,18 @@ export function abilityBadges(creature) {
   if (flags.moraleBonus) badges.push(`+${flags.moraleBonus} morale (turn proc pending)`);
   if (flags.hatesDevils) badges.push("Hates Devils (+50% damage)");
   if (flags.resurrection) badges.push("Resurrection 1 / battle");
+  if (flags.positiveLuck) badges.push("Luck at least +1 (1/24 double damage)");
+  if (flags.rangedDefenseIgnore) badges.push(`Ignores ${Math.round(flags.rangedDefenseIgnore * 100)}% Defense at range`);
+  if (flags.breathAttack) badges.push("Breath attack");
+  if (flags.mechanical) badges.push("Mechanical");
+  if (flags.detonation) badges.push("Death detonation");
+  if (flags.underground) badges.push("Moves underground");
+  if (flags.corpseDevour) badges.push("Devours corpses");
+  if (flags.preemptiveShot) badges.push("Preemptive shot");
+  if (flags.rangedRetaliation) badges.push("Ranged retaliation");
+  if (flags.spellLikeAttack) badges.push("Grenade spell-like ranged attack");
+  if (flags.temporaryInvulnerability) badges.push("Temporary invulnerability");
+  if (flags.heatStroke) badges.push("Heat Stroke");
   if (flags.twoHex) badges.push("Two-hex creature");
   return badges;
 }

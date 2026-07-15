@@ -295,6 +295,46 @@ input {
   margin: 8px 0 4px;
 }
 
+.town-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.town-list.single-town {
+  grid-template-columns: 1fr;
+}
+
+.town-option {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.town-option.active {
+  border-color: var(--accent-strong);
+  background: #344025;
+  color: var(--accent);
+}
+
+.town-option span,
+.town-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.town-option span {
+  font-weight: 700;
+}
+
+.town-option small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
 .roster-owner-selector .segment {
   min-height: 38px;
   font-weight: 700;
@@ -309,7 +349,7 @@ input {
 
 .tier-row {
   display: grid;
-  grid-template-columns: 34px 1fr 1fr;
+  grid-template-columns: 42px 1fr 1fr;
   gap: 8px;
   align-items: stretch;
   margin-bottom: 8px;
@@ -321,6 +361,15 @@ input {
   background: var(--panel-soft);
   color: var(--muted);
   font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+}
+
+.roster-empty {
+  padding: 14px;
+  border: 1px dashed #404852;
+  color: var(--muted);
+  text-align: center;
 }
 
 .creature-card {

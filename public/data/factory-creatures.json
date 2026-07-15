@@ -1,0 +1,1113 @@
+{
+  "schemaVersion": 1,
+  "source": "VCMI Horn of the Abyss Factory mod 1.1.6",
+  "sourceCommit": "de4db20b7ef3bd6941c2705c3b79f0458d3ba9b9",
+  "town": {
+    "townType": 11,
+    "name": "Factory",
+    "nativeTerrain": "wasteland",
+    "battlefield": "wasteland_rocks",
+    "creatureLines": [
+      {
+        "tier": 1,
+        "branch": "main",
+        "base": 138,
+        "upgrade": 171
+      },
+      {
+        "tier": 2,
+        "branch": "main",
+        "base": 172,
+        "upgrade": 173
+      },
+      {
+        "tier": 3,
+        "branch": "main",
+        "base": 174,
+        "upgrade": 175
+      },
+      {
+        "tier": 4,
+        "branch": "main",
+        "base": 176,
+        "upgrade": 177
+      },
+      {
+        "tier": 5,
+        "branch": "main",
+        "base": 178,
+        "upgrade": 179
+      },
+      {
+        "tier": 6,
+        "branch": "main",
+        "base": 180,
+        "upgrade": 181
+      },
+      {
+        "tier": 7,
+        "branch": "serpentarium",
+        "base": 182,
+        "upgrade": 183
+      },
+      {
+        "tier": 7,
+        "branch": "gantry",
+        "base": 184,
+        "upgrade": 185
+      }
+    ]
+  },
+  "creatures": [
+    {
+      "creatureId": 138,
+      "name": "Halfling",
+      "internalName": "halfling",
+      "tier": 1,
+      "branch": "main",
+      "upgrade": 171,
+      "sourceAsset": "CHalf.def",
+      "canonicalDef": "CHALF.def",
+      "stats": {
+        "attack": 4,
+        "defense": 2,
+        "minDamage": 1,
+        "maxDamage": 3,
+        "hp": 4,
+        "speed": 5,
+        "shots": 24,
+        "growth": 15,
+        "costGold": 40
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Ranged attack; 24 shots."
+        },
+        {
+          "key": "positiveLuck",
+          "kind": "passive",
+          "details": "Luck cannot be lower than +1."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/138.png",
+        "idleAnimation": "assets/creatures/animations/138/idle.gif",
+        "previewImage": "assets/creatures/png/138.png",
+        "spritesheet": "assets/creatures/spritesheets/138.png",
+        "corpseImage": "assets/creatures/animations/138/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/138",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/138/portrait.png",
+        "queuePortrait": "assets/creatures/detection/138/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CHalf.def",
+        "sourceSha256": "a94b3b69f20bf71adebf3140b077840b9c6df752a805bef7ee45e72da13a7ea1",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 171,
+      "name": "Halfling Grenadier",
+      "internalName": "halflingGrenadier",
+      "tier": 1,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "CHALFB.def",
+      "canonicalDef": "CHALFB.def",
+      "stats": {
+        "attack": 5,
+        "defense": 2,
+        "minDamage": 2,
+        "maxDamage": 3,
+        "hp": 4,
+        "speed": 6,
+        "shots": 24,
+        "growth": 15,
+        "costGold": 60
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Ranged attack; 24 shots."
+        },
+        {
+          "key": "enemyDefenceReduction",
+          "kind": "passive",
+          "details": "Reduces enemy defence by 20%."
+        },
+        {
+          "key": "grenade",
+          "kind": "passive",
+          "details": "Grenade is applied as a spell-like attack (power 10)."
+        },
+        {
+          "key": "positiveLuck",
+          "kind": "passive",
+          "details": "Luck cannot be lower than +1."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/171.png",
+        "idleAnimation": "assets/creatures/animations/171/idle.gif",
+        "previewImage": "assets/creatures/png/171.png",
+        "spritesheet": "assets/creatures/spritesheets/171.png",
+        "corpseImage": "assets/creatures/animations/171/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/171",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/171/portrait.png",
+        "queuePortrait": "assets/creatures/detection/171/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CHALFB.def",
+        "sourceSha256": "11d01ec06347c0f8f6eed4b451c2ecf8d1c8a081dbfc0c777a401f13efc1a014",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 172,
+      "name": "Mechanic",
+      "internalName": "hotaMechanic",
+      "tier": 2,
+      "branch": "main",
+      "upgrade": 173,
+      "sourceAsset": "CMECHAN.def",
+      "canonicalDef": "CMECHAN.def",
+      "stats": {
+        "attack": 6,
+        "defense": 5,
+        "minDamage": 3,
+        "maxDamage": 4,
+        "hp": 14,
+        "speed": 6,
+        "shots": 0,
+        "growth": 8,
+        "costGold": 140
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "twoHexAttackBreath",
+          "kind": "passive",
+          "details": "Melee attack also strikes the unit directly behind the target."
+        },
+        {
+          "key": "repair",
+          "kind": "active",
+          "details": "One adjacent Repair: 10 HP per Mechanic; mechanical targets only; can resurrect and dispel negative effects."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/172.png",
+        "idleAnimation": "assets/creatures/animations/172/idle.gif",
+        "previewImage": "assets/creatures/png/172.png",
+        "spritesheet": "assets/creatures/spritesheets/172.png",
+        "corpseImage": "assets/creatures/animations/172/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/172",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/172/portrait.png",
+        "queuePortrait": "assets/creatures/detection/172/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CMECHAN.def",
+        "sourceSha256": "449752b4afa8641d43654628f1d304c0be4e8147e793bb1536a9b7e845e6de8c",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 173,
+      "name": "Engineer",
+      "internalName": "hotaEngineer",
+      "tier": 2,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "CENGINE.def",
+      "canonicalDef": "CENGINE.def",
+      "stats": {
+        "attack": 7,
+        "defense": 5,
+        "minDamage": 3,
+        "maxDamage": 5,
+        "hp": 16,
+        "speed": 7,
+        "shots": 0,
+        "growth": 8,
+        "costGold": 170
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "twoHexAttackBreath",
+          "kind": "passive",
+          "details": "Melee attack also strikes the unit directly behind the target."
+        },
+        {
+          "key": "repair",
+          "kind": "active",
+          "details": "One adjacent Repair: 20 HP per Engineer; mechanical targets only; can resurrect and dispel negative effects."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/173.png",
+        "idleAnimation": "assets/creatures/animations/173/idle.gif",
+        "previewImage": "assets/creatures/png/173.png",
+        "spritesheet": "assets/creatures/spritesheets/173.png",
+        "corpseImage": "assets/creatures/animations/173/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/173",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/173/portrait.png",
+        "queuePortrait": "assets/creatures/detection/173/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CENGINE.def",
+        "sourceSha256": "8ac963c79523f48688b8f77a04523b9e7f9d3d4afdda82ae1d3aba60df307903",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 174,
+      "name": "Armadillo",
+      "internalName": "armadillo",
+      "tier": 3,
+      "branch": "main",
+      "upgrade": 175,
+      "sourceAsset": "CARMADL.def",
+      "canonicalDef": "CARMADL.def",
+      "stats": {
+        "attack": 5,
+        "defense": 10,
+        "minDamage": 3,
+        "maxDamage": 5,
+        "hp": 25,
+        "speed": 4,
+        "shots": 0,
+        "growth": 6,
+        "costGold": 200
+      },
+      "doubleWide": true,
+      "abilities": [],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/174.png",
+        "idleAnimation": "assets/creatures/animations/174/idle.gif",
+        "previewImage": "assets/creatures/png/174.png",
+        "spritesheet": "assets/creatures/spritesheets/174.png",
+        "corpseImage": "assets/creatures/animations/174/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/174",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/174/portrait.png",
+        "queuePortrait": "assets/creatures/detection/174/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CARMADL.def",
+        "sourceSha256": "ae7956b071639f0285bf1d02fa508b0e157b9aee878df39aba4f8c09dca446f1",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 175,
+      "name": "Bellwether Armadillo",
+      "internalName": "bellwetherArmadillo",
+      "tier": 3,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "CBLWARM.def",
+      "canonicalDef": "CBLWARM.def",
+      "stats": {
+        "attack": 6,
+        "defense": 11,
+        "minDamage": 3,
+        "maxDamage": 5,
+        "hp": 25,
+        "speed": 6,
+        "shots": 0,
+        "growth": 6,
+        "costGold": 230
+      },
+      "doubleWide": true,
+      "abilities": [],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/175.png",
+        "idleAnimation": "assets/creatures/animations/175/idle.gif",
+        "previewImage": "assets/creatures/png/175.png",
+        "spritesheet": "assets/creatures/spritesheets/175.png",
+        "corpseImage": "assets/creatures/animations/175/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/175",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/175/portrait.png",
+        "queuePortrait": "assets/creatures/detection/175/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CBLWARM.def",
+        "sourceSha256": "1ad031328f8504312c0d88f53eaa7d6b5bdf057985b4737c7b16b66b4574d995",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 176,
+      "name": "Automaton",
+      "internalName": "automaton",
+      "tier": 4,
+      "branch": "main",
+      "upgrade": 177,
+      "sourceAsset": "CAUTO.def",
+      "canonicalDef": "CAUTO.def",
+      "stats": {
+        "attack": 12,
+        "defense": 10,
+        "minDamage": 7,
+        "maxDamage": 7,
+        "hp": 30,
+        "speed": 8,
+        "shots": 0,
+        "growth": 5,
+        "costGold": 350
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "mechanical",
+          "kind": "passive",
+          "details": "Mechanical creature."
+        },
+        {
+          "key": "ignition",
+          "kind": "active",
+          "details": "One self-cast without skipping the turn; the next attack triggers Detonation (range 0-2, power 40, ignores immunity) and disintegrates the stack."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/176.png",
+        "idleAnimation": "assets/creatures/animations/176/idle.gif",
+        "previewImage": "assets/creatures/png/176.png",
+        "spritesheet": "assets/creatures/spritesheets/176.png",
+        "corpseImage": "assets/creatures/animations/176/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/176",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/176/portrait.png",
+        "queuePortrait": "assets/creatures/detection/176/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CAUTO.def",
+        "sourceSha256": "028055f1bf9bd26aef4c17a4f44dedc93eed7cf8ef9783d65706429fe5f3aa34",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 177,
+      "name": "Sentinel Automaton",
+      "internalName": "sentinelAutomaton",
+      "tier": 4,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "CHAUTO.def",
+      "canonicalDef": "CHAUTO.def",
+      "stats": {
+        "attack": 12,
+        "defense": 10,
+        "minDamage": 9,
+        "maxDamage": 9,
+        "hp": 30,
+        "speed": 9,
+        "shots": 0,
+        "growth": 5,
+        "costGold": 450
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "mechanical",
+          "kind": "passive",
+          "details": "Mechanical creature."
+        },
+        {
+          "key": "blocksRetaliation",
+          "kind": "passive",
+          "details": "The target cannot retaliate."
+        },
+        {
+          "key": "ignition",
+          "kind": "active",
+          "details": "One self-cast without skipping the turn; the next attack triggers Detonation (range 0-2, power 40, ignores immunity) and disintegrates the stack."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/177.png",
+        "idleAnimation": "assets/creatures/animations/177/idle.gif",
+        "previewImage": "assets/creatures/png/177.png",
+        "spritesheet": "assets/creatures/spritesheets/177.png",
+        "corpseImage": "assets/creatures/animations/177/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/177",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/177/portrait.png",
+        "queuePortrait": "assets/creatures/detection/177/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CHAUTO.def",
+        "sourceSha256": "ac91b81b7a64b31efcc838e65bd43f5ac137597afded11117152f6b328eea0b8",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 178,
+      "name": "Sandworm",
+      "internalName": "sandworm",
+      "tier": 5,
+      "branch": "main",
+      "upgrade": 179,
+      "sourceAsset": "CSANDWX.json",
+      "canonicalDef": "CSANDW.def",
+      "stats": {
+        "attack": 13,
+        "defense": 12,
+        "minDamage": 12,
+        "maxDamage": 16,
+        "hp": 50,
+        "speed": 8,
+        "shots": 0,
+        "growth": 3,
+        "costGold": 575
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "burrowing",
+          "kind": "passive",
+          "details": "Teleport-style movement that ignores battlefield obstacles; unavailable on water."
+        },
+        {
+          "key": "blindImmunity",
+          "kind": "passive",
+          "details": "Immune to Blind."
+        },
+        {
+          "key": "stoneGazeImmunity",
+          "kind": "passive",
+          "details": "Immune to Stone Gaze."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/178.png",
+        "idleAnimation": "assets/creatures/animations/178/idle.gif",
+        "previewImage": "assets/creatures/png/178.png",
+        "spritesheet": "assets/creatures/spritesheets/178.png",
+        "corpseImage": "assets/creatures/animations/178/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/178",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/178/portrait.png",
+        "queuePortrait": "assets/creatures/detection/178/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CSANDWX.json",
+        "sourceSha256": "b50d6bfa4eb78c4840d0c25e7b71104c5d98d75e26cb6a9b007305b73850a118",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 179,
+      "name": "Olgoi-Khorkhoi",
+      "internalName": "olgoiKhorkhoi",
+      "tier": 5,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "COLGOIX.json",
+      "canonicalDef": "COLGOI.def",
+      "stats": {
+        "attack": 15,
+        "defense": 12,
+        "minDamage": 12,
+        "maxDamage": 16,
+        "hp": 60,
+        "speed": 10,
+        "shots": 0,
+        "growth": 3,
+        "costGold": 650
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "burrowing",
+          "kind": "passive",
+          "details": "Teleport-style movement that ignores battlefield obstacles; unavailable on water."
+        },
+        {
+          "key": "blindImmunity",
+          "kind": "passive",
+          "details": "Immune to Blind."
+        },
+        {
+          "key": "stoneGazeImmunity",
+          "kind": "passive",
+          "details": "Immune to Stone Gaze."
+        },
+        {
+          "key": "devourCorpses",
+          "kind": "active",
+          "details": "Up to 50 casts; consumes a corpse to summon temporary Sandworm Larvae."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/179.png",
+        "idleAnimation": "assets/creatures/animations/179/idle.gif",
+        "previewImage": "assets/creatures/png/179.png",
+        "spritesheet": "assets/creatures/spritesheets/179.png",
+        "corpseImage": "assets/creatures/animations/179/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/179",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/179/portrait.png",
+        "queuePortrait": "assets/creatures/detection/179/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "COLGOIX.json",
+        "sourceSha256": "024137d6f4115647e14e5b5a4176882a3344c6df2944e50e2c40c384737c3567",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 180,
+      "name": "Gunslinger",
+      "internalName": "gunslinger",
+      "tier": 6,
+      "branch": "main",
+      "upgrade": 181,
+      "sourceAsset": "CGNSLING.def",
+      "canonicalDef": "CGNSLING.def",
+      "stats": {
+        "attack": 17,
+        "defense": 12,
+        "minDamage": 14,
+        "maxDamage": 24,
+        "hp": 45,
+        "speed": 7,
+        "shots": 16,
+        "growth": 2,
+        "costGold": 800
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Ranged attack; 16 shots."
+        },
+        {
+          "key": "rangedRetaliation",
+          "kind": "passive",
+          "details": "Retaliates with a ranged attack."
+        },
+        {
+          "key": "rangedFirstStrike",
+          "kind": "passive",
+          "details": "Ranged first strike."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/180.png",
+        "idleAnimation": "assets/creatures/animations/180/idle.gif",
+        "previewImage": "assets/creatures/png/180.png",
+        "spritesheet": "assets/creatures/spritesheets/180.png",
+        "corpseImage": "assets/creatures/animations/180/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/180",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/180/portrait.png",
+        "queuePortrait": "assets/creatures/detection/180/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CGNSLING.def",
+        "sourceSha256": "2c39028a4ab8b93c695542822166e163b3d98f26a15721d3ffa33083af6c5d95",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 181,
+      "name": "Bounty Hunter",
+      "internalName": "bountyHunter",
+      "tier": 6,
+      "branch": "main",
+      "upgrade": null,
+      "sourceAsset": "CBOUNTHT.def",
+      "canonicalDef": "CBOUNTHT.def",
+      "stats": {
+        "attack": 18,
+        "defense": 14,
+        "minDamage": 14,
+        "maxDamage": 24,
+        "hp": 45,
+        "speed": 8,
+        "shots": 24,
+        "growth": 2,
+        "costGold": 1100
+      },
+      "doubleWide": false,
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Ranged attack; 24 shots."
+        },
+        {
+          "key": "rangedRetaliation",
+          "kind": "passive",
+          "details": "Retaliates with a ranged attack."
+        },
+        {
+          "key": "unlimitedRetaliations",
+          "kind": "passive",
+          "details": "Unlimited retaliations."
+        },
+        {
+          "key": "rangedFirstStrike",
+          "kind": "passive",
+          "details": "Ranged first strike."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/181.png",
+        "idleAnimation": "assets/creatures/animations/181/idle.gif",
+        "previewImage": "assets/creatures/png/181.png",
+        "spritesheet": "assets/creatures/spritesheets/181.png",
+        "corpseImage": "assets/creatures/animations/181/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/181",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/181/portrait.png",
+        "queuePortrait": "assets/creatures/detection/181/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CBOUNTHT.def",
+        "sourceSha256": "3f83175f399db3f2fb5b14339e7ee88350e6237ec3b5ba57e95f248e5d83eb04",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 182,
+      "name": "Couatl",
+      "internalName": "hotaCouatl",
+      "tier": 7,
+      "branch": "serpentarium",
+      "upgrade": 183,
+      "sourceAsset": "COUATL.def",
+      "canonicalDef": "COUATL.def",
+      "stats": {
+        "attack": 17,
+        "defense": 17,
+        "minDamage": 25,
+        "maxDamage": 45,
+        "hp": 160,
+        "speed": 11,
+        "shots": 0,
+        "growth": 1,
+        "costGold": 2000
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "meditation",
+          "kind": "active",
+          "details": "One cast; skips the turn and grants invulnerability plus immunity to negative effects until the next own turn."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/182.png",
+        "idleAnimation": "assets/creatures/animations/182/idle.gif",
+        "previewImage": "assets/creatures/png/182.png",
+        "spritesheet": "assets/creatures/spritesheets/182.png",
+        "corpseImage": "assets/creatures/animations/182/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/182",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/182/portrait.png",
+        "queuePortrait": "assets/creatures/detection/182/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "COUATL.def",
+        "sourceSha256": "f7d9821a41ede914d99087b05ab73af3f9389ea4dcaf077d1ce8ee73a66b6346",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 183,
+      "name": "Crimson Couatl",
+      "internalName": "crimsonCouatl",
+      "tier": 7,
+      "branch": "serpentarium",
+      "upgrade": null,
+      "sourceAsset": "COUATR.def",
+      "canonicalDef": "RCOUATL.def",
+      "stats": {
+        "attack": 21,
+        "defense": 21,
+        "minDamage": 25,
+        "maxDamage": 45,
+        "hp": 200,
+        "speed": 15,
+        "shots": 0,
+        "growth": 1,
+        "costGold": 3500,
+        "costCrystal": 1
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "meditation",
+          "kind": "active",
+          "details": "One cast without skipping the turn; grants invulnerability plus immunity to negative effects until the next own turn."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/183.png",
+        "idleAnimation": "assets/creatures/animations/183/idle.gif",
+        "previewImage": "assets/creatures/png/183.png",
+        "spritesheet": "assets/creatures/spritesheets/183.png",
+        "corpseImage": "assets/creatures/animations/183/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/183",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/183/portrait.png",
+        "queuePortrait": "assets/creatures/detection/183/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "COUATR.def",
+        "sourceSha256": "ca267ba9df0bc437bc1e260a0e9b7816dd2669dc177a830cb54e4961e2204aa5",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 184,
+      "name": "Dreadnought",
+      "internalName": "hotaDreadnought",
+      "tier": 7,
+      "branch": "gantry",
+      "upgrade": 185,
+      "sourceAsset": "CDREAD.json",
+      "canonicalDef": "CDREAD.def",
+      "stats": {
+        "attack": 18,
+        "defense": 20,
+        "minDamage": 40,
+        "maxDamage": 50,
+        "hp": 200,
+        "speed": 6,
+        "shots": 0,
+        "growth": 1,
+        "costGold": 2200,
+        "costCrystal": 1
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "mechanical",
+          "kind": "passive",
+          "details": "Mechanical creature."
+        },
+        {
+          "key": "heatStroke",
+          "kind": "active",
+          "details": "Up to 99 casts without skipping the turn; speed becomes 0 and retaliation is disabled until the next attack, which hits L, LL, FL, FF, RF, RR and R."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/184.png",
+        "idleAnimation": "assets/creatures/animations/184/idle.gif",
+        "previewImage": "assets/creatures/png/184.png",
+        "spritesheet": "assets/creatures/spritesheets/184.png",
+        "corpseImage": "assets/creatures/animations/184/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/184",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/184/portrait.png",
+        "queuePortrait": "assets/creatures/detection/184/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CDREAD.json",
+        "sourceSha256": "bfa80666ba510ee27a67dae0cb38badcb15b4f9f5ee0b004dfc2a3db3aa3956e",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 185,
+      "name": "Juggernaut",
+      "internalName": "hotaJuggernaut",
+      "tier": 7,
+      "branch": "gantry",
+      "upgrade": null,
+      "sourceAsset": "CJUGGER.json",
+      "canonicalDef": "CJUGGER.def",
+      "stats": {
+        "attack": 23,
+        "defense": 23,
+        "minDamage": 40,
+        "maxDamage": 50,
+        "hp": 300,
+        "speed": 7,
+        "shots": 0,
+        "growth": 1,
+        "costGold": 3500,
+        "costCrystal": 2
+      },
+      "doubleWide": true,
+      "abilities": [
+        {
+          "key": "mechanical",
+          "kind": "passive",
+          "details": "Mechanical creature."
+        },
+        {
+          "key": "heatStroke",
+          "kind": "active",
+          "details": "Up to 99 casts without skipping the turn; speed becomes 0 and retaliation is disabled until the next attack, which hits L, LL, FL, FF, RF, RR and R."
+        }
+      ],
+      "faction": "Factory",
+      "status": "CONFIRMED_VCMI_HOTA_FACTORY_1_1_6",
+      "asset": {
+        "displayImage": "assets/creatures/png/185.png",
+        "idleAnimation": "assets/creatures/animations/185/idle.gif",
+        "previewImage": "assets/creatures/png/185.png",
+        "spritesheet": "assets/creatures/spritesheets/185.png",
+        "corpseImage": "assets/creatures/animations/185/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/185",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/185/portrait.png",
+        "queuePortrait": "assets/creatures/detection/185/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss Factory mod 1.1.6",
+        "sourceAsset": "CJUGGER.json",
+        "sourceSha256": "c3082480cecc92303b09e9e4b7c828cebba1af599bc0f86d65fdaf572a09c375",
+        "fallbackReason": null
+      }
+    }
+  ]
+}

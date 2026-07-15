@@ -1,9 +1,11 @@
 import { computeTurnOrder } from "./turnOrder.js";
+import { initializeFactoryStackState } from "./factoryAbilities.js";
 
-export function createInitialState() {
+export function createInitialState({ selectedTownType = 0 } = {}) {
   return {
     phase: "setup",
     owner: "player",
+    selectedTownType,
     backgroundId: "cmbkgrtr",
     obstacleCategory: "grass",
     selectedObstacleId: null,
@@ -13,6 +15,7 @@ export function createInitialState() {
     selectedStackId: null,
     stackCount: 1,
     stacks: [],
+    corpses: [],
     turnQueue: [],
     activeStackId: null,
     lastMovedOwner: null,
@@ -70,12 +73,14 @@ export function setSetupStackCount(stack, requestedCount) {
 
 export function startBattle(state) {
   state.battleSetupSnapshot = state.stacks.map(cloneStack);
+  state.corpses = [];
   state.phase = "battle";
   state.winner = null;
   state.round = 1;
   state.lastMovedOwner = null;
   state.attackPreview = null;
   for (const stack of state.stacks) {
+    initializeFactoryStackState(stack, { resetBattle: true });
     stack.alive = stack.count > 0;
     stack.hpTotal = stack.hpTotal || stack.count * Number(stack.creature.stats.hp || 1);
     stack.wound = stack.wound || 0;
@@ -107,6 +112,7 @@ export function resetBattle(state) {
   state.enemyTargetIds = new Set();
   state.attackableTargetIds = new Set();
   state.attackPreview = null;
+  state.corpses = [];
   state.selectedObstacleId = null;
   state.round = 1;
   state.lastMovedOwner = null;

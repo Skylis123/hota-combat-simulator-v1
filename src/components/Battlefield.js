@@ -1,4 +1,4 @@
-import { resolveBackground, resolveCreatureImage } from "../engine/assetResolver.js";
+import { resolveBackground, resolveCreatureCorpseImage, resolveCreatureImage } from "../engine/assetResolver.js";
 import { polygonPointsToString } from "../engine/hexGrid.js";
 import { footprintHexes, movementPlacementForHex, placementPreview, stackVisualPosition } from "../engine/footprint.js";
 import { inferAbilityFlags } from "../engine/abilities.js";
@@ -160,10 +160,8 @@ export function renderBattlefield(container, data, state, handlers) {
   for (const stack of state.stacks) {
     const hex = grid.hexes.find((candidate) => candidate.id === stack.hexId);
     if (!hex) continue;
-    const castleCreature = stack.creature.creatureId >= 0 && stack.creature.creatureId <= 13;
-    const image = stack.alive === false && castleCreature
-      ? { src: `./public/assets/creatures/animations/${stack.creature.creatureId}/corpse.png` }
-      : resolveCreatureImage(stack.creature, castleCreature ? "animation" : "preview");
+    const corpse = stack.alive === false ? resolveCreatureCorpseImage(stack.creature) : null;
+    const image = corpse || resolveCreatureImage(stack.creature, stack.alive === false ? "preview" : "animation");
     const element = document.createElement("button");
     element.type = "button";
     element.className = [
