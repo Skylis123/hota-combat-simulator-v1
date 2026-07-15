@@ -729,7 +729,8 @@ async function analyzeImportedImage() {
     state.obstacles = result.obstacles;
     refreshObstacleBlocking();
     state.stacks = result.stacks;
-    elements.importStatus.textContent = `Applied ${result.obstacles.length} obstacles and ${result.stacks.length} unit candidates. Background: ${result.backgroundId}. ${result.note}`;
+    deployAllArmies(data.battlefield.grid, state.stacks);
+    elements.importStatus.textContent = `Applied ${result.obstacles.length} obstacles and ${result.stacks.length} unit candidates at their standard starting positions. Background: ${result.backgroundId}. ${result.note}`;
     render();
   } catch (error) {
     elements.importStatus.textContent = `Analysis failed: ${error.message}`;

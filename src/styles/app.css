@@ -962,6 +962,16 @@ button.primary {
   transition: left var(--move-duration) linear, top var(--move-duration) linear;
 }
 
+.battle-animation.burrowing {
+  transition: opacity 240ms ease, transform 240ms ease, filter 240ms ease;
+}
+
+.battle-animation.burrowing.burrowed {
+  opacity: 0;
+  transform: translate(-50%, -32%) scale(0.55);
+  filter: blur(3px) brightness(0.58);
+}
+
 .battle-animation img {
   width: 78px;
   height: 78px;

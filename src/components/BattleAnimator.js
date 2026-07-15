@@ -15,7 +15,7 @@ export async function animateStackMove(container, grid, stack, path) {
   const actor = createActor(container, stack, origin, "move");
   const original = hideOriginalStack(container, stack.id);
   try {
-    await moveActorAlongPath(actor, grid, path);
+    await moveActorForStack(actor, grid, stack, path);
   } finally {
     actor.remove();
     if (original) original.style.visibility = "";
@@ -38,7 +38,7 @@ export async function animateStackAttack(container, grid, attacker, target, opti
   const actor = createActor(container, attacker, origin, firstAnimation);
   const original = hideOriginalStack(container, attacker.id);
   try {
-    if (approachHexId !== attacker.hexId) await moveActorAlongPath(actor, grid, approachPath);
+    if (approachHexId !== attacker.hexId) await moveActorForStack(actor, grid, attacker, approachPath);
     setFacing(actor, targetHex.centerX < approach.centerX);
     setAnimation(actor, attacker, animation);
     await wait(animation.endsWith("down") ? 900 : 820);
@@ -208,6 +208,32 @@ async function moveActorAlongPath(actor, grid, path) {
     actor.style.top = `${destination.centerY}px`;
     await waitForTransition(actor, 170);
   }
+}
+
+async function moveActorForStack(actor, grid, stack, path) {
+  if (inferAbilityFlags(stack.creature).underground) {
+    await moveActorUnderground(actor, grid, path);
+    return;
+  }
+  await moveActorAlongPath(actor, grid, path);
+}
+
+async function moveActorUnderground(actor, grid, path) {
+  const animatedStack = actorStack(actor);
+  const origin = stackVisualPosition(grid, { ...animatedStack, hexId: path[0] }, path[0]) || findHex(grid, path[0]);
+  const destinationHexId = path[path.length - 1];
+  const destination = stackVisualPosition(grid, { ...animatedStack, hexId: destinationHexId }, destinationHexId) || findHex(grid, destinationHexId);
+  if (!origin || !destination) return;
+  actor.classList.add("burrowing");
+  await nextFrame();
+  actor.classList.add("burrowed");
+  await waitForTransition(actor, 240);
+  setFacing(actor, destination.centerX < origin.centerX);
+  actor.style.left = `${destination.centerX}px`;
+  actor.style.top = `${destination.centerY}px`;
+  await nextFrame();
+  actor.classList.remove("burrowed");
+  await waitForTransition(actor, 280);
 }
 
 function actorStack(actor) {

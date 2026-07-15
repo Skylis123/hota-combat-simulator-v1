@@ -1,5 +1,5 @@
 import { createBattleStack } from "./battleState.js";
-import { createObstacleInstance, obstacleBlockedHexes } from "./obstacles.js";
+import { createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
 import { detectTurnBarRoster } from "./turnBarAnalyzer.js";
@@ -131,6 +131,31 @@ export function applyRosterCounts(stacks, turnRoster) {
     const unread = unresolved.filter((stack) => !exactMatches.has(stack));
     if (unread.length === remaining.length && (remaining.length === 1 || new Set(remaining).size === 1)) {
       unread.forEach((stack, index) => setImportedStackCount(stack, remaining[index]));
+    }
+  }
+  inferUnreadCountsFromMatchingStacks(stacks);
+}
+
+function inferUnreadCountsFromMatchingStacks(stacks) {
+  const groups = new Map();
+  for (const stack of stacks || []) {
+    const key = `${stack.owner}:${stack.creature.creatureId}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(stack);
+  }
+  for (const matchingStacks of groups.values()) {
+    const frequencies = new Map();
+    for (const stack of matchingStacks.filter((candidate) => candidate.screenshotCountRecognized)) {
+      frequencies.set(stack.count, (frequencies.get(stack.count) || 0) + 1);
+    }
+    const ranked = [...frequencies].sort((left, right) => right[1] - left[1] || left[0] - right[0]);
+    if (!ranked.length || ranked[0][1] < 2 || ranked[0][1] === ranked[1]?.[1]) continue;
+    for (const stack of matchingStacks.filter((candidate) => (
+      !candidate.screenshotCountRecognized && !candidate.screenshotCountFromTurnBar
+    ))) {
+      setImportedStackCount(stack, ranked[0][0]);
+      stack.screenshotCountFromTurnBar = false;
+      stack.screenshotCountInferredFromPeers = true;
     }
   }
 }
@@ -363,7 +388,9 @@ async function detectObstacles(screenshot, background, data, terrain) {
       && Math.abs(item.detectedTop - candidate.y) < candidate.definition.imageHeight * 0.35
     ))) continue;
     const anchorHexId = candidate.anchorHexId;
-    const blockedHexIds = candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId);
+    const blockedHexIds = candidate.definition.absolute
+      ? (candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId))
+      : detectedObstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId);
     if (blockedHexIds.some((hexId) => occupied.has(hexId))) continue;
     if (candidate.definition.absolute && accepted.some((item) => item.absolute)) continue;
     const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, anchorHexId);
@@ -371,6 +398,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
     instance.detectedFlip = candidate.flip;
     instance.detectedLeft = candidate.x;
     instance.detectedTop = candidate.y;
+    instance.blockedHexIds = blockedHexIds;
     accepted.push(instance);
     blockedHexIds.forEach((hexId) => occupied.add(hexId));
     if (accepted.length >= 12) break;
@@ -487,7 +515,7 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
   // fallback, so a clipped or unrecognized queue card cannot delete a real
   // battlefield stack.
   const rosterAssignment = assignStackCandidatesToRoster(candidateGroups, roster, { minimumQuality: -0.15 });
-  const candidates = mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment);
+  const candidates = mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment, roster);
   const accepted = [];
   const usedHexes = new Set();
   const ownerCounts = { player: 0, ai: 0 };
@@ -628,11 +656,13 @@ export function assignStackCandidatesToRoster(candidateGroups, roster, options =
     .map((assignment) => assignment.candidate);
 }
 
-export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment) {
+export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment, roster = null) {
   const assignedBadges = new Set((rosterAssignment || []).map((candidate) => candidate.badge));
+  const uniqueRosterOwners = uniqueCreatureOwners(roster);
+  const countHints = rosterCountHints(roster);
   const fallback = (candidateGroups || [])
     .filter((group) => rosterAssignment === null || !assignedBadges.has(group.badge))
-    .map((group) => group.best)
+    .map((group) => rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints))
     .filter(isLegacyStackCandidate);
   if (rosterAssignment === null) return fallback.sort((left, right) => right.quality - left.quality);
 
@@ -641,6 +671,59 @@ export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssign
     Number(rosterCandidates.has(right)) - Number(rosterCandidates.has(left))
       || right.quality - left.quality
   );
+}
+
+function rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints) {
+  const best = group?.best;
+  const creatureId = Number(best?.creature?.creatureId ?? best?.creatureId);
+  const expectedOwner = uniqueRosterOwners.get(creatureId);
+  if (expectedOwner && best?.owner === expectedOwner) return best;
+  const bestVisualQuality = Number(best?.rawQuality ?? best?.quality);
+  const rosterSupported = (group?.alternatives || [])
+    .filter((candidate) => (
+      uniqueRosterOwners.get(Number(candidate?.creature?.creatureId ?? candidate?.creatureId)) === candidate?.owner
+      && isLegacyVisualCandidate(candidate)
+      && Number(candidate.rawQuality ?? candidate.quality) >= bestVisualQuality - 0.24
+    ))
+    .sort((left, right) => {
+      const countMatchDifference = Number(rosterCandidateMatchesBadgeCount(right, group.badge, countHints))
+        - Number(rosterCandidateMatchesBadgeCount(left, group.badge, countHints));
+      const sameCreatureDifference = Number(
+        Number(right?.creature?.creatureId ?? right?.creatureId) === creatureId
+      ) - Number(Number(left?.creature?.creatureId ?? left?.creatureId) === creatureId);
+      return countMatchDifference
+        || sameCreatureDifference
+        || Number(right.rawQuality ?? right.quality) - Number(left.rawQuality ?? left.quality);
+    })[0];
+  return rosterSupported
+    ? { ...rosterSupported, quality: Number(rosterSupported.rawQuality ?? rosterSupported.quality) }
+    : best;
+}
+
+function rosterCandidateMatchesBadgeCount(candidate, badge, countHints) {
+  const observedCount = Math.trunc(Number(badge?.count));
+  if (!Number.isInteger(observedCount) || observedCount < 1) return false;
+  const creatureId = Number(candidate?.creature?.creatureId ?? candidate?.creatureId);
+  return countHints.get(`${candidate?.owner}:${creatureId}`)?.has(observedCount) || false;
+}
+
+function uniqueCreatureOwners(roster) {
+  const ownersByCreature = new Map();
+  for (const key of rosterCapacities(roster).keys()) {
+    const [owner, creatureIdText] = key.split(":");
+    const creatureId = Number(creatureIdText);
+    if (!ownersByCreature.has(creatureId)) ownersByCreature.set(creatureId, new Set());
+    ownersByCreature.get(creatureId).add(owner);
+  }
+  return new Map([...ownersByCreature]
+    .filter(([, owners]) => owners.size === 1)
+    .map(([creatureId, owners]) => [creatureId, [...owners][0]]));
+}
+
+function isLegacyVisualCandidate(candidate) {
+  return candidate?.correlation > 0.13
+    && candidate.chroma > 0.82
+    && Number(candidate.rawQuality ?? candidate.quality) > 0.34;
 }
 
 function isLegacyStackCandidate(candidate) {

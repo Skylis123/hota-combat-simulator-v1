@@ -142,6 +142,77 @@ assert.deepEqual(
   "A lower-bound roster must prioritize known stacks without deleting strict visual matches for clipped or unknown cards."
 );
 
+const knownWormBadge = { id: "known-worm" };
+const extraWormBadge = { id: "extra-worm" };
+const knownWorm = {
+  ...candidate("known-ai-worm", "ai", 178, 0.66),
+  badge: knownWormBadge,
+  correlation: 0.5,
+  chroma: 0.95,
+  rawQuality: 0.66
+};
+const sideBiasedWorm = {
+  ...candidate("left-side-player-worm", "player", 178, 0.62),
+  badge: extraWormBadge,
+  correlation: 0.5,
+  chroma: 0.95,
+  rawQuality: 0.62
+};
+const ownerCorrectedWorm = {
+  ...candidate("left-side-ai-worm", "ai", 178, 0.37),
+  badge: extraWormBadge,
+  correlation: 0.5,
+  chroma: 0.95,
+  rawQuality: 0.62
+};
+const partialEnemyQueueMerge = mergeRosterAssignmentsWithFallback([
+  { badge: knownWormBadge, best: knownWorm, alternatives: [knownWorm] },
+  { badge: extraWormBadge, best: sideBiasedWorm, alternatives: [sideBiasedWorm, ownerCorrectedWorm] }
+], [knownWorm], {
+  lowerBoundRoster: [{ owner: "ai", creatureId: 178, instances: 1 }]
+});
+assert.deepEqual(
+  partialEnemyQueueMerge.map((entry) => entry.label),
+  ["known-ai-worm", "left-side-ai-worm"],
+  "A partial turn bar must correct the owner of additional strict visual matches without treating queue multiplicity as a maximum."
+);
+
+const visuallyBiasedBadge = { id: "visually-biased-worm", count: 3 };
+const falseMonk = {
+  ...candidate("false-left-monk", "player", 8, 0.72),
+  badge: visuallyBiasedBadge,
+  correlation: 0.45,
+  chroma: 0.95,
+  rawQuality: 0.77
+};
+const rosterSupportedWorm = {
+  ...candidate("roster-supported-ai-worm", "ai", 178, 0.61),
+  badge: visuallyBiasedBadge,
+  correlation: 0.5,
+  chroma: 0.95,
+  rawQuality: 0.72
+};
+const higherRawMechanic = {
+  ...candidate("higher-raw-player-mechanic", "player", 172, 0.66),
+  badge: visuallyBiasedBadge,
+  correlation: 0.48,
+  chroma: 0.95,
+  rawQuality: 0.75
+};
+const creatureCorrectedQueueMerge = mergeRosterAssignmentsWithFallback([
+  { badge: visuallyBiasedBadge, best: falseMonk, alternatives: [falseMonk, higherRawMechanic, rosterSupportedWorm] }
+], [], {
+  lowerBoundRoster: [
+    { owner: "player", creatureId: 172, count: 6, instances: 1 },
+    { owner: "ai", creatureId: 178, count: 3, instances: 1 }
+  ]
+});
+assert.deepEqual(
+  creatureCorrectedQueueMerge.map((entry) => entry.label),
+  ["roster-supported-ai-worm"],
+  "A strong roster-supported creature match must beat an unrelated side-biased fallback even after that queue stack already acted."
+);
+
 const importedStack = {
   owner: "player",
   creature: { creatureId: 0, stats: { hp: 10 } },
@@ -155,5 +226,15 @@ applyRosterCounts([importedStack], {
   lowerBoundRoster: [{ owner: "player", creatureId: 0, count: null, instances: 1 }]
 });
 assert.equal(importedStack.count, 20, "An unknown turn-bar count must not overwrite a recognized battlefield count with 1.");
+
+const peerCountStacks = [
+  { ...importedStack, count: 3, screenshotCountRecognized: true },
+  { ...importedStack, count: 3, screenshotCountRecognized: true },
+  { ...importedStack, count: 4, screenshotCountRecognized: true },
+  { ...importedStack, count: 1, screenshotCountRecognized: false }
+];
+applyRosterCounts(peerCountStacks, { lowerBoundRoster: [] });
+assert.equal(peerCountStacks[3].count, 3, "A uniquely repeated peer count must fill one unread badge of the same owner and creature.");
+assert.equal(peerCountStacks[3].screenshotCountInferredFromPeers, true);
 
 console.log("Roster-constrained screenshot candidate assignment tests passed.");

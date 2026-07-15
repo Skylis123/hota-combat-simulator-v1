@@ -12,7 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
-import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, obstacleBlockedHexes, obstacleRenderPosition } from "../src/engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "../src/engine/obstacles.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -442,9 +442,19 @@ const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
 if (detectedAbsolutePosition?.left !== 123.5 || detectedAbsolutePosition?.top !== 77.25) {
   failures.push("Screenshot-detected absolute obstacles must preserve their fixed image coordinates.");
 }
+const negativeRowObstacle = { ...marginObstacle, height: 3, blockedTiles: [-33, -34] };
+const detectedBaseFootprint = detectedObstacleBlockedHexes(battlefieldGrid, negativeRowObstacle, renderAnchor.id)
+  .map((hexId) => battlefieldGrid.hexes.find((hex) => hex.id === hexId));
+if (detectedBaseFootprint.length !== 2 || Math.max(...detectedBaseFootprint.map((hex) => hex.row)) !== renderAnchor.row - 1) {
+  failures.push("Screenshot-detected obstacle footprints with negative-only offsets must move one row toward the visual base.");
+}
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {
   failures.push("Usual obstacle placement must not depend on image-height CSS translation.");
+}
+const battleAnimatorSource = fs.readFileSync(path.join(root, "src", "components", "BattleAnimator.js"), "utf8");
+if (!/inferAbilityFlags\(stack\.creature\)\.underground/.test(battleAnimatorSource) || !/moveActorUnderground/.test(battleAnimatorSource) || !/\.burrowed/.test(appCss)) {
+  failures.push("Underground Factory stacks must use a distinct sink-and-emerge movement animation.");
 }
 if (!/action-cursor="attack-up-left"[^}]*12-attack-down-left\.png/s.test(appCss) || !/action-cursor="attack-down-left"[^}]*10-attack-up-left\.png/s.test(appCss)) {
   failures.push("The two visually reversed left-diagonal sword frames must be mapped to their actual blade directions.");
@@ -480,6 +490,9 @@ if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack
 }
 const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
 const screenshotAnalyzerSource = fs.readFileSync(path.join(root, "src", "engine", "screenshotAnalyzer.js"), "utf8");
+if (!/state\.stacks = result\.stacks;\s*deployAllArmies\(data\.battlefield\.grid, state\.stacks\);/s.test(mainSource)) {
+  failures.push("Screenshot imports must redeploy detected armies to standard starting positions instead of preserving mid-battle coordinates.");
+}
 if (!mainSource.includes('addEventListener("paste"') || !mainSource.includes("analyzeBattlefieldScreenshot") || !screenshotAnalyzerSource.includes("identifyBackground") || !screenshotAnalyzerSource.includes("detectObstacles") || !screenshotAnalyzerSource.includes("detectStacks")) {
   failures.push("Screenshot import must support clipboard paste and local background/obstacle/unit analysis.");
 }

@@ -27,26 +27,38 @@ globalThis.window = {};
 globalThis.Image = LocalImage;
 globalThis.createImageBitmap = async (file) => loadImage(Buffer.from(await file.arrayBuffer()));
 
-const [{ analyzeBattlefieldScreenshot }] = await Promise.all([
-  import(pathToFileURL(path.join(root, "src/engine/screenshotAnalyzer.js")))
+const [{ analyzeBattlefieldScreenshot }, { deployAllArmies }] = await Promise.all([
+  import(pathToFileURL(path.join(root, "src/engine/screenshotAnalyzer.js"))),
+  import(pathToFileURL(path.join(root, "src/engine/armyDeployment.js")))
 ]);
 const simulator = JSON.parse(fs.readFileSync(path.join(root, "public/data/simulator-v1-data.json"), "utf8"));
+const factory = JSON.parse(fs.readFileSync(path.join(root, "public/data/factory-creatures.json"), "utf8"));
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "public/data/battlefield-catalog.json"), "utf8"));
 const detection = JSON.parse(fs.readFileSync(path.join(root, "public/assets/creatures/detection/manifest.json"), "utf8"));
-const data = { ...simulator, obstacles: catalog.obstacles, backgrounds: catalog.backgrounds, creatureDetection: detection };
+const creaturesById = new Map([...(simulator.creatures || []), ...(factory.creatures || [])]
+  .map((creature) => [Number(creature.creatureId), creature]));
+const data = {
+  ...simulator,
+  creatures: [...creaturesById.values()],
+  obstacles: catalog.obstacles,
+  backgrounds: catalog.backgrounds,
+  creatureDetection: detection
+};
 const screenshotPath = path.resolve(process.argv[2]);
 const bytes = fs.readFileSync(screenshotPath);
 const file = new Blob([bytes], { type: "image/png" });
 const result = await analyzeBattlefieldScreenshot(file, data);
+if (process.argv.includes("--deploy-start")) deployAllArmies(data.battlefield.grid, result.stacks);
 const includeDiagnostics = process.argv.includes("--diagnostics");
 const summary = {
   backgroundId: result.backgroundId,
-  obstacles: result.obstacles.map(({ id, name, anchorHexId, detectedLeft, detectedTop }) => ({
+  obstacles: result.obstacles.map(({ id, name, anchorHexId, detectedLeft, detectedTop, blockedHexIds }) => ({
     id,
     name,
     anchorHexId,
     detectedLeft,
-    detectedTop
+    detectedTop,
+    blockedHexIds
   })),
   ...(includeDiagnostics ? { timings: result.timings } : {}),
   ...(includeDiagnostics ? { stackDetectionDiagnostics: result.stackDetectionDiagnostics } : {}),
