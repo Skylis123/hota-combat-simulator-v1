@@ -499,6 +499,11 @@ if (!mainSource.includes('addEventListener("paste"') || !mainSource.includes("an
 if (!screenshotAnalyzerSource.includes("detectStackBadges") || !screenshotAnalyzerSource.includes("readBadgeCount") || !screenshotAnalyzerSource.includes("template.record.left") || !screenshotAnalyzerSource.includes("template.record.top") || !screenshotAnalyzerSource.includes("detectionAnchorHex") || !screenshotAnalyzerSource.includes("representativeTemplates") || !screenshotAnalyzerSource.includes("detectedLeft")) {
   failures.push("Screenshot recognition must be badge-gated, preserve DEF/obstacle placement, use a creature shortlist, and read original bitmap-font counts.");
 }
+if (!screenshotAnalyzerSource.includes("ignoreForegroundOcclusion")
+    || !screenshotAnalyzerSource.includes("canPlaceObstacle(data.battlefield.grid, { stacks: [], obstacles: [] }, definition, anchor.id)")
+    || screenshotAnalyzerSource.includes("occupiedByStacks")) {
+  failures.push("Screenshot obstacle detection must tolerate foreground units, enforce legal obstacle margins, and retain obstacles before army redeployment.");
+}
 if (!mainSource.includes("onRosterQuickAdd") || !mainSource.includes("ARMY_SLOT_COUNT")) {
   failures.push("Roster quick-add must scan the configured army slots in order.");
 }

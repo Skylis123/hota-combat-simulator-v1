@@ -1,5 +1,5 @@
 import { createBattleStack } from "./battleState.js";
-import { createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes } from "./obstacles.js";
+import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
 import { detectTurnBarRoster } from "./turnBarAnalyzer.js";
@@ -48,13 +48,11 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const obstaclesAt = performance.now();
   const blocked = new Set(detectedObstacles.flatMap((obstacle) => obstacle.blockedHexIds));
   const stacks = await detectStacks(screenshot, backgroundContext, data, blocked, countContext, turnRoster);
-  const occupiedByStacks = new Set(stacks.flatMap((stack) => footprintHexes(data.battlefield.grid, stack) || [stack.hexId]));
-  // A legal Heroes III stack cannot occupy an obstacle-blocked hex. This also
-  // removes large Wasteland templates that can otherwise use a unit sprite at
-  // one edge to create a false positive far across the battlefield.
-  const obstacles = detectedObstacles.filter((obstacle) => (
-    !(obstacle.blockedHexIds || []).some((hexId) => occupiedByStacks.has(hexId))
-  ));
+  // Imported units are redeployed to their standard starting positions by
+  // the setup flow. Their mid-round screenshot coordinates therefore cannot
+  // invalidate a detected obstacle: tall foreground graphics legitimately
+  // overlap units and badges in the source image.
+  const obstacles = detectedObstacles;
   applyRosterCounts(stacks, turnRoster);
   const stacksAt = performance.now();
   // Native TextDetector OCR is intentionally not used for Heroes III badges:
@@ -322,7 +320,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
   for (const definition of definitions.filter((candidate) => candidate.absolute)) {
     const image = images.get(definition.id);
     const placement = bestCompositePlacement(screenshot, background, image, definition.width, definition.height, {
-      radiusX: 28, radiusY: 28, step: 4, allowFlip: true, sampleStep: 3
+      radiusX: 28, radiusY: 28, step: 4, allowFlip: true, sampleStep: 3, ignoreForegroundOcclusion: true
     });
     if (placement.correlation > 0.45 && placement.gain > 0.08 && placement.match > 0.82) {
       candidates.push({ definition, anchorHexId: null, ...placement });
@@ -336,6 +334,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
     const needsWideRefinement = sparseTemplate || smallTemplate;
     const coarseCandidates = [];
     for (const anchor of data.battlefield.grid.hexes) {
+      if (!canPlaceObstacle(data.battlefield.grid, { stacks: [], obstacles: [] }, definition, anchor.id)) continue;
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
       const placement = bestCompositePlacement(screenshot, background, image, Math.round(anchor.centerX - 22), Math.round(anchor.centerY + 50 - image.height), {
@@ -346,6 +345,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
         radiusY: 12,
         step: smallTemplate ? 3 : 6,
         allowFlip: false,
+        ignoreForegroundOcclusion: true,
         // A six-pixel placement/sampling lattice can skip most opaque pixels
         // of small stumps, bones, and branches, so the right anchor never
         // reaches the refinement shortlist. A three-pixel lattice for those
@@ -362,7 +362,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
       // refinement; dense rocks/ponds keep the fast direct path.
       const intermediate = needsWideRefinement
         ? bestCompositePlacement(screenshot, background, image, coarse.x, coarse.y, {
-          radiusX: 12, radiusY: 12, step: 3, fixedFlip: coarse.flip, sampleStep: 3
+          radiusX: 12, radiusY: 12, step: 3, fixedFlip: coarse.flip, sampleStep: 3, ignoreForegroundOcclusion: true
         })
         : coarse;
       const placement = bestCompositePlacement(screenshot, background, image, intermediate.x, intermediate.y, {
@@ -370,7 +370,8 @@ async function detectObstacles(screenshot, background, data, terrain) {
         radiusY: needsWideRefinement ? 2 : 3,
         step: 1,
         fixedFlip: intermediate.flip,
-        sampleStep: needsWideRefinement ? 2 : 3
+        sampleStep: needsWideRefinement ? 2 : 3,
+        ignoreForegroundOcclusion: true
       });
       if (placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72) {
         candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
@@ -1200,7 +1201,16 @@ function bestCompositePlacement(screen, background, image, originX, originY, opt
     const orientedOriginX = originX + (flip ? Number(options.flipOffsetX || 0) : 0);
     for (let dy = -options.radiusY; dy <= options.radiusY; dy += options.step) {
       for (let dx = -options.radiusX; dx <= options.radiusX; dx += options.step) {
-        const score = compositeScore(screen, background, image, orientedOriginX + dx, originY + dy, flip, options.sampleStep);
+        const score = compositeScore(
+          screen,
+          background,
+          image,
+          orientedOriginX + dx,
+          originY + dy,
+          flip,
+          options.sampleStep,
+          options.ignoreForegroundOcclusion
+        );
         if (score.correlation > best.correlation || (score.correlation === best.correlation && score.gain > best.gain)) {
           best = { ...score, x: orientedOriginX + dx, y: originY + dy, flip };
         }
@@ -1210,7 +1220,7 @@ function bestCompositePlacement(screen, background, image, originX, originY, opt
   return best;
 }
 
-function compositeScore(screenContext, backgroundContext, image, x, y, flip, step) {
+function compositeScore(screenContext, backgroundContext, image, x, y, flip, step, ignoreForegroundOcclusion = false) {
   if (x >= WIDTH || y >= HEIGHT || x + image.width <= 0 || y + image.height <= 0) {
     return { gain: -1, match: 0, correlation: -1, chroma: 0 };
   }
@@ -1236,6 +1246,8 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
   let productSum = 0;
   const screenRgb = [0, 0, 0];
   const templateRgb = [0, 0, 0];
+  let opaquePixels = 0;
+  let retainedPixels = 0;
   for (let py = 0; py < image.height; py += step) {
     const sy = y + py;
     if (sy < 0 || sy >= HEIGHT) continue;
@@ -1246,6 +1258,21 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
       const alpha = template[ti + 3] / 255;
       if (alpha < 0.3) continue;
       const si = (sy * WIDTH + sx) * 4;
+      opaquePixels += 1;
+      let pixelBaselineError = 0;
+      let pixelCandidateError = 0;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const base = background[si + channel];
+        const expected = template[ti + channel] * alpha + base * (1 - alpha);
+        pixelBaselineError += Math.abs(screen[si + channel] - base);
+        pixelCandidateError += Math.abs(screen[si + channel] - expected);
+      }
+      // A foreground creature can cover part of a legitimate obstacle. Such
+      // pixels differ strongly from both the empty terrain and the obstacle
+      // template, so exclude them from obstacle-only scoring while retaining
+      // a majority-coverage requirement below.
+      if (ignoreForegroundOcclusion && pixelBaselineError > 150 && pixelCandidateError > 150) continue;
+      retainedPixels += 1;
       for (let channel = 0; channel < 3; channel += 1) {
         const base = background[si + channel];
         const expected = template[ti + channel] * alpha + base * (1 - alpha);
@@ -1264,7 +1291,11 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
       samples += 3;
     }
   }
-  if (!samples || baselineError < samples * 2) return { gain: -1, match: 0, correlation: -1, chroma: 0 };
+  if (
+    !samples
+    || baselineError < samples * 2
+    || (ignoreForegroundOcclusion && retainedPixels < opaquePixels * 0.55)
+  ) return { gain: -1, match: 0, correlation: -1, chroma: 0 };
   const covariance = productSum - screenSum * templateSum / samples;
   const screenVariance = screenSquareSum - screenSum * screenSum / samples;
   const templateVariance = templateSquareSum - templateSum * templateSum / samples;
