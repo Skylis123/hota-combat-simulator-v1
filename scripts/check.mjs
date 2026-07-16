@@ -13,6 +13,7 @@ import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
 import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "../src/engine/obstacles.js";
+import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -34,6 +35,27 @@ function gifDimensions(filePath) {
 }
 
 const failures = [];
+const croppedBattleWindow = battleWindowBoundsFromTurnBarGeometry({
+  baselineWidth: 72, firstCardX: 211, baselineY: 1193, cardCount: 14
+}, 1615, 1288);
+const fullScreenBattleWindow = battleWindowBoundsFromTurnBarGeometry({
+  baselineWidth: 72, firstCardX: 683, baselineY: 1266, cardCount: 14
+}, 2558, 1439);
+const offsetBattleWindow = battleWindowBoundsFromTurnBarGeometry({
+  baselineWidth: 72, firstCardX: 1111, baselineY: 1593, cardCount: 14
+}, 3600, 2400);
+if (croppedBattleWindow.detected || croppedBattleWindow.x !== 0 || croppedBattleWindow.y !== 0
+    || croppedBattleWindow.width !== 1615 || croppedBattleWindow.height !== 1288) {
+  failures.push("An already cropped Battlefield screenshot must retain its complete source bounds.");
+}
+if (!fullScreenBattleWindow.detected || fullScreenBattleWindow.x !== 472 || fullScreenBattleWindow.y !== 73
+    || fullScreenBattleWindow.width !== 1615 || fullScreenBattleWindow.height !== 1288) {
+  failures.push("A full game screenshot must be cropped to the Battlefield window derived from its turn bar.");
+}
+if (!offsetBattleWindow.detected || offsetBattleWindow.x !== 900 || offsetBattleWindow.y !== 400
+    || offsetBattleWindow.width !== 1615 || offsetBattleWindow.height !== 1288) {
+  failures.push("Battlefield detection must not depend on the combat window's position inside a larger partial screenshot.");
+}
 const battlefieldCatalog = JSON.parse(fs.readFileSync(path.join(root, "public", "data", "battlefield-catalog.json"), "utf8"));
 if (battlefieldCatalog.obstacles.length !== 140 || battlefieldCatalog.backgrounds.length !== 26 || battlefieldCatalog.missingGraphics.length !== 0) {
   failures.push("Battlefield catalog must contain all 140 obstacles, all 26 backgrounds and no missing graphics.");
@@ -441,8 +463,8 @@ const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
   detectedLeft: 123.5,
   detectedTop: 77.25
 });
-if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
-  failures.push("Screenshot-detected usual obstacles must preserve their refined image coordinates.");
+if (detectedRenderPosition?.left !== manualRenderPosition?.left || detectedRenderPosition?.top !== manualRenderPosition?.top) {
+  failures.push("Screenshot-detected usual obstacles must snap to the same grid anchor as manually placed obstacles.");
 }
 const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
   ...absoluteMarginObstacle,

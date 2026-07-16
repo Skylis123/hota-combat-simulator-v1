@@ -3,6 +3,11 @@ const PORTRAIT_HEIGHT = 64;
 const NATIVE_REFERENCE_WIDTH = 1600;
 const NATIVE_CARD_STEP = 80;
 const NATIVE_BASELINE_WIDTH = 73;
+const BATTLE_WINDOW_BASELINE_WIDTH = 72;
+const BATTLE_WINDOW_WIDTH = 1615;
+const BATTLE_WINDOW_HEIGHT = 1288;
+const BATTLE_WINDOW_FIRST_CARD_X = 211;
+const BATTLE_WINDOW_BASELINE_Y = 1193;
 const DEFAULT_CREATURE_THRESHOLD = 0.45;
 const DEFAULT_MARGIN_THRESHOLD = 0.03;
 const templatePromiseCache = new Map();
@@ -76,6 +81,70 @@ export async function detectTurnBarRoster(source, data, options = {}) {
   };
 }
 
+/**
+ * Locates the native combat window inside a larger game/desktop screenshot.
+ * The green card baselines are a much more stable landmark than the ornate
+ * window border: their size gives the window scale and their first x/y gives
+ * its origin. A screenshot that already contains only the battle window is
+ * snapped back to the full source bounds.
+ */
+export function detectBattleWindowBounds(source) {
+  const canvas = drawSource(source);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const bars = detectCardBaselines(context, canvas.width, canvas.height);
+  if (bars.length < 4) return fullSourceBounds(canvas, false, "turn-bar-not-found");
+
+  return battleWindowBoundsFromTurnBarGeometry({
+    baselineWidth: median(bars.map((bar) => bar.width)),
+    firstCardX: bars[0].x,
+    baselineY: median(bars.map((bar) => bar.y)),
+    cardCount: bars.length
+  }, canvas.width, canvas.height);
+}
+
+export function battleWindowBoundsFromTurnBarGeometry(geometry, sourceWidth, sourceHeight) {
+  const baselineWidth = geometry.baselineWidth;
+  const scale = baselineWidth / BATTLE_WINDOW_BASELINE_WIDTH;
+  let x = geometry.firstCardX - BATTLE_WINDOW_FIRST_CARD_X * scale;
+  let y = geometry.baselineY - BATTLE_WINDOW_BASELINE_Y * scale;
+  let width = BATTLE_WINDOW_WIDTH * scale;
+  let height = BATTLE_WINDOW_HEIGHT * scale;
+  const edgeTolerance = Math.max(8, 14 * scale);
+
+  if (Math.abs(x) <= edgeTolerance) x = 0;
+  if (Math.abs(y) <= edgeTolerance) y = 0;
+  if (Math.abs(sourceWidth - width) <= edgeTolerance * 2) width = sourceWidth;
+  if (Math.abs(sourceHeight - height) <= edgeTolerance * 2) height = sourceHeight;
+
+  x = Math.max(0, Math.round(x));
+  y = Math.max(0, Math.round(y));
+  width = Math.min(sourceWidth - x, Math.round(width));
+  height = Math.min(sourceHeight - y, Math.round(height));
+  const valid = scale >= 0.35
+    && scale <= 3
+    && width >= sourceWidth * 0.12
+    && height >= sourceHeight * 0.12
+    && width / Math.max(1, height) >= 1.2
+    && width / Math.max(1, height) <= 1.3;
+  if (!valid) return { x: 0, y: 0, width: sourceWidth, height: sourceHeight, detected: false, method: "turn-bar-geometry-invalid", scale: 1 };
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    detected: x > edgeTolerance || y > edgeTolerance
+      || width < sourceWidth - edgeTolerance || height < sourceHeight - edgeTolerance,
+    method: "turn-bar",
+    scale,
+    cardCount: geometry.cardCount
+  };
+}
+
+function fullSourceBounds(canvas, detected, method) {
+  return { x: 0, y: 0, width: canvas.width, height: canvas.height, detected, method, scale: 1 };
+}
+
 function emptyResult(note) {
   return {
     detected: false,
@@ -101,7 +170,11 @@ function drawSource(source) {
 }
 
 function detectCardBaselines(context, width, height) {
-  const startY = Math.floor(height * 0.78);
+  // Search the complete capture. The combat window may be centered, moved to
+  // a corner, or surrounded by only a partial slice of the adventure screen.
+  // Its native turn bar is the landmark; its position in the outer image is
+  // deliberately unconstrained.
+  const startY = 0;
   const rows = height - startY;
   const pixels = context.getImageData(0, startY, width, rows).data;
   const mask = new Uint8Array(width * rows);
@@ -115,8 +188,10 @@ function detectCardBaselines(context, width, height) {
 
   const visited = new Uint8Array(mask.length);
   const candidates = [];
-  const minimumWidth = width * 0.025;
-  const maximumWidth = width * 0.065;
+  // Keep the component limits independent of the outer screenshot size. A
+  // 1600px combat window still has 72px baselines inside a much larger image.
+  const minimumWidth = 14;
+  const maximumWidth = 220;
   for (let start = 0; start < mask.length; start += 1) {
     if (!mask[start] || visited[start]) continue;
     const queue = [start];
@@ -157,29 +232,49 @@ function detectCardBaselines(context, width, height) {
   }
   if (!candidates.length) return [];
 
-  let consensusY = candidates[0].y;
-  let consensusSize = 0;
+  const rowGroups = [];
   for (const candidate of candidates) {
-    const size = candidates.filter((other) => Math.abs(other.y - candidate.y) <= 2).length;
-    if (size > consensusSize || (size === consensusSize && candidate.y > consensusY)) {
-      consensusY = candidate.y;
-      consensusSize = size;
-    }
+    const group = rowGroups.find((item) => Math.abs(item.y - candidate.y) <= 2);
+    if (group) group.items.push(candidate);
+    else rowGroups.push({ y: candidate.y, items: [candidate] });
   }
-  const aligned = candidates
-    .filter((candidate) => Math.abs(candidate.y - consensusY) <= 2)
-    .sort((left, right) => left.x - right.x)
-    .slice(0, 15);
-  if (aligned.length < 2 || consensusY < height * 0.84 || consensusY > height * 0.97) return [];
-  const baselineWidth = median(aligned.map((candidate) => candidate.width));
-  if (aligned.some((candidate) => Math.abs(candidate.width - baselineWidth) > baselineWidth * 0.15)) return [];
-  const expectedStep = baselineWidth * NATIVE_CARD_STEP / NATIVE_BASELINE_WIDTH;
-  const spacingIsNative = aligned.slice(1).every((candidate, index) => {
-    const gap = candidate.x - aligned[index].x;
-    return (gap >= expectedStep * 0.72 && gap <= expectedStep * 1.28)
-      || (gap >= expectedStep * 1.7 && gap <= expectedStep * 2.3);
-  });
-  return spacingIsNative ? aligned : [];
+  let best = [];
+  for (const group of rowGroups) {
+    const sequence = longestNativeCardSequence(group.items);
+    if (sequence.length > best.length || (sequence.length === best.length && sequence[0]?.y > best[0]?.y)) best = sequence;
+  }
+  return best.length >= 2 ? best.slice(0, 15) : [];
+}
+
+function longestNativeCardSequence(candidates) {
+  let best = [];
+  for (const seed of candidates) {
+    const similar = candidates
+      .filter((candidate) => Math.abs(candidate.width - seed.width) <= seed.width * 0.15)
+      .sort((left, right) => left.x - right.x);
+    const expectedStep = seed.width * NATIVE_CARD_STEP / NATIVE_BASELINE_WIDTH;
+    const lengths = similar.map(() => 1);
+    const previous = similar.map(() => -1);
+    for (let index = 0; index < similar.length; index += 1) {
+      for (let before = 0; before < index; before += 1) {
+        const gap = similar[index].x - similar[before].x;
+        const nativeGap = (gap >= expectedStep * 0.72 && gap <= expectedStep * 1.28)
+          || (gap >= expectedStep * 1.7 && gap <= expectedStep * 2.3);
+        if (nativeGap && lengths[before] + 1 > lengths[index]) {
+          lengths[index] = lengths[before] + 1;
+          previous[index] = before;
+        }
+      }
+    }
+    let tail = lengths.reduce((bestIndex, length, index) => length > lengths[bestIndex] ? index : bestIndex, 0);
+    const sequence = [];
+    while (tail >= 0) {
+      sequence.unshift(similar[tail]);
+      tail = previous[tail];
+    }
+    if (sequence.length > best.length) best = sequence;
+  }
+  return best;
 }
 
 function normalizedPortrait(context, bar) {

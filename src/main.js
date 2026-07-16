@@ -730,7 +730,10 @@ async function analyzeImportedImage() {
     refreshObstacleBlocking();
     state.stacks = result.stacks;
     deployAllArmies(data.battlefield.grid, state.stacks);
-    elements.importStatus.textContent = `Applied ${result.obstacles.length} obstacles and ${result.stacks.length} unit candidates at their standard starting positions. Background: ${result.backgroundId}. ${result.note}`;
+    const cropNote = result.battleWindow?.detected
+      ? " The Battlefield window was detected and cropped automatically before analysis."
+      : "";
+    elements.importStatus.textContent = `Applied ${result.obstacles.length} obstacles and ${result.stacks.length} unit candidates at their standard starting positions. Background: ${result.backgroundId}.${cropNote} ${result.note}`;
     render();
   } catch (error) {
     elements.importStatus.textContent = `Analysis failed: ${error.message}`;

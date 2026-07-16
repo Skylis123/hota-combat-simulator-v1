@@ -2,7 +2,7 @@ import { createBattleStack } from "./battleState.js";
 import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
-import { detectTurnBarRoster } from "./turnBarAnalyzer.js";
+import { detectBattleWindowBounds, detectTurnBarRoster } from "./turnBarAnalyzer.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
@@ -16,6 +16,7 @@ const imagePromiseCache = new Map();
 export async function analyzeBattlefieldScreenshot(file, data) {
   const startedAt = performance.now();
   const source = await createImageBitmap(file);
+  const battleWindow = detectBattleWindowBounds(source);
   // The native queue is outside the normalized battlefield crop, so start
   // reading it from the full screenshot while background preparation runs.
   const turnRosterPromise = detectTurnBarRoster(source, data).catch((error) => ({
@@ -24,8 +25,8 @@ export async function analyzeBattlefieldScreenshot(file, data) {
     entries: [],
     note: `Turn-bar analysis was skipped: ${error.message}`
   }));
-  const screenshotCanvas = normalizeBattlefield(source);
-  const countCanvas = normalizeBattlefield(source, false);
+  const screenshotCanvas = normalizeBattlefield(source, true, battleWindow);
+  const countCanvas = normalizeBattlefield(source, false, battleWindow);
   const screenshot = screenshotCanvas.getContext("2d", { willReadFrequently: true });
   const countContext = countCanvas.getContext("2d", { willReadFrequently: true });
   const backgroundId = identifyBackground(screenshotCanvas, data.backgrounds);
@@ -66,6 +67,7 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const completedAt = performance.now();
   return {
     backgroundId,
+    battleWindow,
     obstacles,
     stacks,
     turnRoster,
@@ -166,19 +168,20 @@ function setImportedStackCount(stack, count) {
   stack.screenshotCountFromTurnBar = true;
 }
 
-function normalizeBattlefield(image, smoothing = true) {
+export function normalizeBattlefield(image, smoothing = true, bounds = null) {
   const targetRatio = WIDTH / HEIGHT;
-  const sourceRatio = image.width / image.height;
-  let sw = image.width;
-  let sh = image.height;
-  if (sourceRatio > targetRatio) sw = image.height * targetRatio;
-  else if (sourceRatio < targetRatio) sh = image.width / targetRatio;
+  const sourceBounds = bounds || { x: 0, y: 0, width: image.width, height: image.height };
+  const sourceRatio = sourceBounds.width / sourceBounds.height;
+  let sw = sourceBounds.width;
+  let sh = sourceBounds.height;
+  if (sourceRatio > targetRatio) sw = sourceBounds.height * targetRatio;
+  else if (sourceRatio < targetRatio) sh = sourceBounds.width / targetRatio;
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const context = canvas.getContext("2d");
   context.imageSmoothingEnabled = smoothing;
-  context.drawImage(image, 0, 0, sw, sh, 0, 0, WIDTH, HEIGHT);
+  context.drawImage(image, sourceBounds.x, sourceBounds.y, sw, sh, 0, 0, WIDTH, HEIGHT);
   return canvas;
 }
 

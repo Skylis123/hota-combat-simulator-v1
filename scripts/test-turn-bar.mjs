@@ -25,13 +25,18 @@ globalThis.document = {
 };
 globalThis.Image = LocalImage;
 
-const { detectTurnBarRoster } = await import(pathToFileURL(path.join(root, "src/engine/turnBarAnalyzer.js")));
+const { detectBattleWindowBounds, detectTurnBarRoster } = await import(pathToFileURL(path.join(root, "src/engine/turnBarAnalyzer.js")));
 const simulator = JSON.parse(fs.readFileSync(path.join(root, "public/data/simulator-v1-data.json"), "utf8"));
 const factory = JSON.parse(fs.readFileSync(path.join(root, "public/data/factory-creatures.json"), "utf8"));
 const neutral = JSON.parse(fs.readFileSync(path.join(root, "public/data/neutral-creatures.json"), "utf8"));
 const detection = JSON.parse(fs.readFileSync(path.join(root, "public/assets/creatures/detection/manifest.json"), "utf8"));
 const data = { ...simulator, creatures: [...simulator.creatures, ...factory.creatures, ...neutral.creatures], creatureDetection: detection };
 const source = await loadImage(fs.readFileSync(path.resolve(process.argv[2])));
+const battleWindow = detectBattleWindowBounds(source);
+if (process.argv.includes("--bounds-only")) {
+  console.log(JSON.stringify(battleWindow, null, 2));
+  process.exit(0);
+}
 const result = await detectTurnBarRoster(source, data);
 const summary = result.entries.map(({ owner, creatureName, count, segment, confidence, margin }) => ({
   owner,
@@ -47,7 +52,8 @@ console.log(JSON.stringify({
   entries: summary,
   patterns: result.patterns,
   lowerBoundRoster: result.lowerBoundRoster,
-  geometry: result.geometry
+  geometry: result.geometry,
+  battleWindow
 }, null, 2));
 
 if (process.argv.includes("--assert-reference")) {

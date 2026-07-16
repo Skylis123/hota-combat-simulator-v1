@@ -53,6 +53,7 @@ if (process.argv.includes("--deploy-start")) deployAllArmies(data.battlefield.gr
 const includeDiagnostics = process.argv.includes("--diagnostics");
 const summary = {
   backgroundId: result.backgroundId,
+  battleWindow: result.battleWindow,
   obstacles: result.obstacles.map(({ id, name, anchorHexId, detectedLeft, detectedTop, blockedHexIds }) => ({
     id,
     name,

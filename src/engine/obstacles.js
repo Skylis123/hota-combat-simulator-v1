@@ -70,10 +70,14 @@ export function createObstacleInstance(grid, definition, anchorHexId = null) {
 }
 
 export function obstacleRenderPosition(grid, obstacle) {
-  if (Number.isFinite(obstacle?.detectedLeft) && Number.isFinite(obstacle?.detectedTop)) {
-    return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
-  }
   if (obstacle?.absolute) {
+    // Fixed battlefield graphics have no grid anchor, so their detected pixel
+    // position is authoritative. Usual obstacles below are deliberately
+    // snapped to their canonical anchor instead of retaining sub-hex image
+    // matching drift from the source screenshot.
+    if (Number.isFinite(obstacle.detectedLeft) && Number.isFinite(obstacle.detectedTop)) {
+      return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
+    }
     return { left: obstacle.width, top: obstacle.height };
   }
   const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
