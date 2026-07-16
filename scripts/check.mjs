@@ -470,6 +470,24 @@ const nativeRenderPosition = obstacleNativePosition(battlefieldGrid, manualRende
 if (nativeRenderPosition?.left !== expectedBottomLeftX || nativeRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
   failures.push("Native obstacle matching must retain the bottom-left game anchor contract.");
 }
+const centeredManualObstacle = { ...manualRenderObstacle, imageWidth: 96 };
+const centeredManualPosition = obstacleRenderPosition(battlefieldGrid, centeredManualObstacle);
+if (centeredManualPosition?.left !== renderAnchor.centerX - 48 || centeredManualPosition?.top !== nativeRenderPosition?.top) {
+  failures.push("Manual obstacle images must be horizontally centered on the clicked anchor hex.");
+}
+for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obstacle.absolute)) {
+  const anchor = battlefieldGrid.hexes.find((hex) => (
+    canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, definition, hex.id)
+  ));
+  if (!anchor) {
+    failures.push(`${definition.name} must have at least one legal manual anchor.`);
+    continue;
+  }
+  const position = obstacleRenderPosition(battlefieldGrid, { ...definition, anchorHexId: anchor.id });
+  if (Math.abs(position.left - (anchor.centerX - definition.imageWidth / 2)) > 0.001) {
+    failures.push(`${definition.name} manual image is not centered on its clicked hex.`);
+  }
+}
 const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
   ...absoluteMarginObstacle,
   detectedLeft: 123.5,

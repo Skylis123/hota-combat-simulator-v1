@@ -14,7 +14,7 @@ export function renderObstacleMenu(container, data, state, handlers) {
   }
   const hint = document.createElement("small");
   hint.className = "obstacle-hint";
-  hint.textContent = "Select an obstacle, then click its bottom-left anchor hex. Right-click a placed obstacle to remove it.";
+  hint.textContent = "Select an obstacle, then click the hex where its base should be placed. Right-click a placed obstacle to remove it.";
   const actions = document.createElement("div");
   actions.className = "obstacle-menu-actions";
   actions.innerHTML = `<button type="button" data-auto-obstacles>Auto layout</button><button type="button" data-clear-obstacles>Clear obstacles</button>`;

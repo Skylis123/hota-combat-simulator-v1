@@ -88,16 +88,14 @@ export function obstacleRenderPosition(grid, obstacle) {
   }
   const nativePosition = obstacleNativePosition(grid, obstacle);
   if (!nativePosition) return null;
-  const blockedHexIds = obstacle.blockedHexIds?.length
-    ? obstacle.blockedHexIds
-    : obstacleBlockedHexes(grid, obstacle);
-  const blockedHexes = blockedHexIds
-    .map((hexId) => grid.hexes.find((hex) => hex.id === hexId))
-    .filter(Boolean);
-  if (!blockedHexes.length || !Number.isFinite(obstacle.imageWidth)) return nativePosition;
-  const centerX = blockedHexes.reduce((sum, hex) => sum + hex.centerX, 0) / blockedHexes.length;
+  const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
+  if (!anchor || !Number.isFinite(obstacle.imageWidth)) return nativePosition;
   return {
-    left: centerX - obstacle.imageWidth / 2,
+    // Manual placement is a direct click contract: the image frame is
+    // centred on the hex the user clicked. Centering it on the average of
+    // `blockedTiles` shifts many Wasteland graphics (especially cacti and
+    // rocks with row-relative footprints) almost one whole hex to the right.
+    left: anchor.centerX - obstacle.imageWidth / 2,
     top: nativePosition.top
   };
 }
