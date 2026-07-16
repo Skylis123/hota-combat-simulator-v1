@@ -32,7 +32,7 @@ import { ARMY_SLOT_COUNT, deployAllArmies, stackInArmySlot } from "./engine/army
 import { selectPointerAttack } from "./engine/battleInteraction.js";
 import { renderObstacleMenu } from "./components/ObstacleMenu.js";
 import { renderBackgroundMenu } from "./components/BackgroundMenu.js";
-import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, generateObstacleLayout } from "./engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, generateObstacleLayout, manualObstaclePlacement } from "./engine/obstacles.js";
 import { analyzeBattlefieldScreenshot } from "./engine/screenshotAnalyzer.js";
 import { selectedTown, simulatorTowns } from "./engine/towns.js";
 
@@ -508,8 +508,12 @@ function onDrop(payload, hexId) {
 async function onHexClick(hexId) {
   if (state.phase === "setup") {
     const definition = data.obstacles.find((obstacle) => obstacle.id === state.selectedObstacleId);
-    if (!definition || definition.absolute || !canPlaceObstacle(data.battlefield.grid, state, definition, hexId)) return;
-    state.obstacles.push(createObstacleInstance(data.battlefield.grid, definition, hexId));
+    if (!definition || definition.absolute) return;
+    const placement = manualObstaclePlacement(data.battlefield.grid, state, definition, hexId);
+    if (!placement) return;
+    const instance = createObstacleInstance(data.battlefield.grid, definition, placement.anchorHexId);
+    instance.manualCenterHexId = placement.clickedHexId;
+    state.obstacles.push(instance);
     refreshObstacleBlocking();
     render();
     return;

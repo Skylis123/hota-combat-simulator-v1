@@ -88,22 +88,44 @@ export function obstacleRenderPosition(grid, obstacle) {
   }
   const nativePosition = obstacleNativePosition(grid, obstacle);
   if (!nativePosition) return null;
-  const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
-  if (!anchor || !Number.isFinite(obstacle.imageWidth)) return nativePosition;
+  const manualCenter = grid.hexes.find((hex) => hex.id === obstacle?.manualCenterHexId);
+  if (!manualCenter || !Number.isFinite(obstacle.visualCenterX)) return nativePosition;
   return {
-    // Manual placement is a direct click contract: the image frame is
-    // centred on the hex the user clicked. Centering it on the average of
-    // `blockedTiles` shifts many Wasteland graphics (especially cacti and
-    // rocks with row-relative footprints) almost one whole hex to the right.
-    left: anchor.centerX - obstacle.imageWidth / 2,
+    // DEF frames contain asymmetric transparent padding and shadows. Center
+    // the alpha-weighted visible graphic, not the full PNG rectangle, on the
+    // hex explicitly chosen by the user.
+    left: manualCenter.centerX - obstacle.visualCenterX,
     top: nativePosition.top
   };
 }
 
+export function manualObstaclePlacement(grid, state, definition, clickedHexId) {
+  const clickedHex = grid.hexes.find((hex) => hex.id === clickedHexId);
+  if (!clickedHex || definition?.absolute) return null;
+  const candidates = [];
+  for (const anchor of grid.hexes) {
+    if (!canPlaceObstacle(grid, state, definition, anchor.id)) continue;
+    const blockedHexIds = obstacleBlockedHexes(grid, definition, anchor.id);
+    if (!blockedHexIds.includes(clickedHexId)) continue;
+    const blockedHexes = blockedHexIds
+      .map((hexId) => grid.hexes.find((hex) => hex.id === hexId))
+      .filter(Boolean);
+    const centerX = blockedHexes.reduce((sum, hex) => sum + hex.centerX, 0) / blockedHexes.length;
+    const centerY = blockedHexes.reduce((sum, hex) => sum + hex.centerY, 0) / blockedHexes.length;
+    candidates.push({
+      anchorHexId: anchor.id,
+      clickedHexId,
+      distance: Math.hypot(centerX - clickedHex.centerX, centerY - clickedHex.centerY)
+    });
+  }
+  candidates.sort((left, right) => left.distance - right.distance || left.anchorHexId - right.anchorHexId);
+  return candidates[0] || null;
+}
+
 // Heroes III/VCMI positions usual obstacle frames from the bottom-left of
 // their logical `pos` hex. Screenshot matching must use this native contract;
-// the interactive renderer above additionally centres a manually selected
-// frame over the hexes it actually blocks.
+// manual placement keeps this vertical contract while centering the visible
+// pixels horizontally on the explicitly selected occupied hex.
 export function obstacleNativePosition(grid, obstacle) {
   if (obstacle?.absolute) return obstacleRenderPosition(grid, obstacle);
   const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);

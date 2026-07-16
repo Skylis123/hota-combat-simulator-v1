@@ -425,6 +425,19 @@ async function rgbaFromPng(filename) {
   return { width: image.width, height: image.height, data: new Uint8ClampedArray(context.getImageData(0, 0, image.width, image.height).data) };
 }
 
+function alphaWeightedCenterX(frame) {
+  let weightedX = 0;
+  let totalAlpha = 0;
+  for (let y = 0; y < frame.height; y += 1) {
+    for (let x = 0; x < frame.width; x += 1) {
+      const alpha = frame.data[(y * frame.width + x) * 4 + 3];
+      weightedX += x * alpha;
+      totalAlpha += alpha;
+    }
+  }
+  return totalAlpha ? Number((weightedX / totalAlpha).toFixed(3)) : Number((frame.width / 2).toFixed(3));
+}
+
 function removeDefSpecialColors(frame) {
   const data = new Uint8ClampedArray(frame.data);
   for (let index = 0; index < data.length; index += 4) {
@@ -734,6 +747,7 @@ async function exportWasteland(vcmiRoot) {
     const destination = path.join(obstacleDestinationRoot, `obstacle-${outputId}.png`);
     await copyFile(source, destination);
     const image = await loadImage(destination);
+    const imagePixels = await rgbaFromPng(destination);
     const absolute = Boolean(definition.absolute);
     const record = {
       id: outputId,
@@ -753,6 +767,7 @@ async function exportWasteland(vcmiRoot) {
       image: `assets/battlefields/obstacles/obstacle-${outputId}.png`,
       imageWidth: image.width,
       imageHeight: image.height,
+      visualCenterX: alphaWeightedCenterX(imagePixels),
       ...(absolute ? { placementOffsetX: definition.width, placementOffsetY: definition.height } : {})
     };
     records.push(record);

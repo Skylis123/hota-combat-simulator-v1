@@ -12,7 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
-import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, manualObstaclePlacement, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
 import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -470,22 +470,37 @@ const nativeRenderPosition = obstacleNativePosition(battlefieldGrid, manualRende
 if (nativeRenderPosition?.left !== expectedBottomLeftX || nativeRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
   failures.push("Native obstacle matching must retain the bottom-left game anchor contract.");
 }
-const centeredManualObstacle = { ...manualRenderObstacle, imageWidth: 96 };
+const centeredManualObstacle = { ...manualRenderObstacle, imageWidth: 96, visualCenterX: 64.4, manualCenterHexId: renderAnchor.id };
 const centeredManualPosition = obstacleRenderPosition(battlefieldGrid, centeredManualObstacle);
-if (centeredManualPosition?.left !== renderAnchor.centerX - 48 || centeredManualPosition?.top !== nativeRenderPosition?.top) {
-  failures.push("Manual obstacle images must be horizontally centered on the clicked anchor hex.");
+if (centeredManualPosition?.left !== renderAnchor.centerX - 64.4 || centeredManualPosition?.top !== nativeRenderPosition?.top) {
+  failures.push("Manual obstacles must center their alpha-weighted visible pixels on the clicked hex.");
 }
 for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obstacle.absolute)) {
-  const anchor = battlefieldGrid.hexes.find((hex) => (
+  const seedAnchor = battlefieldGrid.hexes.find((hex) => (
     canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, definition, hex.id)
   ));
-  if (!anchor) {
+  if (!seedAnchor) {
     failures.push(`${definition.name} must have at least one legal manual anchor.`);
     continue;
   }
-  const position = obstacleRenderPosition(battlefieldGrid, { ...definition, anchorHexId: anchor.id });
-  if (Math.abs(position.left - (anchor.centerX - definition.imageWidth / 2)) > 0.001) {
-    failures.push(`${definition.name} manual image is not centered on its clicked hex.`);
+  const clickedHexId = obstacleBlockedHexes(battlefieldGrid, definition, seedAnchor.id)[0];
+  const placement = manualObstaclePlacement(battlefieldGrid, emptyBattlefieldState, definition, clickedHexId);
+  if (!placement) {
+    failures.push(`${definition.name} could not be placed on one of its legal occupied hexes.`);
+    continue;
+  }
+  const clickedHex = battlefieldGrid.hexes.find((hex) => hex.id === clickedHexId);
+  const position = obstacleRenderPosition(battlefieldGrid, {
+    ...definition,
+    anchorHexId: placement.anchorHexId,
+    manualCenterHexId: placement.clickedHexId
+  });
+  const placedBlockedHexes = obstacleBlockedHexes(battlefieldGrid, definition, placement.anchorHexId);
+  if (!placedBlockedHexes.includes(clickedHexId)) {
+    failures.push(`${definition.name} does not block the manually clicked hex.`);
+  }
+  if (Math.abs(position.left + definition.visualCenterX - clickedHex.centerX) > 0.001) {
+    failures.push(`${definition.name} visible pixels are not centered on the clicked occupied hex.`);
   }
 }
 const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {

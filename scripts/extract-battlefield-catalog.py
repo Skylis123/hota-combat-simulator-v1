@@ -44,6 +44,18 @@ def horizon_fingerprint(image: Image.Image):
     return [channel for pixel in sample.getdata() for channel in pixel]
 
 
+def alpha_weighted_center_x(image: Image.Image) -> float:
+    rgba = image.convert("RGBA")
+    weighted_x = 0
+    total_alpha = 0
+    for y in range(rgba.height):
+        for x in range(rgba.width):
+            alpha = rgba.getpixel((x, y))[3]
+            weighted_x += x * alpha
+            total_alpha += alpha
+    return round(weighted_x / total_alpha, 3) if total_alpha else round(rgba.width / 2, 3)
+
+
 def main() -> int:
     reference_config = ROOT / "_reference_vcmi" / "config" / "obstacles.json"
     if not reference_config.exists():
@@ -99,6 +111,7 @@ def main() -> int:
                 "image": f"assets/battlefields/obstacles/{filename}",
                 "imageWidth": image.width,
                 "imageHeight": image.height,
+                "visualCenterX": alpha_weighted_center_x(image),
             }
         )
 
