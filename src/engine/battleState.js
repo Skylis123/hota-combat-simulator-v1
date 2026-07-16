@@ -1,4 +1,4 @@
-import { computeTurnOrder } from "./turnOrder.js";
+import { computeTurnOrder, nextActiveStack } from "./turnOrder.js";
 import { initializeFactoryStackState } from "./factoryAbilities.js";
 
 export function createInitialState({ selectedTownType = 0 } = {}) {
@@ -92,9 +92,10 @@ export function startBattle(state) {
     stack.retaliationsUsed = 0;
     stack.resurrectionUsed = false;
     stack.defenseBonus = 0;
+    stack.acidDefensePenalty = 0;
   }
   state.turnQueue = computeTurnOrder(state.stacks);
-  state.activeStackId = state.turnQueue[0] || null;
+  state.activeStackId = nextActiveStack(state);
   state.selectedStackId = state.activeStackId;
   state.actionLog.unshift("Battle started.");
 }

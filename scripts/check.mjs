@@ -20,6 +20,8 @@ const dataPath = path.join(root, "public", "data", "simulator-v1-data.json");
 const data = JSON.parse(fs.readFileSync(dataPath, "utf8").replace(/^\uFEFF/, ""));
 const factoryDataPath = path.join(root, "public", "data", "factory-creatures.json");
 const factoryData = JSON.parse(fs.readFileSync(factoryDataPath, "utf8").replace(/^\uFEFF/, ""));
+const neutralDataPath = path.join(root, "public", "data", "neutral-creatures.json");
+const neutralData = JSON.parse(fs.readFileSync(neutralDataPath, "utf8").replace(/^\uFEFF/, ""));
 
 function pngDimensions(filePath) {
   const buffer = fs.readFileSync(filePath);
@@ -49,6 +51,14 @@ const factoryIds = (factoryData.creatures || []).map((creature) => creature.crea
 if (JSON.stringify(factoryIds) !== JSON.stringify(expectedFactoryIds)) {
   failures.push(`Factory creature roster must contain the 16 audited HotA IDs in order: ${factoryIds.join(", ")}.`);
 }
+const expectedNeutralIds = [116, 117, 132, 133, 134, 135, 136, 137, 139, 140, 141, 142, 143, 144, 167, 168, 169, 170];
+const neutralIds = (neutralData.creatures || []).map((creature) => creature.creatureId);
+if (JSON.stringify(neutralIds) !== JSON.stringify(expectedNeutralIds)) {
+  failures.push(`Neutral roster must contain all 18 HotA neutral creatures in audited ID order: ${neutralIds.join(", ")}.`);
+}
+if (neutralData.town?.name !== "Neutral" || neutralData.town?.rosterRows?.some((row) => row.entries.length > 2)) {
+  failures.push("Neutral creatures must be exposed as a normal Units category with at most two cards per row.");
+}
 const factoryLines = factoryData.town?.creatureLines || [];
 const factoryTierSevenLines = factoryLines.filter((line) => line.tier === 7);
 if (
@@ -72,8 +82,8 @@ if (JSON.stringify(wastelandObstacles.map((obstacle) => obstacle.id)) !== JSON.s
 
 const detectionManifest = JSON.parse(fs.readFileSync(path.join(root, "public", "assets", "creatures", "detection", "manifest.json"), "utf8"));
 const battleAnimationManifest = JSON.parse(fs.readFileSync(path.join(root, "public", "assets", "creatures", "animations", "castle-battle-animations.json"), "utf8"));
-if (Object.keys(detectionManifest.creatures || {}).length !== 30 || Object.keys(battleAnimationManifest.creatures || {}).length !== 30) {
-  failures.push("Creature manifests must contain all 14 Castle and all 16 Factory creatures.");
+if (Object.keys(detectionManifest.creatures || {}).length !== 48 || Object.keys(battleAnimationManifest.creatures || {}).length !== 48) {
+  failures.push("Creature manifests must contain all 14 Castle, 16 Factory and 18 neutral creatures.");
 }
 const larvaAnimation = battleAnimationManifest.summonOnlyCreatures?.["10001"];
 if (!larvaAnimation?.summonOnly || detectionManifest.creatures?.["10001"]) {
@@ -87,14 +97,14 @@ for (const asset of [
 ]) {
   if (!fs.existsSync(path.join(root, "public", asset))) failures.push(`Missing summon-only Sandworm Larva asset: ${asset}.`);
 }
-for (const creature of factoryData.creatures || []) {
+for (const creature of [...(factoryData.creatures || []), ...(neutralData.creatures || [])]) {
   const creatureId = String(creature.creatureId);
   const detection = detectionManifest.creatures?.[creatureId];
   const animation = battleAnimationManifest.creatures?.[creatureId];
   if (!detection || !Array.isArray(detection.frames) || detection.frames.length === 0) {
-    failures.push(`Factory detection manifest is missing frames for ${creature.name} (${creatureId}).`);
+    failures.push(`Creature detection manifest is missing frames for ${creature.name} (${creatureId}).`);
   }
-  if (!animation) failures.push(`Factory animation manifest is missing ${creature.name} (${creatureId}).`);
+  if (!animation) failures.push(`Battle animation manifest is missing ${creature.name} (${creatureId}).`);
   const exportedAnimations = (creature.asset?.battleAnimationActions || []).map((action) => (
     action === "corpse"
       ? creature.asset?.corpseImage
@@ -110,7 +120,7 @@ for (const creature of factoryData.creatures || []) {
     ...exportedAnimations
   ]) {
     if (!asset || !fs.existsSync(path.join(root, "public", asset))) {
-      failures.push(`Missing Factory asset for ${creature.name}: ${asset || "undefined"}`);
+      failures.push(`Missing creature asset for ${creature.name}: ${asset || "undefined"}`);
     }
   }
 }
@@ -443,10 +453,10 @@ if (detectedAbsolutePosition?.left !== 123.5 || detectedAbsolutePosition?.top !=
   failures.push("Screenshot-detected absolute obstacles must preserve their fixed image coordinates.");
 }
 const negativeRowObstacle = { ...marginObstacle, height: 3, blockedTiles: [-33, -34] };
-const detectedBaseFootprint = detectedObstacleBlockedHexes(battlefieldGrid, negativeRowObstacle, renderAnchor.id)
-  .map((hexId) => battlefieldGrid.hexes.find((hex) => hex.id === hexId));
-if (detectedBaseFootprint.length !== 2 || Math.max(...detectedBaseFootprint.map((hex) => hex.row)) !== renderAnchor.row - 1) {
-  failures.push("Screenshot-detected obstacle footprints with negative-only offsets must move one row toward the visual base.");
+const detectedBaseFootprint = detectedObstacleBlockedHexes(battlefieldGrid, negativeRowObstacle, renderAnchor.id);
+const canonicalBaseFootprint = obstacleBlockedHexes(battlefieldGrid, negativeRowObstacle, renderAnchor.id);
+if (JSON.stringify(detectedBaseFootprint) !== JSON.stringify(canonicalBaseFootprint)) {
+  failures.push("Screenshot-detected obstacles must preserve the canonical VCMI blocked-tile footprint without a visual row shift.");
 }
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {

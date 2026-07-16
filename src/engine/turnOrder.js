@@ -1,4 +1,5 @@
 import { beginFactoryStackTurn, resetFactoryRoundState } from "./factoryAbilities.js";
+import { beginNeutralStackTurn } from "./neutralAbilities.js";
 
 export function computeTurnOrder(stacks, options = {}) {
   const { ascendingSpeed = false, initialLastOwner = null } = options;
@@ -48,7 +49,12 @@ export function nextActiveStack(state) {
   }
 
   const pending = pendingTurnOrder(state);
-  if (pending.length) return beginStackTurn(state, pending[0]);
+  if (pending.length) {
+    const next = beginStackTurn(state, pending[0]);
+    if (next) return next;
+    state.activeStackId = pending[0];
+    return nextActiveStack(state);
+  }
   for (const stack of state.stacks) {
     stack.statuses.acted = false;
     stack.statuses.waiting = false;
@@ -87,5 +93,6 @@ function beginStackTurn(state, stackId) {
   if (beginFactoryStackTurn(stack)) {
     state.actionLog?.unshift(`${stack.label} is no longer invulnerable.`);
   }
+  if (beginNeutralStackTurn(state, stack).skipped) return null;
   return stackId;
 }

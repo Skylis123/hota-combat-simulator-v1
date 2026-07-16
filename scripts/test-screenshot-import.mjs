@@ -33,9 +33,10 @@ const [{ analyzeBattlefieldScreenshot }, { deployAllArmies }] = await Promise.al
 ]);
 const simulator = JSON.parse(fs.readFileSync(path.join(root, "public/data/simulator-v1-data.json"), "utf8"));
 const factory = JSON.parse(fs.readFileSync(path.join(root, "public/data/factory-creatures.json"), "utf8"));
+const neutral = JSON.parse(fs.readFileSync(path.join(root, "public/data/neutral-creatures.json"), "utf8"));
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "public/data/battlefield-catalog.json"), "utf8"));
 const detection = JSON.parse(fs.readFileSync(path.join(root, "public/assets/creatures/detection/manifest.json"), "utf8"));
-const creaturesById = new Map([...(simulator.creatures || []), ...(factory.creatures || [])]
+const creaturesById = new Map([...(simulator.creatures || []), ...(factory.creatures || []), ...(neutral.creatures || [])]
   .map((creature) => [Number(creature.creatureId), creature]));
 const data = {
   ...simulator,

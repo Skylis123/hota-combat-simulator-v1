@@ -8,7 +8,8 @@
     "prepare:data": "node scripts/prepare-data.mjs",
     "dev": "node scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node scripts/check.mjs && node scripts/test-roster-assignment.mjs && node scripts/test-factory-mechanics.mjs"
+    "audit:obstacles": "node scripts/audit-obstacle-import.mjs",
+    "check": "node scripts/check.mjs && node scripts/test-roster-assignment.mjs && node scripts/test-factory-mechanics.mjs && node scripts/test-neutral-mechanics.mjs"
   },
   "keywords": [
     "hota",

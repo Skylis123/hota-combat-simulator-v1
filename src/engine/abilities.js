@@ -1,4 +1,5 @@
 import { factoryAbilityFor } from "./factoryAbilities.js";
+import { neutralAbilityFor } from "./neutralAbilities.js";
 
 const ABILITY_PATTERNS = [
   ["ranged", ["ranged", "shoot", "shooter"]],
@@ -66,6 +67,8 @@ export function inferAbilityFlags(creature) {
   if (exactCastle) Object.assign(flags, exactCastle);
   const exactFactory = factoryAbilityFor(creature);
   if (exactFactory?.flags) Object.assign(flags, exactFactory.flags);
+  const exactNeutral = neutralAbilityFor(creature);
+  if (exactNeutral) Object.assign(flags, exactNeutral);
   return flags;
 }
 
@@ -98,5 +101,14 @@ export function abilityBadges(creature) {
   if (flags.temporaryInvulnerability) badges.push("Temporary invulnerability");
   if (flags.heatStroke) badges.push("Heat Stroke");
   if (flags.twoHex) badges.push("Two-hex creature");
+  if (flags.noRangePenalty) badges.push("No range penalty");
+  if (flags.noWallPenalty) badges.push("No wall penalty");
+  if (flags.nonLiving) badges.push("Non-living");
+  if (flags.undead) badges.push("Undead");
+  if (flags.mindImmune) badges.push("Mind immunity");
+  if (flags.fearAura) badges.push("Fear aura (10%)");
+  if (flags.acidBreath) badges.push("Acid breath");
+  if (flags.regeneration) badges.push(`Regeneration ${flags.regeneration} HP`);
+  if (flags.luckAura) badges.push("Doubles allied Luck chance");
   return badges;
 }

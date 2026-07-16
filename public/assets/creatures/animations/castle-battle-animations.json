@@ -1990,6 +1990,1111 @@
           "durationMs": 80
         }
       }
+    },
+    "116": {
+      "def": "CGGOLE.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "303b32146a3c683749039a87a2922fc57ea030d5627f9b5d020184d1777b9eae",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 3,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "117": {
+      "def": "CDGOLE.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "58558cf65828f847bac21d950f575ab557b661d6da83a94b72663fa866d0a2f2",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 6,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "132": {
+      "def": "CADRGN.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "6df1b7fd83649d7ce119b42f069c912269ec90b72b72259b4a62f1c442b72fc1",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 11,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 11,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 8,
+          "durationMs": 80
+        }
+      }
+    },
+    "133": {
+      "def": "CCDRGN.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "606911b11be6aef0511c1bee5fc233298f27b640629b0b1ca4c8f7f4e118aee0",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "134": {
+      "def": "CFDRGN.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "d109110069361dbaefb5fd00976afa79eeebb5ed06038c4fccab391cd5c720ca",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 12,
+          "durationMs": 80
+        }
+      }
+    },
+    "135": {
+      "def": "CRSDGN.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "8ef20c4c042a33148b49756d44723a102b6f20ce5fb4c48e029b4c3907b53ed6",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 11,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 11,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 12,
+          "durationMs": 80
+        }
+      }
+    },
+    "136": {
+      "def": "CENCH.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "28494929f6e3e6b10ccd5bd0a824138bd990ede8b4af3910a92f98fce756bc90",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 10,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 10,
+          "durationMs": 80
+        }
+      }
+    },
+    "137": {
+      "def": "CSHARP.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "3df42e77636e4a4e9e195153a7089d938c07a8e7924f59b15adb744ba65a9863",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 7,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 12,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 12,
+          "durationMs": 80
+        }
+      }
+    },
+    "139": {
+      "def": "CPEAS.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "7767f5a19d0e3d89b8b6fe90358d07a818f8a61d486e40225737faf9012b1ca4",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 6,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 2,
+          "durationMs": 80
+        }
+      }
+    },
+    "140": {
+      "def": "CBOAR.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "810da08584abf0ed682e7deae5df882345186f7d0d82f20b5db3888572d28942",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "141": {
+      "def": "CMUMMY.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "3d9190284e3219c68f2cfde2d4f9b04ce21808c017023f19a3d3b8a230ae8007",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 6,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 8,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "142": {
+      "def": "CNOMAD.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "1e71f2b026bef2366b222b4b563574ffffe116597f762cee6b4a2248eb1e2a6b",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 10,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "143": {
+      "def": "CROGUE.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "88cf9f2ca22fd4e39ffede96f0df8680c73b80350f915bbccef95b6c44348d58",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 9,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "144": {
+      "def": "CTROLL.DEF",
+      "archive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+      "sourceSha256": "af998771ace43462a6f94310f46c681e7dc471d89faf5a6f8f9ae7f0e9b3d5cc",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 6,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 6,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 9,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
+    },
+    "167": {
+      "def": "CSATYR.def",
+      "archive": "VCMI Horn of the Abyss neutral creatures 1.2",
+      "sourceSha256": "734365a8f94c7c0dde43020c310b255f0a0fd2c84c6b3f3b7df8dff8e2719fbb",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 10,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 12,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 6,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 15,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 15,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 15,
+          "durationMs": 80
+        }
+      }
+    },
+    "168": {
+      "def": "CFANGARM.DEF",
+      "archive": "VCMI Horn of the Abyss neutral creatures 1.2",
+      "sourceSha256": "70512448641faea5f0bc7340a7b51c1e456f643fabd1237dc30b0cdad1615a1f",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 12,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 5,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 10,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 6,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 2,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 2,
+          "durationMs": 80
+        }
+      }
+    },
+    "169": {
+      "def": "CLEPRCHN.def",
+      "archive": "VCMI Horn of the Abyss neutral creatures 1.2",
+      "sourceSha256": "c904a121891f1eb0ef0bb35a0efe71f89660e2e3fb5d9d6285081caac2447396",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 8,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 8,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 11,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 8,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 15,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 15,
+          "durationMs": 80
+        },
+        "shoot-down": {
+          "groupIndex": 15,
+          "frameCount": 15,
+          "durationMs": 80
+        }
+      }
+    },
+    "170": {
+      "def": "cstlgole.def",
+      "archive": "VCMI Horn of the Abyss neutral creatures 1.2",
+      "sourceSha256": "4a9e99b69a41ae7248f2823131d18b8244b4e666090d9594be0c1907402b9a12",
+      "animations": {
+        "move": {
+          "groupIndex": 0,
+          "frameCount": 9,
+          "durationMs": 90
+        },
+        "idle": {
+          "groupIndex": 2,
+          "frameCount": 14,
+          "durationMs": 140
+        },
+        "hit": {
+          "groupIndex": 3,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "defend": {
+          "groupIndex": 4,
+          "frameCount": 7,
+          "durationMs": 90
+        },
+        "death": {
+          "groupIndex": 5,
+          "frameCount": 11,
+          "durationMs": 110
+        },
+        "corpse": {
+          "source": "tight-cropped last death frame"
+        },
+        "attack-up": {
+          "groupIndex": 10,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-front": {
+          "groupIndex": 11,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "attack-down": {
+          "groupIndex": 12,
+          "frameCount": 7,
+          "durationMs": 80
+        },
+        "shoot-up": {
+          "groupIndex": 13,
+          "frameCount": 1,
+          "durationMs": 80
+        },
+        "shoot-front": {
+          "groupIndex": 14,
+          "frameCount": 1,
+          "durationMs": 80
+        }
+      }
     }
   },
   "summonOnlyCreatures": {

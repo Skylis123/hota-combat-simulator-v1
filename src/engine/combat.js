@@ -168,8 +168,8 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
   if (moved) attacker.hexId = option.approachHex;
 
   const mode = option.mode === "ranged" ? "ranged" : "melee";
-  const rangePenalty = mode === "ranged" && distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
   const abilities = inferAbilityFlags(attacker.creature);
+  const rangePenalty = mode === "ranged" && !abilities.noRangePenalty && distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
   attacker.suppressRetaliationThisAttack = Boolean(attacker.heatStrokeActive || attacker.detonationActive);
   const requestedStrikes = abilities.doubleAttack ? 2 : 1;
   const strikes = mode === "ranged" ? Math.min(requestedStrikes, Math.max(1, Number(attacker.shotsRemaining || 0))) : requestedStrikes;
@@ -225,6 +225,18 @@ export function executeAttack(state, grid, attacker, target, option = attackOpti
       before: result.before,
       after: result.after
     });
+
+    if (abilities.acidBreath) {
+      target.acidDefensePenalty = Number(target.acidDefensePenalty || 0) + 3;
+      const rng = typeof state.rng === "function" ? state.rng : Math.random;
+      if (target.alive !== false && rng() < 0.3) {
+        const acid = applyCombatDamage(state, grid, target, 25 * Math.max(1, Number(attacker.count || 1)), {
+          source: attacker,
+          kind: "acid_breath"
+        });
+        splashLog.push({ attacker: attacker.id, target: target.id, damage: acid.damage, acidBreath: true });
+      }
+    }
 
     if (abilities.breathAttack) {
       const splashTarget = breathSplashTarget(grid, state, attacker, target, option);
@@ -385,7 +397,7 @@ function detonationValue(grid, state, stack, primaryTarget) {
 
 function scoreAttackOption(grid, attacker, target, option) {
   if (option.mode === "ranged") {
-    const rangePenalty = distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
+    const rangePenalty = !inferAbilityFlags(attacker.creature).noRangePenalty && distanceByBreadthFirst(grid, attacker.hexId, target.hexId) > 10 ? 0.5 : 1;
     const damage = calculateExpectedDamage(attacker, target, null, { mode: "ranged", rangePenalty }).damage;
     return calculateHpLossValue(target, damage).value;
   }

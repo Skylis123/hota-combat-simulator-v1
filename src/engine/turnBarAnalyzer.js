@@ -53,7 +53,7 @@ export async function detectTurnBarRoster(source, data, options = {}) {
     };
   });
 
-  applyClusterConsensus(entries, creatureThreshold, marginThreshold);
+  const patterns = applyClusterConsensus(entries, creatureThreshold, marginThreshold);
   for (const entry of entries) {
     // Unknown is safer than a plausible but unsupported creature. A later
     // battlefield pass can still use the alternatives as soft evidence.
@@ -68,6 +68,7 @@ export async function detectTurnBarRoster(source, data, options = {}) {
     detected: true,
     roundBreakIndex,
     entries,
+    patterns: summarizePatterns(patterns),
     vocabulary: uniqueVocabulary(entries),
     lowerBoundRoster: lowerBoundRoster(entries),
     cardCount: entries.length,
@@ -80,6 +81,7 @@ function emptyResult(note) {
     detected: false,
     roundBreakIndex: null,
     entries: [],
+    patterns: [],
     vocabulary: [],
     lowerBoundRoster: [],
     cardCount: 0,
@@ -225,7 +227,10 @@ function detectOwner(context, bar) {
 }
 
 async function loadCreatureTemplates(data, loadImage) {
-  return Promise.all(data.creatures.map(async (creature) => {
+  const registered = data.creatures.filter((creature) => (
+    Boolean(data.creatureDetection?.creatures?.[String(creature.creatureId)]?.queuePortrait)
+  ));
+  return Promise.all(registered.map(async (creature) => {
     const path = data.creatureDetection?.creatures?.[String(creature.creatureId)]?.queuePortrait;
     const image = path ? await loadAsset(path, loadImage) : null;
     const canvas = document.createElement("canvas");
@@ -407,6 +412,10 @@ function applyClusterConsensus(entries, creatureThreshold, marginThreshold) {
     }
     cluster.entries.push(entry);
   }
+  clusters.forEach((cluster, index) => {
+    cluster.patternId = `turn-pattern-${index + 1}`;
+    for (const entry of cluster.entries) entry.patternId = cluster.patternId;
+  });
   for (const cluster of clusters) {
     if (cluster.entries.length < 2) continue;
     const aggregate = new Map();
@@ -430,6 +439,25 @@ function applyClusterConsensus(entries, creatureThreshold, marginThreshold) {
       entry.margin = margin;
     }
   }
+  return clusters;
+}
+
+function summarizePatterns(clusters) {
+  return clusters.map((cluster) => {
+    const identified = cluster.entries.filter((entry) => entry.creatureId !== null);
+    const identity = identified.sort((left, right) => right.confidence - left.confidence)[0] || null;
+    return {
+      patternId: cluster.patternId,
+      owner: cluster.owner,
+      creatureId: identity?.creatureId ?? null,
+      creatureName: identity?.creatureName ?? null,
+      occurrences: cluster.entries.length,
+      currentOccurrences: cluster.entries.filter((entry) => entry.segment === "current").length,
+      nextOccurrences: cluster.entries.filter((entry) => entry.segment === "next").length,
+      counts: [...new Set(cluster.entries.map((entry) => entry.count).filter(Number.isInteger))],
+      slotIndexes: cluster.entries.map((entry) => entry.slotIndex)
+    };
+  });
 }
 
 function detectRoundBreak(bars) {

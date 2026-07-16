@@ -23,27 +23,13 @@ export function obstacleBlockedHexes(grid, obstacle, anchorHexId = obstacle?.anc
   }).filter((id) => id !== null);
 }
 
-// Imported obstacle sprites have an exact pixel position from the source
-// screenshot. Some HotA definitions (notably Wasteland rocks) contain only
-// negative row offsets, leaving their logical footprint visibly above the
-// sprite. Keep the catalog shape, but move imported footprints one row toward
-// the visible base; moving all the way to the anchor would over-correct tall
-// rocks and overlap stacks that legally stand in front of them.
+// Imported obstacles use the exact same `pos + blockedTiles` contract as the
+// game. Negative offsets are intentional: tall graphics are anchored at their
+// bottom-left battlefield hex while the blocking footprint may sit one or more
+// rows above that anchor. Moving that footprint independently makes the sprite
+// and the movement grid disagree.
 export function detectedObstacleBlockedHexes(grid, obstacle, anchorHexId = obstacle?.anchorHexId) {
-  if (!obstacle || obstacle.absolute) return obstacleBlockedHexes(grid, obstacle, anchorHexId);
-  const anchor = grid.hexes.find((hex) => hex.id === anchorHexId);
-  if (!anchor) return [];
-  const blockedHexIds = obstacleBlockedHexes(grid, obstacle, anchorHexId);
-  const blockedRows = blockedHexIds
-    .map((hexId) => grid.hexes.find((hex) => hex.id === hexId)?.row)
-    .filter(Number.isFinite);
-  const lowestBlockedRow = blockedRows.length ? Math.max(...blockedRows) : anchor.row;
-  const rowShift = Math.min(1, anchor.row - lowestBlockedRow);
-  if (rowShift <= 0) return blockedHexIds;
-  return obstacleBlockedHexes(grid, {
-    ...obstacle,
-    blockedTiles: obstacle.blockedTiles.map((offset) => offset + rowShift * ORIGINAL_COLS)
-  }, anchorHexId);
+  return obstacleBlockedHexes(grid, obstacle, anchorHexId);
 }
 
 export function allObstacleBlockedHexes(state) {

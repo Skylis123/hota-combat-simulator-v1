@@ -1,0 +1,1278 @@
+{
+  "schemaVersion": 1,
+  "source": "Local HotA CRTRAITS + VCMI neutral creature configs + official HotA neutral documentation",
+  "town": {
+    "townType": 12,
+    "name": "Neutral",
+    "origin": "Horn of the Abyss",
+    "nativeTerrain": "grass",
+    "battlefield": "cmbkgrtr",
+    "rosterRows": [
+      {
+        "tier": 1,
+        "label": "L1",
+        "entries": [
+          {
+            "creatureId": 139
+          }
+        ]
+      },
+      {
+        "tier": 2,
+        "label": "L2",
+        "entries": [
+          {
+            "creatureId": 140
+          },
+          {
+            "creatureId": 143
+          }
+        ]
+      },
+      {
+        "tier": 2,
+        "label": "L2 II",
+        "entries": [
+          {
+            "creatureId": 169
+          }
+        ]
+      },
+      {
+        "tier": 3,
+        "label": "L3",
+        "entries": [
+          {
+            "creatureId": 141
+          },
+          {
+            "creatureId": 142
+          }
+        ]
+      },
+      {
+        "tier": 4,
+        "label": "L4",
+        "entries": [
+          {
+            "creatureId": 137
+          },
+          {
+            "creatureId": 167
+          }
+        ]
+      },
+      {
+        "tier": 4,
+        "label": "L4 II",
+        "entries": [
+          {
+            "creatureId": 170
+          }
+        ]
+      },
+      {
+        "tier": 5,
+        "label": "L5",
+        "entries": [
+          {
+            "creatureId": 116
+          },
+          {
+            "creatureId": 144
+          }
+        ]
+      },
+      {
+        "tier": 5,
+        "label": "L5 II",
+        "entries": [
+          {
+            "creatureId": 168
+          }
+        ]
+      },
+      {
+        "tier": 6,
+        "label": "L6",
+        "entries": [
+          {
+            "creatureId": 117
+          },
+          {
+            "creatureId": 136
+          }
+        ]
+      },
+      {
+        "tier": 8,
+        "label": "L8",
+        "entries": [
+          {
+            "creatureId": 134
+          }
+        ]
+      },
+      {
+        "tier": 10,
+        "label": "L10",
+        "entries": [
+          {
+            "creatureId": 132
+          },
+          {
+            "creatureId": 133
+          }
+        ]
+      },
+      {
+        "tier": 10,
+        "label": "L10 II",
+        "entries": [
+          {
+            "creatureId": 135
+          }
+        ]
+      }
+    ]
+  },
+  "creatures": [
+    {
+      "creatureId": 116,
+      "name": "Gold Golem",
+      "internalName": "goldGolem",
+      "tier": 5,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 11,
+        "defense": 12,
+        "minDamage": 8,
+        "maxDamage": 10,
+        "hp": 50,
+        "speed": 5,
+        "shots": 0,
+        "growth": 3,
+        "aiValue": 600,
+        "fightValue": 600,
+        "costGold": 500
+      },
+      "abilities": [
+        {
+          "key": "nonLiving",
+          "kind": "passive",
+          "details": "Non-living construct."
+        },
+        {
+          "key": "golem",
+          "kind": "passive",
+          "details": "Golem; spell damage is reduced by 85%."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/116.png",
+        "idleAnimation": "assets/creatures/animations/116/idle.gif",
+        "previewImage": "assets/creatures/png/116.png",
+        "spritesheet": "assets/creatures/spritesheets/116.png",
+        "corpseImage": "assets/creatures/animations/116/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/116",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/116/portrait.png",
+        "queuePortrait": "assets/creatures/detection/116/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CGGOLE.DEF",
+        "sourceSha256": "303b32146a3c683749039a87a2922fc57ea030d5627f9b5d020184d1777b9eae",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 117,
+      "name": "Diamond Golem",
+      "internalName": "diamondGolem",
+      "tier": 6,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 13,
+        "defense": 12,
+        "minDamage": 10,
+        "maxDamage": 14,
+        "hp": 60,
+        "speed": 5,
+        "shots": 0,
+        "growth": 2,
+        "aiValue": 775,
+        "fightValue": 775,
+        "costGold": 750
+      },
+      "abilities": [
+        {
+          "key": "nonLiving",
+          "kind": "passive",
+          "details": "Non-living construct."
+        },
+        {
+          "key": "golem",
+          "kind": "passive",
+          "details": "Golem; spell damage is reduced by 95%."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/117.png",
+        "idleAnimation": "assets/creatures/animations/117/idle.gif",
+        "previewImage": "assets/creatures/png/117.png",
+        "spritesheet": "assets/creatures/spritesheets/117.png",
+        "corpseImage": "assets/creatures/animations/117/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/117",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/117/portrait.png",
+        "queuePortrait": "assets/creatures/detection/117/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CDGOLE.DEF",
+        "sourceSha256": "58558cf65828f847bac21d950f575ab557b661d6da83a94b72663fa866d0a2f2",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 132,
+      "name": "Azure Dragon",
+      "internalName": "azureDragon",
+      "tier": 10,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 50,
+        "defense": 50,
+        "minDamage": 70,
+        "maxDamage": 80,
+        "hp": 1000,
+        "speed": 19,
+        "shots": 0,
+        "growth": 1,
+        "aiValue": 78845,
+        "fightValue": 56315,
+        "costGold": 30000
+      },
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        },
+        {
+          "key": "breathAttack",
+          "kind": "passive",
+          "details": "Breath attack also hits the unit directly behind the target."
+        },
+        {
+          "key": "fearAura",
+          "kind": "passive",
+          "details": "Enemy living creatures have a 10% Fear check before acting."
+        },
+        {
+          "key": "spellImmunity",
+          "kind": "passive",
+          "details": "Immune to spell levels 1-3 (spell mechanic pending)."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/132.png",
+        "idleAnimation": "assets/creatures/animations/132/idle.gif",
+        "previewImage": "assets/creatures/png/132.png",
+        "spritesheet": "assets/creatures/spritesheets/132.png",
+        "corpseImage": "assets/creatures/animations/132/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/132",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/132/portrait.png",
+        "queuePortrait": "assets/creatures/detection/132/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CADRGN.DEF",
+        "sourceSha256": "6df1b7fd83649d7ce119b42f069c912269ec90b72b72259b4a62f1c442b72fc1",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 133,
+      "name": "Crystal Dragon",
+      "internalName": "crystalDragon",
+      "tier": 10,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 40,
+        "defense": 40,
+        "minDamage": 60,
+        "maxDamage": 75,
+        "hp": 800,
+        "speed": 16,
+        "shots": 0,
+        "growth": 1,
+        "aiValue": 39338,
+        "fightValue": 30260,
+        "costGold": 20000
+      },
+      "abilities": [
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        },
+        {
+          "key": "magicResistance",
+          "kind": "passive",
+          "details": "20% chance to resist hostile spells (spell mechanic pending)."
+        },
+        {
+          "key": "crystalGeneration",
+          "kind": "passive",
+          "details": "Generates crystals on the adventure map."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/133.png",
+        "idleAnimation": "assets/creatures/animations/133/idle.gif",
+        "previewImage": "assets/creatures/png/133.png",
+        "spritesheet": "assets/creatures/spritesheets/133.png",
+        "corpseImage": "assets/creatures/animations/133/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/133",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/133/portrait.png",
+        "queuePortrait": "assets/creatures/detection/133/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CCDRGN.DEF",
+        "sourceSha256": "606911b11be6aef0511c1bee5fc233298f27b640629b0b1ca4c8f7f4e118aee0",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 134,
+      "name": "Faerie Dragon",
+      "internalName": "faerieDragon",
+      "tier": 8,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 20,
+        "defense": 20,
+        "minDamage": 20,
+        "maxDamage": 30,
+        "hp": 500,
+        "speed": 15,
+        "shots": 0,
+        "growth": 1,
+        "aiValue": 30501,
+        "fightValue": 16317,
+        "costGold": 10000
+      },
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        },
+        {
+          "key": "magicMirror",
+          "kind": "passive",
+          "details": "20% Magic Mirror (spell mechanic pending)."
+        },
+        {
+          "key": "spellcaster",
+          "kind": "passive",
+          "details": "Casts Magic Arrow, Ice Bolt, Lightning Bolt, Chain Lightning, Frost Ring, Fireball, Inferno and Meteor Shower; names only until spells are implemented."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/134.png",
+        "idleAnimation": "assets/creatures/animations/134/idle.gif",
+        "previewImage": "assets/creatures/png/134.png",
+        "spritesheet": "assets/creatures/spritesheets/134.png",
+        "corpseImage": "assets/creatures/animations/134/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/134",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/134/portrait.png",
+        "queuePortrait": "assets/creatures/detection/134/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CFDRGN.DEF",
+        "sourceSha256": "d109110069361dbaefb5fd00976afa79eeebb5ed06038c4fccab391cd5c720ca",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 135,
+      "name": "Rust Dragon",
+      "internalName": "rustDragon",
+      "tier": 10,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 30,
+        "defense": 30,
+        "minDamage": 50,
+        "maxDamage": 50,
+        "hp": 750,
+        "speed": 17,
+        "shots": 0,
+        "growth": 1,
+        "aiValue": 26433,
+        "fightValue": 24030,
+        "costGold": 15000
+      },
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        },
+        {
+          "key": "breathAttack",
+          "kind": "passive",
+          "details": "Breath attack also hits the unit directly behind the target."
+        },
+        {
+          "key": "acidBreath",
+          "kind": "passive",
+          "details": "Each attack reduces target Defense by 3; 30% chance for 25 extra damage per Rust Dragon."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/135.png",
+        "idleAnimation": "assets/creatures/animations/135/idle.gif",
+        "previewImage": "assets/creatures/png/135.png",
+        "spritesheet": "assets/creatures/spritesheets/135.png",
+        "corpseImage": "assets/creatures/animations/135/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/135",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/135/portrait.png",
+        "queuePortrait": "assets/creatures/detection/135/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CRSDGN.DEF",
+        "sourceSha256": "8ef20c4c042a33148b49756d44723a102b6f20ce5fb4c48e029b4c3907b53ed6",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 136,
+      "name": "Enchanter",
+      "internalName": "enchanter",
+      "tier": 6,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 17,
+        "defense": 12,
+        "minDamage": 14,
+        "maxDamage": 14,
+        "hp": 30,
+        "speed": 9,
+        "shots": 32,
+        "growth": 2,
+        "aiValue": 1210,
+        "fightValue": 805,
+        "costGold": 750
+      },
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Shooter; 32 shots."
+        },
+        {
+          "key": "noMeleePenalty",
+          "kind": "passive",
+          "details": "No melee penalty."
+        },
+        {
+          "key": "noWallPenalty",
+          "kind": "passive",
+          "details": "No wall penalty."
+        },
+        {
+          "key": "spellcaster",
+          "kind": "passive",
+          "details": "Group-casts Haste, Slow, Stone Skin, Bless, Weakness or Air Shield; names only until spells are implemented."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/136.png",
+        "idleAnimation": "assets/creatures/animations/136/idle.gif",
+        "previewImage": "assets/creatures/png/136.png",
+        "spritesheet": "assets/creatures/spritesheets/136.png",
+        "corpseImage": "assets/creatures/animations/136/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/136",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/136/portrait.png",
+        "queuePortrait": "assets/creatures/detection/136/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CENCH.DEF",
+        "sourceSha256": "28494929f6e3e6b10ccd5bd0a824138bd990ede8b4af3910a92f98fce756bc90",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 137,
+      "name": "Sharpshooter",
+      "internalName": "sharpshooter",
+      "tier": 4,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 12,
+        "defense": 10,
+        "minDamage": 8,
+        "maxDamage": 10,
+        "hp": 15,
+        "speed": 9,
+        "shots": 32,
+        "growth": 4,
+        "aiValue": 585,
+        "fightValue": 415,
+        "costGold": 400
+      },
+      "abilities": [
+        {
+          "key": "shooter",
+          "kind": "passive",
+          "details": "Shooter; 32 shots."
+        },
+        {
+          "key": "noRangePenalty",
+          "kind": "passive",
+          "details": "No range penalty."
+        },
+        {
+          "key": "noWallPenalty",
+          "kind": "passive",
+          "details": "No wall penalty."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/137.png",
+        "idleAnimation": "assets/creatures/animations/137/idle.gif",
+        "previewImage": "assets/creatures/png/137.png",
+        "spritesheet": "assets/creatures/spritesheets/137.png",
+        "corpseImage": "assets/creatures/animations/137/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/137",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/137/portrait.png",
+        "queuePortrait": "assets/creatures/detection/137/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CSHARP.DEF",
+        "sourceSha256": "3df42e77636e4a4e9e195153a7089d938c07a8e7924f59b15adb744ba65a9863",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 139,
+      "name": "Peasant",
+      "internalName": "peasant",
+      "tier": 1,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 1,
+        "defense": 1,
+        "minDamage": 1,
+        "maxDamage": 1,
+        "hp": 1,
+        "speed": 3,
+        "shots": 0,
+        "growth": 25,
+        "aiValue": 15,
+        "fightValue": 15,
+        "costGold": 10
+      },
+      "abilities": [],
+      "asset": {
+        "displayImage": "assets/creatures/png/139.png",
+        "idleAnimation": "assets/creatures/animations/139/idle.gif",
+        "previewImage": "assets/creatures/png/139.png",
+        "spritesheet": "assets/creatures/spritesheets/139.png",
+        "corpseImage": "assets/creatures/animations/139/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/139",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/139/portrait.png",
+        "queuePortrait": "assets/creatures/detection/139/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CPEAS.DEF",
+        "sourceSha256": "7767f5a19d0e3d89b8b6fe90358d07a818f8a61d486e40225737faf9012b1ca4",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 140,
+      "name": "Boar",
+      "internalName": "boar",
+      "tier": 2,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 6,
+        "defense": 5,
+        "minDamage": 2,
+        "maxDamage": 3,
+        "hp": 15,
+        "speed": 6,
+        "shots": 0,
+        "growth": 8,
+        "aiValue": 145,
+        "fightValue": 145,
+        "costGold": 150
+      },
+      "abilities": [
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/140.png",
+        "idleAnimation": "assets/creatures/animations/140/idle.gif",
+        "previewImage": "assets/creatures/png/140.png",
+        "spritesheet": "assets/creatures/spritesheets/140.png",
+        "corpseImage": "assets/creatures/animations/140/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/140",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/140/portrait.png",
+        "queuePortrait": "assets/creatures/detection/140/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CBOAR.DEF",
+        "sourceSha256": "810da08584abf0ed682e7deae5df882345186f7d0d82f20b5db3888572d28942",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 141,
+      "name": "Mummy",
+      "internalName": "mummy",
+      "tier": 3,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 7,
+        "defense": 7,
+        "minDamage": 3,
+        "maxDamage": 5,
+        "hp": 30,
+        "speed": 5,
+        "shots": 0,
+        "growth": 7,
+        "aiValue": 270,
+        "fightValue": 270,
+        "costGold": 300
+      },
+      "abilities": [
+        {
+          "key": "undead",
+          "kind": "passive",
+          "details": "Undead creature."
+        },
+        {
+          "key": "spellAfterAttack",
+          "kind": "passive",
+          "details": "50% chance to cast Curse after attack; name only until spells are implemented."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/141.png",
+        "idleAnimation": "assets/creatures/animations/141/idle.gif",
+        "previewImage": "assets/creatures/png/141.png",
+        "spritesheet": "assets/creatures/spritesheets/141.png",
+        "corpseImage": "assets/creatures/animations/141/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/141",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/141/portrait.png",
+        "queuePortrait": "assets/creatures/detection/141/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CMUMMY.DEF",
+        "sourceSha256": "3d9190284e3219c68f2cfde2d4f9b04ce21808c017023f19a3d3b8a230ae8007",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 142,
+      "name": "Nomad",
+      "internalName": "nomad",
+      "tier": 3,
+      "faction": "Neutral",
+      "doubleWide": true,
+      "stats": {
+        "attack": 9,
+        "defense": 8,
+        "minDamage": 2,
+        "maxDamage": 6,
+        "hp": 30,
+        "speed": 7,
+        "shots": 0,
+        "growth": 7,
+        "aiValue": 345,
+        "fightValue": 285,
+        "costGold": 200
+      },
+      "abilities": [
+        {
+          "key": "twoHex",
+          "kind": "passive",
+          "details": "Two-hex creature."
+        },
+        {
+          "key": "sandWalker",
+          "kind": "passive",
+          "details": "Removes sand terrain movement penalty on the adventure map."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/142.png",
+        "idleAnimation": "assets/creatures/animations/142/idle.gif",
+        "previewImage": "assets/creatures/png/142.png",
+        "spritesheet": "assets/creatures/spritesheets/142.png",
+        "corpseImage": "assets/creatures/animations/142/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/142",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/142/portrait.png",
+        "queuePortrait": "assets/creatures/detection/142/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CNOMAD.DEF",
+        "sourceSha256": "1e71f2b026bef2366b222b4b563574ffffe116597f762cee6b4a2248eb1e2a6b",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 143,
+      "name": "Rogue",
+      "internalName": "rogue",
+      "tier": 2,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 8,
+        "defense": 3,
+        "minDamage": 2,
+        "maxDamage": 4,
+        "hp": 10,
+        "speed": 6,
+        "shots": 0,
+        "growth": 8,
+        "aiValue": 135,
+        "fightValue": 135,
+        "costGold": 100
+      },
+      "abilities": [
+        {
+          "key": "visions",
+          "kind": "passive",
+          "details": "Provides Visions expertise on the adventure map."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/143.png",
+        "idleAnimation": "assets/creatures/animations/143/idle.gif",
+        "previewImage": "assets/creatures/png/143.png",
+        "spritesheet": "assets/creatures/spritesheets/143.png",
+        "corpseImage": "assets/creatures/animations/143/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/143",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/143/portrait.png",
+        "queuePortrait": "assets/creatures/detection/143/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CROGUE.DEF",
+        "sourceSha256": "88cf9f2ca22fd4e39ffede96f0df8680c73b80350f915bbccef95b6c44348d58",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 144,
+      "name": "Troll",
+      "internalName": "troll",
+      "tier": 5,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 14,
+        "defense": 7,
+        "minDamage": 10,
+        "maxDamage": 15,
+        "hp": 40,
+        "speed": 7,
+        "shots": 0,
+        "growth": 3,
+        "aiValue": 1024,
+        "fightValue": 1024,
+        "costGold": 500
+      },
+      "abilities": [
+        {
+          "key": "regeneration",
+          "kind": "passive",
+          "details": "Regenerates up to 50 HP at the start of its turn without resurrecting units."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/144.png",
+        "idleAnimation": "assets/creatures/animations/144/idle.gif",
+        "previewImage": "assets/creatures/png/144.png",
+        "spritesheet": "assets/creatures/spritesheets/144.png",
+        "corpseImage": "assets/creatures/animations/144/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/144",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/144/portrait.png",
+        "queuePortrait": "assets/creatures/detection/144/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "D:\\licenta_proiect\\Heroes of Might and Magic 3 Complete\\Data\\H3sprite.lod",
+        "sourceAsset": "CTROLL.DEF",
+        "sourceSha256": "af998771ace43462a6f94310f46c681e7dc471d89faf5a6f8f9ae7f0e9b3d5cc",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 167,
+      "name": "Satyr",
+      "internalName": "satyr",
+      "tier": 4,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 10,
+        "defense": 11,
+        "minDamage": 6,
+        "maxDamage": 10,
+        "hp": 35,
+        "speed": 7,
+        "shots": 0,
+        "growth": 4,
+        "aiValue": 518,
+        "fightValue": 471,
+        "costGold": 300
+      },
+      "abilities": [
+        {
+          "key": "spellcaster",
+          "kind": "passive",
+          "details": "Casts Advanced Mirth three times per battle for 6 turns; name only until spells are implemented."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/167.png",
+        "idleAnimation": "assets/creatures/animations/167/idle.gif",
+        "previewImage": "assets/creatures/png/167.png",
+        "spritesheet": "assets/creatures/spritesheets/167.png",
+        "corpseImage": "assets/creatures/animations/167/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/167",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/167/portrait.png",
+        "queuePortrait": "assets/creatures/detection/167/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss neutral creatures 1.2",
+        "sourceAsset": "CSATYR.def",
+        "sourceSha256": "734365a8f94c7c0dde43020c310b255f0a0fd2c84c6b3f3b7df8dff8e2719fbb",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 168,
+      "name": "Fangarm",
+      "internalName": "fangarm",
+      "tier": 5,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 12,
+        "defense": 12,
+        "minDamage": 8,
+        "maxDamage": 12,
+        "hp": 50,
+        "speed": 6,
+        "shots": 0,
+        "growth": 3,
+        "aiValue": 929,
+        "fightValue": 929,
+        "costGold": 600
+      },
+      "abilities": [
+        {
+          "key": "flying",
+          "kind": "passive",
+          "details": "Flying creature."
+        },
+        {
+          "key": "unlimitedRetaliations",
+          "kind": "passive",
+          "details": "Unlimited retaliations."
+        },
+        {
+          "key": "mindImmunity",
+          "kind": "passive",
+          "details": "Immune to mind spells."
+        },
+        {
+          "key": "spellAfterAttack",
+          "kind": "passive",
+          "details": "Casts Advanced Hypnotize after attack; name only until spells are implemented."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/168.png",
+        "idleAnimation": "assets/creatures/animations/168/idle.gif",
+        "previewImage": "assets/creatures/png/168.png",
+        "spritesheet": "assets/creatures/spritesheets/168.png",
+        "corpseImage": "assets/creatures/animations/168/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/168",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/168/portrait.png",
+        "queuePortrait": "assets/creatures/detection/168/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss neutral creatures 1.2",
+        "sourceAsset": "CFANGARM.DEF",
+        "sourceSha256": "70512448641faea5f0bc7340a7b51c1e456f643fabd1237dc30b0cdad1615a1f",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 169,
+      "name": "Leprechaun",
+      "internalName": "leprechaun",
+      "tier": 2,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 8,
+        "defense": 5,
+        "minDamage": 3,
+        "maxDamage": 5,
+        "hp": 15,
+        "speed": 5,
+        "shots": 0,
+        "growth": 9,
+        "aiValue": 190,
+        "fightValue": 190,
+        "costGold": 100
+      },
+      "abilities": [
+        {
+          "key": "spellcaster",
+          "kind": "passive",
+          "details": "Casts Advanced Fortune three times per battle for 6 turns; name only until spells are implemented."
+        },
+        {
+          "key": "luckAura",
+          "kind": "passive",
+          "details": "Doubles the Luck trigger chance of friendly units."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/169.png",
+        "idleAnimation": "assets/creatures/animations/169/idle.gif",
+        "previewImage": "assets/creatures/png/169.png",
+        "spritesheet": "assets/creatures/spritesheets/169.png",
+        "corpseImage": "assets/creatures/animations/169/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/169",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "shoot-down",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/169/portrait.png",
+        "queuePortrait": "assets/creatures/detection/169/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss neutral creatures 1.2",
+        "sourceAsset": "CLEPRCHN.def",
+        "sourceSha256": "c904a121891f1eb0ef0bb35a0efe71f89660e2e3fb5d9d6285081caac2447396",
+        "fallbackReason": null
+      }
+    },
+    {
+      "creatureId": 170,
+      "name": "Steel Golem",
+      "internalName": "steelGolem",
+      "tier": 4,
+      "faction": "Neutral",
+      "doubleWide": false,
+      "stats": {
+        "attack": 10,
+        "defense": 11,
+        "minDamage": 6,
+        "maxDamage": 8,
+        "hp": 45,
+        "speed": 6,
+        "shots": 0,
+        "growth": 4,
+        "aiValue": 597,
+        "fightValue": 597,
+        "costGold": 400
+      },
+      "abilities": [
+        {
+          "key": "nonLiving",
+          "kind": "passive",
+          "details": "Non-living construct."
+        },
+        {
+          "key": "golem",
+          "kind": "passive",
+          "details": "Golem; spell damage is reduced by 80%."
+        }
+      ],
+      "asset": {
+        "displayImage": "assets/creatures/png/170.png",
+        "idleAnimation": "assets/creatures/animations/170/idle.gif",
+        "previewImage": "assets/creatures/png/170.png",
+        "spritesheet": "assets/creatures/spritesheets/170.png",
+        "corpseImage": "assets/creatures/animations/170/corpse.png",
+        "battleAnimationRoot": "assets/creatures/animations/170",
+        "battleAnimationActions": [
+          "move",
+          "idle",
+          "hit",
+          "defend",
+          "death",
+          "attack-up",
+          "attack-front",
+          "attack-down",
+          "shoot-up",
+          "shoot-front",
+          "corpse"
+        ],
+        "portrait": "assets/creatures/detection/170/portrait.png",
+        "queuePortrait": "assets/creatures/detection/170/queue-portrait.png",
+        "assetStatus": "EXTRACTED",
+        "sourceArchive": "VCMI Horn of the Abyss neutral creatures 1.2",
+        "sourceAsset": "cstlgole.def",
+        "sourceSha256": "4a9e99b69a41ae7248f2823131d18b8244b4e666090d9594be0c1907402b9a12",
+        "fallbackReason": null
+      }
+    }
+  ]
+}

@@ -1,18 +1,20 @@
 export async function loadSimulatorData() {
-  const [response, factoryResponse, catalogResponse, detectionResponse] = await Promise.all([
+  const [response, factoryResponse, neutralResponse, catalogResponse, detectionResponse] = await Promise.all([
     fetch("./public/data/simulator-v1-data.json", { cache: "no-store" }),
     fetch("./public/data/factory-creatures.json", { cache: "no-store" }),
+    fetch("./public/data/neutral-creatures.json", { cache: "no-store" }),
     fetch("./public/data/battlefield-catalog.json", { cache: "no-store" }),
     fetch("./public/assets/creatures/detection/manifest.json", { cache: "no-store" })
   ]);
-  if (!response.ok || !factoryResponse.ok || !catalogResponse.ok || !detectionResponse.ok) {
+  if (!response.ok || !factoryResponse.ok || !neutralResponse.ok || !catalogResponse.ok || !detectionResponse.ok) {
     throw new Error(
-      `Could not load simulator data (${response.status}/${factoryResponse.status}/${catalogResponse.status}/${detectionResponse.status})`
+      `Could not load simulator data (${response.status}/${factoryResponse.status}/${neutralResponse.status}/${catalogResponse.status}/${detectionResponse.status})`
     );
   }
-  const [data, factoryData, catalog, detection] = await Promise.all([
+  const [data, factoryData, neutralData, catalog, detection] = await Promise.all([
     response.json(),
     factoryResponse.json(),
+    neutralResponse.json(),
     catalogResponse.json(),
     detectionResponse.json()
   ]);
@@ -22,11 +24,13 @@ export async function loadSimulatorData() {
       ? [data.town]
       : [];
   const factoryTown = normalizeFactoryTown(factoryData.town);
+  const neutralTown = neutralData.town;
   const townsByType = new Map(baseTowns.map((town) => [String(town.townType), town]));
   if (factoryTown) townsByType.set(String(factoryTown.townType), factoryTown);
+  if (neutralTown) townsByType.set(String(neutralTown.townType), neutralTown);
 
   const creaturesById = new Map();
-  for (const creature of [...(data.creatures || []), ...(factoryData.creatures || [])]) {
+  for (const creature of [...(data.creatures || []), ...(factoryData.creatures || []), ...(neutralData.creatures || [])]) {
     if (Number.isInteger(Number(creature?.creatureId))) {
       creaturesById.set(Number(creature.creatureId), creature);
     }

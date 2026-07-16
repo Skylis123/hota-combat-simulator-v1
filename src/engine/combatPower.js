@@ -1,5 +1,6 @@
 import { inferAbilityFlags } from "./abilities.js";
 import { isFactoryEffectImmune } from "./factoryAbilities.js";
+import { friendlyLuckChanceMultiplier } from "./neutralAbilities.js";
 
 const CONFIDENCE = {
   CONFIRMED: "CONFIRMED",
@@ -42,6 +43,8 @@ export function applyStatusModifiersToEvaluation(stack) {
   let damageMax = Number(stats.maxDamage || 0);
   let actionDenied = false;
   const notes = [];
+  defense -= Math.max(0, Number(stack.acidDefensePenalty || 0));
+  if (stack.acidDefensePenalty) notes.push(`Acid Breath reduces Defense by ${stack.acidDefensePenalty}.`);
 
   for (const effect of effects) {
     const type = String(effect.type || "").toLowerCase();
@@ -179,7 +182,8 @@ export function calculateExpectedDamage(attacker, defender, battleState = null, 
   const joustingMultiplier = joustingPercent / 100;
   const defenderId = Number((defender.creature || defender).creatureId);
   const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
-  const luckMultiplier = abilities.positiveLuck ? 25 / 24 : 1;
+  const luckChance = abilities.positiveLuck ? Math.min(1, friendlyLuckChanceMultiplier(battleState, attacker.owner) / 24) : 0;
+  const luckMultiplier = 1 + luckChance;
   const damage = Math.max(1, Math.trunc((base * factor * hitMultiplier * meleePenalty * rangePenalty * joustingPercent * hateMultiplier * luckMultiplier) / 100));
 
   return {
@@ -226,7 +230,8 @@ export function calculateRolledDamage(attacker, defender, battleState = null, op
     : 100;
   const defenderId = Number((defender.creature || defender).creatureId);
   const hateMultiplier = abilities.hatesDevils && (defenderId === 54 || defenderId === 55) ? 1.5 : 1;
-  const luckyStrike = Boolean(abilities.positiveLuck && Math.min(0.999999999999, Math.max(0, Number(rng()))) < 1 / 24);
+  const luckChance = abilities.positiveLuck ? Math.min(1, friendlyLuckChanceMultiplier(battleState, attacker.owner) / 24) : 0;
+  const luckyStrike = Boolean(luckChance && Math.min(0.999999999999, Math.max(0, Number(rng()))) < luckChance);
   const luckMultiplier = luckyStrike ? 2 : 1;
   const damage = Math.max(1, Math.trunc((base * factor * meleePenalty * rangePenalty * joustingPercent * hateMultiplier * luckMultiplier) / 100));
   return {

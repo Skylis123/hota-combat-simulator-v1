@@ -1,5 +1,5 @@
 import { createBattleStack } from "./battleState.js";
-import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes } from "./obstacles.js";
+import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
 import { detectTurnBarRoster } from "./turnBarAnalyzer.js";
@@ -337,7 +337,9 @@ async function detectObstacles(screenshot, background, data, terrain) {
       if (!canPlaceObstacle(data.battlefield.grid, { stacks: [], obstacles: [] }, definition, anchor.id)) continue;
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
-      const placement = bestCompositePlacement(screenshot, background, image, Math.round(anchor.centerX - 22), Math.round(anchor.centerY + 50 - image.height), {
+      const expectedPosition = obstacleRenderPosition(data.battlefield.grid, { ...definition, anchorHexId: anchor.id });
+      if (!expectedPosition) continue;
+      const placement = bestCompositePlacement(screenshot, background, image, expectedPosition.left, expectedPosition.top, {
         // DEF obstacle anchors vary by more than one quarter hex between
         // graphics. Search the whole legal anchor neighbourhood coarsely,
         // then refine only the best matches below.
@@ -373,7 +375,18 @@ async function detectObstacles(screenshot, background, data, terrain) {
         sampleStep: needsWideRefinement ? 2 : 3,
         ignoreForegroundOcclusion: true
       });
-      if (placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72) {
+      const normalMatch = placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72;
+      // A tall creature can hide most of an obstacle while leaving a very
+      // characteristic fragment visible. In that case the obstacle still
+      // has excellent correlation/chroma, but its improvement over the
+      // background is necessarily smaller. Accept only this much stricter
+      // high-similarity signature so occluded rocks are preserved without
+      // admitting generic battlefield noise.
+      const strongOccludedMatch = placement.correlation > 0.72
+        && placement.gain > 0.12
+        && placement.match > 0.84
+        && placement.chroma > 0.985;
+      if (normalMatch || strongOccludedMatch) {
         candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
       }
     }
@@ -1334,7 +1347,7 @@ function inferTerrain(background) {
   if (background?.terrain) return String(background.terrain).trim().toLowerCase();
   const text = `${background.id} ${background.name}`.toLowerCase();
   if (background.id === "wasteland_rocks" || text.includes("wasteland")) return "wasteland";
-  if (background.id === "cmbkcf") return "cursed_ground";
+  if (background.id === "cmbkcf") return "clover_field";
   if (background.id === "cmbkef") return "evil_fog";
   if (background.id === "cmbkff") return "fiery_fields";
   if (background.id === "cmbkhg") return "holy_ground";
