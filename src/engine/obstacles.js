@@ -80,6 +80,34 @@ export function obstacleRenderPosition(grid, obstacle) {
     }
     return { left: obstacle.width, top: obstacle.height };
   }
+  // An imported obstacle has already been matched against the normalized
+  // native battlefield. Preserve that exact position: snapping it a second
+  // time can move a wide DEF frame onto the neighbouring visual hex.
+  if (Number.isFinite(obstacle?.detectedLeft) && Number.isFinite(obstacle?.detectedTop)) {
+    return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
+  }
+  const nativePosition = obstacleNativePosition(grid, obstacle);
+  if (!nativePosition) return null;
+  const blockedHexIds = obstacle.blockedHexIds?.length
+    ? obstacle.blockedHexIds
+    : obstacleBlockedHexes(grid, obstacle);
+  const blockedHexes = blockedHexIds
+    .map((hexId) => grid.hexes.find((hex) => hex.id === hexId))
+    .filter(Boolean);
+  if (!blockedHexes.length || !Number.isFinite(obstacle.imageWidth)) return nativePosition;
+  const centerX = blockedHexes.reduce((sum, hex) => sum + hex.centerX, 0) / blockedHexes.length;
+  return {
+    left: centerX - obstacle.imageWidth / 2,
+    top: nativePosition.top
+  };
+}
+
+// Heroes III/VCMI positions usual obstacle frames from the bottom-left of
+// their logical `pos` hex. Screenshot matching must use this native contract;
+// the interactive renderer above additionally centres a manually selected
+// frame over the hexes it actually blocks.
+export function obstacleNativePosition(grid, obstacle) {
+  if (obstacle?.absolute) return obstacleRenderPosition(grid, obstacle);
   const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
   if (!anchor) return null;
   const polygonX = anchor.polygonPoints?.map(([x]) => x) || [];

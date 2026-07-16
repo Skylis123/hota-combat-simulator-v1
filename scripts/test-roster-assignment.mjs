@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyRosterCounts,
   assignStackCandidatesToRoster,
+  completeStacksFromTurnRoster,
   mergeRosterAssignmentsWithFallback
 } from "../src/engine/screenshotAnalyzer.js";
 
@@ -236,5 +237,41 @@ const peerCountStacks = [
 applyRosterCounts(peerCountStacks, { lowerBoundRoster: [] });
 assert.equal(peerCountStacks[3].count, 3, "A uniquely repeated peer count must fill one unread badge of the same owner and creature.");
 assert.equal(peerCountStacks[3].screenshotCountInferredFromPeers, true);
+
+const rosterCreatures = [
+  { creatureId: 176, name: "Automaton", stats: { hp: 30, shots: 0 } },
+  { creatureId: 178, name: "Sandworm", stats: { hp: 50, shots: 0 } },
+  { creatureId: 185, name: "Juggernaut", stats: { hp: 200, shots: 0 } }
+];
+const completedRosterStacks = [{
+  owner: "player",
+  creature: rosterCreatures[0],
+  count: 1,
+  armySlot: 0
+}];
+const completed = completeStacksFromTurnRoster(completedRosterStacks, {
+  lowerBoundRoster: [
+    { owner: "player", creatureId: 176, count: 1, instances: 1 },
+    { owner: "player", creatureId: 178, count: 1, instances: 1 },
+    { owner: "player", creatureId: 185, count: 1, instances: 1 }
+  ]
+}, {
+  creatures: rosterCreatures,
+  battlefield: { grid: { hexes: [{ id: 0, row: 5, col: 0 }] } }
+});
+assert.equal(completed, 2, "The turn bar must synthesize known stacks whose battlefield sprites or badges were occluded.");
+assert.deepEqual(
+  completedRosterStacks.map((stack) => `${stack.creature.name}:${stack.count}:${stack.armySlot}`),
+  ["Automaton:1:0", "Sandworm:1:1", "Juggernaut:1:2"]
+);
+
+const correctedVisualStack = [{ owner: "ai", creature: rosterCreatures[1], count: 41, armySlot: 0 }];
+assert.equal(completeStacksFromTurnRoster(correctedVisualStack, {
+  lowerBoundRoster: [{ owner: "ai", creatureId: 178, count: 4, instances: 1 }]
+}, {
+  creatures: rosterCreatures,
+  battlefield: { grid: { hexes: [{ id: 0, row: 5, col: 14 }] } }
+}), 0, "A visually detected stack must be corrected from the turn bar, not duplicated.");
+assert.equal(correctedVisualStack[0].count, 4);
 
 console.log("Roster-constrained screenshot candidate assignment tests passed.");

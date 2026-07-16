@@ -63,7 +63,9 @@ for (const definition of definitions) {
     continue;
   }
   const obstacle = { ...definition, anchorHexId };
-  const expectedPosition = obstacleEngine.obstacleRenderPosition(simulator.battlefield.grid, obstacle);
+  // Synthetic sources emulate the native game contract. Imported instances
+  // must then preserve the exact matched pixels in the simulator renderer.
+  const expectedPosition = obstacleEngine.obstacleNativePosition(simulator.battlefield.grid, obstacle);
   const expectedBlocked = obstacleEngine.obstacleBlockedHexes(simulator.battlefield.grid, obstacle, anchorHexId);
   const detectedBlocked = obstacleEngine.detectedObstacleBlockedHexes(simulator.battlefield.grid, obstacle, anchorHexId);
   if (signature(detectedBlocked) !== signature(expectedBlocked)) {
@@ -87,7 +89,8 @@ for (const definition of definitions) {
   });
   const imported = result.obstacles.find((candidate) => candidate.id === definition.id);
   if (!imported) {
-    failures.push(`${definition.id} ${definition.name}: Import did not detect the synthetic exact placement`);
+    const diagnostic = result.obstacleDetectionDiagnostics?.find((candidate) => candidate.definitionId === definition.id);
+    failures.push(`${definition.id} ${definition.name}: Import did not detect the synthetic exact placement${diagnostic ? ` (${JSON.stringify({ anchorHexId: diagnostic.anchorHexId, correlation: diagnostic.correlation, gain: diagnostic.gain, match: diagnostic.match, chroma: diagnostic.chroma, anchorDistance: diagnostic.anchorDistance })})` : ""}`);
     continue;
   }
   if (result.obstacles.length !== 1) {

@@ -51,6 +51,7 @@ const file = new Blob([bytes], { type: "image/png" });
 const result = await analyzeBattlefieldScreenshot(file, data);
 if (process.argv.includes("--deploy-start")) deployAllArmies(data.battlefield.grid, result.stacks);
 const includeDiagnostics = process.argv.includes("--diagnostics");
+const includeObstacleDiagnostics = process.argv.includes("--obstacle-diagnostics");
 const summary = {
   backgroundId: result.backgroundId,
   battleWindow: result.battleWindow,
@@ -63,6 +64,18 @@ const summary = {
     blockedHexIds
   })),
   ...(includeDiagnostics ? { timings: result.timings } : {}),
+  ...((includeDiagnostics || includeObstacleDiagnostics) ? {
+    obstacleDetectionDiagnostics: (result.obstacleDetectionDiagnostics || []).map((diagnostic) => ({
+      definitionId: diagnostic.definitionId,
+      anchorHexId: diagnostic.anchorHexId,
+      x: diagnostic.x,
+      y: diagnostic.y,
+      correlation: diagnostic.correlation,
+      gain: diagnostic.gain,
+      match: diagnostic.match,
+      chroma: diagnostic.chroma
+    }))
+  } : {}),
   ...(includeDiagnostics ? { stackDetectionDiagnostics: result.stackDetectionDiagnostics } : {}),
   stacks: result.stacks.map((stack) => ({
     creature: stack.creature.name,

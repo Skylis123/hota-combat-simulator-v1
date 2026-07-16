@@ -1,5 +1,5 @@
 import { createBattleStack } from "./battleState.js";
-import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "./obstacles.js";
+import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleNativePosition } from "./obstacles.js";
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
 import { detectBattleWindowBounds, detectTurnBarRoster } from "./turnBarAnalyzer.js";
@@ -55,6 +55,7 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   // overlap units and badges in the source image.
   const obstacles = detectedObstacles;
   applyRosterCounts(stacks, turnRoster);
+  const rosterCompletedStacks = completeStacksFromTurnRoster(stacks, turnRoster, data);
   const stacksAt = performance.now();
   // Native TextDetector OCR is intentionally not used for Heroes III badges:
   // its general-purpose glyph model confuses the game's tiny bitmap 5/6/1.
@@ -62,7 +63,7 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const rosterStacks = (turnRoster?.lowerBoundRoster || [])
     .reduce((sum, entry) => sum + Number(entry.instances || 0), 0);
   const rosterNote = rosterStacks
-    ? `The native turn bar provided identification priors for ${rosterStacks} known stacks.`
+    ? `The native turn bar reconstructed ${rosterStacks} known stacks${rosterCompletedStacks ? `, including ${rosterCompletedStacks} not recoverable from battlefield sprites` : ""}.`
     : "No usable native turn-bar roster was found; battlefield matching used the legacy fallback.";
   const completedAt = performance.now();
   return {
@@ -71,6 +72,7 @@ export async function analyzeBattlefieldScreenshot(file, data) {
     obstacles,
     stacks,
     turnRoster,
+    obstacleDetectionDiagnostics: detectedObstacles.detectionDiagnostics,
     stackDetectionDiagnostics: stacks.detectionDiagnostics,
     note: bitmapCounts
       ? `${rosterNote} ${bitmapCounts} stack counts were read automatically.`
@@ -83,6 +85,68 @@ export async function analyzeBattlefieldScreenshot(file, data) {
       totalMs: completedAt - startedAt
     }
   };
+}
+
+export function completeStacksFromTurnRoster(stacks, turnRoster, data) {
+  const roster = turnRoster?.lowerBoundRoster || [];
+  if (!roster.length) return 0;
+  let added = 0;
+  const matched = new Set();
+  const entries = roster.filter((entry) => (
+    ["player", "ai"].includes(entry.owner)
+    && Number.isInteger(Number(entry.creatureId))
+  ));
+
+  for (const entry of entries) {
+    const creatureId = Number(entry.creatureId);
+    const expectedCount = Math.trunc(Number(entry.count));
+    const expectedInstances = Math.max(1, Math.trunc(Number(entry.instances) || 1));
+    const sameCreature = stacks.filter((stack) => (
+      !matched.has(stack)
+      && stack.owner === entry.owner
+      && Number(stack.creature?.creatureId) === creatureId
+    ));
+    const matching = sameCreature.filter((stack) => (
+      !Number.isInteger(expectedCount) || expectedCount < 1 || stack.count === expectedCount
+    ));
+    matching.slice(0, expectedInstances).forEach((stack) => matched.add(stack));
+    const visuallyMatched = Math.min(expectedInstances, matching.length);
+    const countCorrected = sameCreature
+      .filter((stack) => !matched.has(stack))
+      .slice(0, expectedInstances - visuallyMatched);
+    for (const stack of countCorrected) {
+      if (Number.isInteger(expectedCount) && expectedCount > 0) setImportedStackCount(stack, expectedCount);
+      matched.add(stack);
+    }
+    const creature = data.creatures.find((candidate) => Number(candidate.creatureId) === creatureId);
+    if (!creature) continue;
+    const currentOwnerCount = stacks.filter((stack) => stack.owner === entry.owner).length;
+    const consumed = visuallyMatched + countCorrected.length;
+    const missing = Math.min(expectedInstances - consumed, 7 - currentOwnerCount);
+    const createdAt = stacks.length;
+    for (let index = 0; index < missing; index += 1) {
+      const count = Number.isInteger(expectedCount) && expectedCount > 0 ? expectedCount : 1;
+      const fallbackHex = data.battlefield.grid.hexes.find((hex) => (
+        hex.row === 5 && hex.col === (entry.owner === "player" ? 0 : 14)
+      )) || data.battlefield.grid.hexes[0];
+      const stack = createBattleStack({
+        creature,
+        owner: entry.owner,
+        hexId: fallbackHex.id,
+        count,
+        armySlot: currentOwnerCount + index,
+        createdAt: createdAt + index
+      });
+      stack.detectionConfidence = 1;
+      stack.screenshotCountRecognized = Number.isInteger(expectedCount) && expectedCount > 0;
+      stack.screenshotCountFromTurnBar = true;
+      stack.screenshotRosterOnly = true;
+      stacks.push(stack);
+      matched.add(stack);
+      added += 1;
+    }
+  }
+  return added;
 }
 
 export function applyRosterCounts(stacks, turnRoster) {
@@ -319,6 +383,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
     await loadImage(`./public/${definition.image}`)
   ])));
   const candidates = [];
+  const detectionDiagnostics = [];
 
   for (const definition of definitions.filter((candidate) => candidate.absolute)) {
     const image = images.get(definition.id);
@@ -340,14 +405,16 @@ async function detectObstacles(screenshot, background, data, terrain) {
       if (!canPlaceObstacle(data.battlefield.grid, { stacks: [], obstacles: [] }, definition, anchor.id)) continue;
       const blockedHexIds = obstacleBlockedHexes(data.battlefield.grid, definition, anchor.id);
       if (blockedHexIds.length !== definition.blockedTiles.length) continue;
-      const expectedPosition = obstacleRenderPosition(data.battlefield.grid, { ...definition, anchorHexId: anchor.id });
+      const expectedPosition = obstacleNativePosition(data.battlefield.grid, { ...definition, anchorHexId: anchor.id });
       if (!expectedPosition) continue;
       const placement = bestCompositePlacement(screenshot, background, image, expectedPosition.left, expectedPosition.top, {
         // DEF obstacle anchors vary by more than one quarter hex between
         // graphics. Search the whole legal anchor neighbourhood coarsely,
         // then refine only the best matches below.
-        radiusX: 18,
-        radiusY: 12,
+        // Keep the origin on both the three- and six-pixel coarse lattices;
+        // otherwise thin exact templates can be skipped before refinement.
+        radiusX: 30,
+        radiusY: 24,
         step: smallTemplate ? 3 : 6,
         allowFlip: false,
         ignoreForegroundOcclusion: true,
@@ -357,10 +424,17 @@ async function detectObstacles(screenshot, background, data, terrain) {
         // templates is still cheap and is independent of any one fixture.
         sampleStep: smallTemplate ? 3 : 6
       });
-      coarseCandidates.push({ anchor, blockedHexIds, ...placement });
+      coarseCandidates.push({
+        anchor,
+        blockedHexIds,
+        expectedLeft: expectedPosition.left,
+        expectedTop: expectedPosition.top,
+        ...placement
+      });
     }
     coarseCandidates.sort((left, right) => obstacleMatchQuality(right) - obstacleMatchQuality(left));
-    const shortlist = coarseCandidates.slice(0, needsWideRefinement ? 24 : 12);
+    const shortlist = coarseCandidates.slice(0, needsWideRefinement ? 36 : 18);
+    let diagnosticBest = null;
     for (const coarse of shortlist) {
       // Sparse graphics (bones, thin branches) alias badly on the six-pixel
       // coarse lattice. Only those templates receive the wider intermediate
@@ -378,6 +452,14 @@ async function detectObstacles(screenshot, background, data, terrain) {
         sampleStep: needsWideRefinement ? 2 : 3,
         ignoreForegroundOcclusion: true
       });
+      placement.anchorDistance = Math.hypot(
+        placement.x - coarse.expectedLeft,
+        // The normalized native capture consistently retains the DEF frame
+        // about 16 px above our polygon-derived bottom edge. Compensating
+        // that fixed raster/grid offset prevents an exact template match
+        // from being attributed to the anchor one row above or below.
+        placement.y - coarse.expectedTop + 16
+      );
       const normalMatch = placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72;
       // A tall creature can hide most of an obstacle while leaving a very
       // characteristic fragment visible. In that case the obstacle still
@@ -389,13 +471,20 @@ async function detectObstacles(screenshot, background, data, terrain) {
         && placement.gain > 0.12
         && placement.match > 0.84
         && placement.chroma > 0.985;
+      const diagnostic = { definitionId: definition.id, anchorHexId: coarse.anchor.id, ...placement };
+      if (!diagnosticBest
+        || anchoredObstacleMatchQuality(diagnostic) > anchoredObstacleMatchQuality(diagnosticBest)) diagnosticBest = diagnostic;
       if (normalMatch || strongOccludedMatch) {
         candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
       }
     }
+    if (diagnosticBest) detectionDiagnostics.push(diagnosticBest);
   }
 
-  candidates.sort((left, right) => (right.definition.absolute - left.definition.absolute) || (right.gain - left.gain));
+  candidates.sort((left, right) => (
+    (right.definition.absolute - left.definition.absolute)
+    || (anchoredObstacleMatchQuality(right) - anchoredObstacleMatchQuality(left))
+  ));
   const accepted = [];
   const occupied = new Set();
   for (const candidate of candidates) {
@@ -420,6 +509,7 @@ async function detectObstacles(screenshot, background, data, terrain) {
     blockedHexIds.forEach((hexId) => occupied.add(hexId));
     if (accepted.length >= 12) break;
   }
+  accepted.detectionDiagnostics = detectionDiagnostics;
   return accepted;
 }
 
@@ -984,6 +1074,10 @@ function obstacleMatchQuality(placement) {
   return Math.max(0, placement.correlation) * 0.5
     + Math.max(0, placement.match) * 0.3
     + Math.max(-1, Math.min(1, placement.gain)) * 0.2;
+}
+
+function anchoredObstacleMatchQuality(placement) {
+  return obstacleMatchQuality(placement) - Math.min(100, placement.anchorDistance || 0) * 0.004;
 }
 
 function ownerSidePenalty(owner, primaryHex) {

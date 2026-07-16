@@ -12,7 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
-import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleRenderPosition } from "../src/engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
 import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -463,8 +463,12 @@ const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
   detectedLeft: 123.5,
   detectedTop: 77.25
 });
-if (detectedRenderPosition?.left !== manualRenderPosition?.left || detectedRenderPosition?.top !== manualRenderPosition?.top) {
-  failures.push("Screenshot-detected usual obstacles must snap to the same grid anchor as manually placed obstacles.");
+if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
+  failures.push("Screenshot-detected usual obstacles must preserve their normalized source coordinates.");
+}
+const nativeRenderPosition = obstacleNativePosition(battlefieldGrid, manualRenderObstacle);
+if (nativeRenderPosition?.left !== expectedBottomLeftX || nativeRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
+  failures.push("Native obstacle matching must retain the bottom-left game anchor contract.");
 }
 const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
   ...absoluteMarginObstacle,
