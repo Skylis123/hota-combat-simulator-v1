@@ -129,6 +129,24 @@ if (wastelandBackground?.town !== "Factory" || wastelandObstacles.length !== 15)
 if (JSON.stringify(wastelandObstacles.map((obstacle) => obstacle.id)) !== JSON.stringify(Array.from({ length: 15 }, (_, index) => 200 + index))) {
   failures.push("Wasteland obstacle IDs must be the complete audited range 200-214.");
 }
+const correctedWastelandGeometry = new Map([
+  [201, { width: 2, height: 4, blockedTiles: [-16] }],
+  [203, { width: 3, height: 2, blockedTiles: [1, 2] }],
+  [207, { width: 3, height: 4, blockedTiles: [-15] }],
+  [208, { width: 4, height: 3, blockedTiles: [-16, -15, -14] }],
+  [209, { width: 4, height: 3, blockedTiles: [-16, -15, -14] }]
+]);
+for (const [id, expected] of correctedWastelandGeometry) {
+  const obstacle = wastelandObstacles.find((candidate) => candidate.id === id);
+  const actual = obstacle && {
+    width: obstacle.width,
+    height: obstacle.height,
+    blockedTiles: obstacle.blockedTiles
+  };
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    failures.push(`Wasteland obstacle ${id} must retain its corrected HotA battlefield geometry: ${JSON.stringify(actual)}.`);
+  }
+}
 const explicitWastelandOffsets = wastelandObstacles
   .filter((obstacle) => Object.hasOwn(obstacle, "renderYOffset"))
   .map((obstacle) => [obstacle.id, obstacle.renderYOffset]);

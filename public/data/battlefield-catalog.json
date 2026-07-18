@@ -3341,10 +3341,9 @@
       ],
       "specialBattlefields": [],
       "width": 2,
-      "height": 3,
+      "height": 4,
       "blockedTiles": [
-        -33,
-        -34
+        -16
       ],
       "absolute": false,
       "foreground": false,
@@ -3393,7 +3392,7 @@
       ],
       "specialBattlefields": [],
       "width": 3,
-      "height": 3,
+      "height": 2,
       "blockedTiles": [
         1,
         2
@@ -3490,10 +3489,9 @@
       ],
       "specialBattlefields": [],
       "width": 3,
-      "height": 3,
+      "height": 4,
       "blockedTiles": [
-        -33,
-        -32
+        -15
       ],
       "absolute": false,
       "foreground": false,
@@ -3515,13 +3513,12 @@
         "wasteland"
       ],
       "specialBattlefields": [],
-      "width": 5,
+      "width": 4,
       "height": 3,
       "blockedTiles": [
-        -32,
-        -33,
-        -34,
-        -35
+        -16,
+        -15,
+        -14
       ],
       "absolute": false,
       "foreground": false,
@@ -3542,11 +3539,12 @@
         "wasteland"
       ],
       "specialBattlefields": [],
-      "width": 5,
+      "width": 4,
       "height": 3,
       "blockedTiles": [
-        -33,
-        -34
+        -16,
+        -15,
+        -14
       ],
       "absolute": false,
       "foreground": false,

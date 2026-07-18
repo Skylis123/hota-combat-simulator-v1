@@ -21,6 +21,16 @@ const SOURCE_COMMIT = "de4db20b7ef3bd6941c2705c3b79f0458d3ba9b9";
 // HotA renders these two 168px PNG canvases from their full raster baseline.
 // All other usual obstacles retain the native 42 * logicalHeight + 10 offset.
 const WASTELAND_RENDER_Y_OFFSETS = new Map([[1, 178], [7, 178]]);
+// The older VCMI port bundled with the asset snapshot had five incorrect
+// battlefield footprints. These values come from the original HotA.dat and
+// match VCMI's later dedicated "battlefield obstacles fix".
+const HOTA_WASTELAND_OBSTACLE_GEOMETRY = new Map([
+  [1, { width: 2, height: 4, blockedTiles: [-16] }],
+  [3, { width: 3, height: 2, blockedTiles: [1, 2] }],
+  [7, { width: 3, height: 4, blockedTiles: [-15] }],
+  [8, { width: 4, height: 3, blockedTiles: [-16, -15, -14] }],
+  [9, { width: 4, height: 3, blockedTiles: [-16, -15, -14] }]
+]);
 
 const ability = (key, details, kind = "passive") => ({ key, kind, details });
 const stats = (attack, defense, minDamage, maxDamage, hp, speed, shots, growth, costGold, costCrystal = 0) => ({
@@ -752,6 +762,7 @@ async function exportWasteland(vcmiRoot) {
     const image = await loadImage(destination);
     const imagePixels = await rgbaFromPng(destination);
     const absolute = Boolean(definition.absolute);
+    const geometry = HOTA_WASTELAND_OBSTACLE_GEOMETRY.get(index) || definition;
     const record = {
       id: outputId,
       sourceId,
@@ -761,9 +772,9 @@ async function exportWasteland(vcmiRoot) {
       category: "wasteland",
       allowedTerrains: definition.allowedTerrains || [],
       specialBattlefields: definition.specialBattlefields || [],
-      width: definition.width,
-      height: definition.height,
-      blockedTiles: definition.blockedTiles,
+      width: geometry.width,
+      height: geometry.height,
+      blockedTiles: geometry.blockedTiles,
       absolute,
       foreground: Boolean(definition.foreground),
       placementSemantics: absolute ? "absolute-graphic-offset" : "regular-free-tile-extents",
