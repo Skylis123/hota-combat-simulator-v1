@@ -37,7 +37,9 @@ if (process.argv.includes("--bounds-only")) {
   console.log(JSON.stringify(battleWindow, null, 2));
   process.exit(0);
 }
-const result = await detectTurnBarRoster(source, data);
+const result = await detectTurnBarRoster(source, data, {
+  preserveAiPortraitColor: !process.argv.includes("--grayscale-ai")
+});
 const summary = result.entries.map(({ owner, creatureName, count, segment, confidence, margin }) => ({
   owner,
   creature: creatureName,
@@ -130,6 +132,19 @@ if (process.argv.includes("--assert-hota-halberdier-ai")) {
     "player:Pikeman:1:1"
   ]);
   if (result.roundBreakIndex !== 12) throw new Error(`Unexpected round divider: ${result.roundBreakIndex}`);
+}
+
+if (process.argv.includes("--assert-ai-pikeman-reference")) {
+  assertRoster([
+    "player:Archangel:20:1",
+    "player:Juggernaut:1:1",
+    "player:Engineer:1:1",
+    "player:Halfling Grenadier:1:3",
+    "player:Halfling:1:1",
+    "ai:Pikeman:35:1",
+    "ai:Pikeman:34:1"
+  ]);
+  if (result.roundBreakIndex !== 9) throw new Error(`Unexpected round divider: ${result.roundBreakIndex}`);
 }
 
 function assertRoster(expected) {

@@ -28,15 +28,21 @@ export async function detectTurnBarRoster(source, data, options = {}) {
   const roundBreakIndex = detectRoundBreak(bars);
   const creatureThreshold = options.creatureThreshold ?? DEFAULT_CREATURE_THRESHOLD;
   const marginThreshold = options.marginThreshold ?? DEFAULT_MARGIN_THRESHOLD;
+  const preserveAiPortraitColor = options.preserveAiPortraitColor ?? true;
   const entries = bars.map((bar, slotIndex) => {
     const owner = detectOwner(context, bar);
     const portrait = normalizedPortrait(context, bar);
-    const observedVector = pixelVector(portrait, owner === "ai");
+    // Enemy queue cards keep the creature portrait in color; only the lower
+    // count strip changes owner styling. Grayscaling the whole portrait makes
+    // blue Pikemen nearly indistinguishable from Mechanic and discards the
+    // strongest evidence separating them from Monk/Griffin.
+    const grayscalePortrait = owner === "ai" && !preserveAiPortraitColor;
+    const observedVector = pixelVector(portrait, grayscalePortrait);
     const scores = templates
       .map((template) => ({
         creatureId: template.creature.creatureId,
         name: template.creature.name,
-        score: correlation(observedVector, owner === "ai" ? template.grayVector : template.colorVector)
+        score: correlation(observedVector, grayscalePortrait ? template.grayVector : template.colorVector)
       }))
       .sort((left, right) => right.score - left.score);
     const best = scores[0];

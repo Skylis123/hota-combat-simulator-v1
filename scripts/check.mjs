@@ -693,11 +693,16 @@ if (indexSource.includes('id="stack-count"') || !indexSource.includes('id="stack
 }
 const mainSource = fs.readFileSync(path.join(root, "src", "main.js"), "utf8");
 const screenshotAnalyzerSource = fs.readFileSync(path.join(root, "src", "engine", "screenshotAnalyzer.js"), "utf8");
+const turnBarAnalyzerSource = fs.readFileSync(path.join(root, "src", "engine", "turnBarAnalyzer.js"), "utf8");
 if (!/state\.stacks = result\.stacks;\s*deployAllArmies\(data\.battlefield\.grid, state\.stacks\);/s.test(mainSource)) {
   failures.push("Screenshot imports must redeploy detected armies to standard starting positions instead of preserving mid-battle coordinates.");
 }
 if (!mainSource.includes('addEventListener("paste"') || !mainSource.includes("analyzeBattlefieldScreenshot") || !screenshotAnalyzerSource.includes("identifyBackground") || !screenshotAnalyzerSource.includes("detectObstacles") || !screenshotAnalyzerSource.includes("detectStacks")) {
   failures.push("Screenshot import must support clipboard paste and local background/obstacle/unit analysis.");
+}
+if (!turnBarAnalyzerSource.includes('const preserveAiPortraitColor = options.preserveAiPortraitColor ?? true;')
+    || !turnBarAnalyzerSource.includes('const grayscalePortrait = owner === "ai" && !preserveAiPortraitColor;')) {
+  failures.push("Turn-bar recognition must preserve AI portrait colors so Pikemen are not replaced by Monk or Griffin.");
 }
 if (!screenshotAnalyzerSource.includes("detectStackBadges") || !screenshotAnalyzerSource.includes("readBadgeCount") || !screenshotAnalyzerSource.includes("template.record.left") || !screenshotAnalyzerSource.includes("template.record.top") || !screenshotAnalyzerSource.includes("detectionAnchorHex") || !screenshotAnalyzerSource.includes("representativeTemplates") || !screenshotAnalyzerSource.includes("detectedLeft")) {
   failures.push("Screenshot recognition must be badge-gated, preserve DEF/obstacle placement, use a creature shortlist, and read original bitmap-font counts.");

@@ -273,6 +273,26 @@ if (process.argv.includes("--assert-partial-wasteland-roster")) {
   assertObstaclePlacement(summary, 202, 146, 254, 2);
   assertObstaclePlacement(summary, 201, 454, 338, 2);
 }
+if (process.argv.includes("--assert-ai-pikeman-reference")) {
+  assertScene(summary, {
+    backgroundId: "cmbkdrtr",
+    stacks: [
+      "player:Archangel:20@1",
+      "player:Juggernaut:1@31",
+      "player:Halfling Grenadier:1@60",
+      "player:Engineer:1@75",
+      "player:Halfling Grenadier:1@90",
+      "player:Halfling:1@120",
+      "player:Halfling Grenadier:1@150",
+      "ai:Pikeman:35@44",
+      "ai:Pikeman:34@134"
+    ],
+    obstacles: ["7@47", "9@39", "14@66", "15@84"]
+  });
+  if (summary.stacks.some(({ creature }) => creature === "Griffin" || creature === "Monk")) {
+    throw new Error("AI Pikemen must not be replaced by Griffin or Monk.");
+  }
+}
 console.log(JSON.stringify(summary, null, 2));
 
 function assertScene(actual, expectedScene) {
