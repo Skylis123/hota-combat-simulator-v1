@@ -9,6 +9,7 @@
     "dev": "node scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
     "audit:obstacles": "node scripts/audit-obstacle-import.mjs",
+    "audit:obstacles:top": "node scripts/audit-obstacle-import.mjs --top-boundary",
     "check": "node scripts/check.mjs && node scripts/test-background-identification.mjs && node scripts/test-template-overlap.mjs && node scripts/test-roster-assignment.mjs && node scripts/test-import-army-order.mjs && node scripts/test-factory-mechanics.mjs && node scripts/test-neutral-mechanics.mjs"
   },
   "keywords": [

@@ -139,10 +139,9 @@ export function generateObstacleLayout(grid, state, definitions, category, rng =
   let attempts = 0;
   while (tilesToBlock > 0 && usual.length && attempts++ < 500) {
     const definition = usual[Math.floor(rng() * usual.length)];
-    const anchors = grid.hexes.filter((hex) => isValidUsualObstacleAnchor(hex, definition));
+    const anchors = grid.hexes.filter((hex) => canPlaceObstacle(grid, draft, definition, hex.id));
     if (!anchors.length) continue;
     const anchor = anchors[Math.floor(rng() * anchors.length)];
-    if (!canPlaceObstacle(grid, draft, definition, anchor.id)) continue;
     const instance = createObstacleInstance(grid, definition, anchor.id);
     generated.push(instance);
     tilesToBlock -= instance.blockedHexIds.length;
@@ -157,13 +156,11 @@ function isValidUsualObstacleAnchor(anchor, definition) {
   const originalCol = Number.isFinite(anchor.engineId)
     ? anchor.engineId % ORIGINAL_COLS
     : anchor.col + VISIBLE_COL_OFFSET;
-  // VCMI uses a strict `pos.y > height` boundary for classic DEF obstacles.
-  // HotA's Wasteland placement accepts the boundary row itself (visible in
-  // real Factory captures), so keep that compatibility exception scoped to
-  // this terrain instead of widening every battlefield.
-  const wasteland = isWastelandObstacle(definition);
-  const validRow = wasteland ? anchor.row >= height : anchor.row > height;
-  return validRow && originalCol !== 0 && originalCol + width <= 15;
+  // HotA accepts the obstacle-height boundary row on every terrain. The DEF
+  // still renders upward from this bottom-left anchor, so rejecting equality
+  // shifts the complete sprite one battlefield row too low (most visibly for
+  // tall obstacles near the top edge).
+  return anchor.row >= height && originalCol !== 0 && originalCol + width <= 15;
 }
 
 function isWastelandObstacle(definition) {

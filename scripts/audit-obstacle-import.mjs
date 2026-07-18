@@ -44,10 +44,11 @@ const backgroundByTerrain = {
   clover_field: "cmbkcf", ship: "cmbkboat", wasteland: "wasteland_rocks"
 };
 
+const topBoundaryAudit = process.argv.includes("--top-boundary");
 const requestedIds = new Set(process.argv.slice(2).filter((value) => /^\d+$/.test(value)).map(Number));
 const definitions = requestedIds.size
   ? catalog.obstacles.filter((obstacle) => requestedIds.has(obstacle.id))
-  : catalog.obstacles;
+  : catalog.obstacles.filter((obstacle) => !topBoundaryAudit || !obstacle.absolute);
 const auditCases = definitions.flatMap((definition) => (
   selectTerrains(definition).map((terrain) => ({ definition, terrain }))
 ));
@@ -65,7 +66,7 @@ for (const { definition, terrain } of auditCases) {
   }
   const anchorHexId = definition.absolute ? null : selectAnchor(definition);
   if (!definition.absolute && anchorHexId === null) {
-    failures.push(`${label}: no legal central anchor`);
+    failures.push(`${label}: no legal ${topBoundaryAudit ? "top-boundary" : "central"} anchor`);
     continue;
   }
   const obstacle = { ...definition, anchorHexId };
@@ -148,7 +149,7 @@ if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
 }
-console.log(`Obstacle Import audit passed: ${definitions.length} definitions, ${auditCases.length} combinations across ${terrainCounts.size} battlefield categories.`);
+console.log(`Obstacle Import ${topBoundaryAudit ? "top-boundary " : ""}audit passed: ${definitions.length} definitions, ${auditCases.length} combinations across ${terrainCounts.size} battlefield categories.`);
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8"));
@@ -162,7 +163,8 @@ function selectTerrains(definition) {
 function selectAnchor(definition) {
   const grid = simulator.battlefield.grid;
   return grid.hexes
-    .filter((hex) => obstacleEngine.canPlaceObstacle(grid, { stacks: [], obstacles: [] }, definition, hex.id))
+    .filter((hex) => (!topBoundaryAudit || hex.row === definition.height)
+      && obstacleEngine.canPlaceObstacle(grid, { stacks: [], obstacles: [] }, definition, hex.id))
     .sort((left, right) => (
       Math.hypot(left.centerX - 400, left.centerY - 310) - Math.hypot(right.centerX - 400, right.centerY - 310)
     ))[0]?.id ?? null;

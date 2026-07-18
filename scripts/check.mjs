@@ -12,7 +12,7 @@ import { computeTurnOrder, nextActiveStack, pendingTurnOrder } from "../src/engi
 import { deployAllArmies, deploymentRows } from "../src/engine/armyDeployment.js";
 import { attackContactPair, selectPointerAttack } from "../src/engine/battleInteraction.js";
 import { waitStack } from "../src/engine/actions.js";
-import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, manualObstaclePlacement, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
+import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, generateObstacleLayout, manualObstaclePlacement, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
 import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
 import { nativeBattleHexRect, usualObstacleRenderYOffset } from "../src/engine/battleGeometry.js";
 import { canonicalBattlefieldContentBounds, inferTerrain } from "../src/engine/screenshotAnalyzer.js";
@@ -485,7 +485,6 @@ const wideMarginObstacle = { ...marginObstacle, id: 1002, blockedTiles: [0, 1], 
 const wastelandMarginObstacle = { ...marginObstacle, id: 1003, category: "wasteland", allowedTerrains: ["wasteland"] };
 const wastelandWideMarginObstacle = { ...wideMarginObstacle, id: 1004, category: "wasteland", allowedTerrains: ["wasteland"] };
 const classicTopBoundaryObstacle = { ...marginObstacle, id: 1005, height: 3, category: "grass", allowedTerrains: ["grass"] };
-const wastelandTopBoundaryObstacle = { ...classicTopBoundaryObstacle, id: 1006, category: "wasteland", allowedTerrains: ["wasteland"] };
 const emptyBattlefieldState = { stacks: [], obstacles: [] };
 if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 1).id)
     || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 2).id)
@@ -501,9 +500,9 @@ if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandMarginObs
     || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandWideMarginObstacle, battlefieldHex(5, 12).id)) {
   failures.push("Wasteland usual obstacles must preserve HotA's observed visible-column-13 boundary.");
 }
-if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(3, 5).id)
-    || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandTopBoundaryObstacle, battlefieldHex(3, 5).id)) {
-  failures.push("Only Wasteland usual obstacles may use the height boundary row accepted by HotA.");
+if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(3, 5).id)
+    || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(2, 5).id)) {
+  failures.push("HotA usual obstacles must accept exactly the obstacle-height boundary row on every battlefield.");
 }
 const absoluteMarginObstacle = {
   ...marginObstacle,
@@ -551,6 +550,24 @@ for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obst
   const legalAnchors = battlefieldGrid.hexes.filter((hex) => (
     canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, definition, hex.id)
   ));
+  const topBoundaryAnchors = legalAnchors.filter((hex) => hex.row === definition.height);
+  if (!topBoundaryAnchors.length) {
+    failures.push(`${definition.name} must be placeable on its HotA top-boundary row ${definition.height}.`);
+  }
+  if (legalAnchors.some((hex) => hex.row < definition.height)) {
+    failures.push(`${definition.name} must not cross above its HotA top-boundary row ${definition.height}.`);
+  }
+  const deterministicLayout = generateObstacleLayout(
+    battlefieldGrid,
+    emptyBattlefieldState,
+    [definition],
+    definition.category,
+    () => 0
+  );
+  const firstLayoutAnchor = battlefieldGrid.hexes.find((hex) => hex.id === deterministicLayout[0]?.anchorHexId);
+  if (firstLayoutAnchor?.row !== definition.height) {
+    failures.push(`${definition.name} auto-layout must include its top-boundary row.`);
+  }
   const seedAnchor = legalAnchors[0];
   if (!seedAnchor) {
     failures.push(`${definition.name} must have at least one legal manual anchor.`);
@@ -578,6 +595,25 @@ for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obst
   if (!placement) {
     failures.push(`${definition.name} could not be placed on one of its legal occupied hexes.`);
     continue;
+  }
+  const topBoundaryAnchor = topBoundaryAnchors[0];
+  if (topBoundaryAnchor) {
+    const topBoundaryPosition = obstacleRenderPosition(battlefieldGrid, {
+      ...definition,
+      anchorHexId: topBoundaryAnchor.id
+    });
+    if (topBoundaryPosition?.top !== 128) {
+      failures.push(`${definition.name} must render from native Y=128 at its top-boundary anchor, got ${topBoundaryPosition?.top}.`);
+    }
+    const topBlockedHexIds = obstacleBlockedHexes(battlefieldGrid, definition, topBoundaryAnchor.id);
+    const hasManualTopPlacement = topBlockedHexIds.some((topHexId) => {
+      const topPlacement = manualObstaclePlacement(battlefieldGrid, emptyBattlefieldState, definition, topHexId);
+      const topPlacementAnchor = battlefieldGrid.hexes.find((hex) => hex.id === topPlacement?.anchorHexId);
+      return topPlacementAnchor?.row === definition.height;
+    });
+    if (!hasManualTopPlacement) {
+      failures.push(`${definition.name} could not be manually placed on its top boundary from any occupied hex.`);
+    }
   }
   const position = obstacleRenderPosition(battlefieldGrid, {
     ...definition,
