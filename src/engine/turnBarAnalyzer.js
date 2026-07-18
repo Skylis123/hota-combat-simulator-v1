@@ -110,12 +110,18 @@ export function battleWindowBoundsFromTurnBarGeometry(geometry, sourceWidth, sou
   let width = BATTLE_WINDOW_WIDTH * scale;
   let height = BATTLE_WINDOW_HEIGHT * scale;
   const edgeTolerance = Math.max(8, 14 * scale);
+  const exactCropTolerance = Math.max(2, 3 * scale);
 
-  if (Math.abs(x) <= edgeTolerance) x = 0;
-  if (Math.abs(y) <= edgeTolerance) y = 0;
-  if (Math.abs(sourceWidth - width) <= edgeTolerance * 2) width = sourceWidth;
-  if (Math.abs(sourceHeight - height) <= edgeTolerance * 2) height = sourceHeight;
+  // A window a few pixels from an outer screenshot edge is still offset. It
+  // may be snapped to zero only when the screenshot dimensions independently
+  // prove that it is an already-cropped combat window.
+  if (Math.abs(x) <= edgeTolerance && Math.abs(sourceWidth - width) <= exactCropTolerance) x = 0;
+  if (Math.abs(y) <= edgeTolerance && Math.abs(sourceHeight - height) <= exactCropTolerance) y = 0;
+  if (Math.abs(sourceWidth - width) <= exactCropTolerance) width = sourceWidth;
+  if (Math.abs(sourceHeight - height) <= exactCropTolerance) height = sourceHeight;
 
+  const estimatedX = x;
+  const estimatedY = y;
   x = Math.max(0, Math.round(x));
   y = Math.max(0, Math.round(y));
   width = Math.min(sourceWidth - x, Math.round(width));
@@ -137,6 +143,8 @@ export function battleWindowBoundsFromTurnBarGeometry(geometry, sourceWidth, sou
       || width < sourceWidth - edgeTolerance || height < sourceHeight - edgeTolerance,
     method: "turn-bar",
     scale,
+    estimatedX,
+    estimatedY,
     cardCount: geometry.cardCount
   };
 }

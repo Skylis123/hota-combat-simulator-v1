@@ -815,7 +815,8 @@ button.primary {
 .obstacle-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  /* Heroes III draws normal obstacles before the shade/grid overlay. */
+  z-index: 1;
   pointer-events: none;
 }
 

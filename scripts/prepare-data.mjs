@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { nativeBattleHexGeometry } from "../src/engine/battleGeometry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
@@ -117,8 +118,13 @@ function normalizeGrid(visibleGrid) {
         idByCell.get(`${row + 1}:${diagonalCols[0]}`),
         idByCell.get(`${row + 1}:${diagonalCols[1]}`)
       ]);
-      const centerX = Math.round(hex.centerX) + (row % 2 === 0 ? 22 : -22);
-      const centerY = Math.round(hex.centerY);
+      const nativeGeometry = nativeBattleHexGeometry({
+        row,
+        col,
+        engineId: hex.engineId ?? hex.id
+      });
+      const centerX = nativeGeometry.centerX;
+      const centerY = nativeGeometry.centerY;
       return {
         id: hex.id ?? hex.visibleId,
         engineId: hex.engineId ?? hex.id,
@@ -126,14 +132,7 @@ function normalizeGrid(visibleGrid) {
         col,
         centerX,
         centerY,
-        polygonPoints: [
-          [centerX - 22, centerY - 14],
-          [centerX, centerY - 28],
-          [centerX + 22, centerY - 14],
-          [centerX + 22, centerY + 14],
-          [centerX, centerY + 28],
-          [centerX - 22, centerY + 14]
-        ],
+        polygonPoints: nativeGeometry.polygonPoints,
         neighbors: visibleNeighbors
       };
     })

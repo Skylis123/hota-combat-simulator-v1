@@ -1,11 +1,11 @@
 import { footprintHexes } from "./footprint.js";
+import { BATTLEFIELD_ENGINE_COLUMNS, nativeUsualObstaclePosition } from "./battleGeometry.js";
 
-const ORIGINAL_COLS = 17;
+const ORIGINAL_COLS = BATTLEFIELD_ENGINE_COLUMNS;
 const VISIBLE_COL_OFFSET = 1;
 const USUAL_OBSTACLE_MIN_VISIBLE_COL = 2;
-const USUAL_OBSTACLE_MAX_VISIBLE_COL = 12;
-const HEX_ROW_STEP = 42;
-const OBSTACLE_Y_OFFSET = 10;
+const CLASSIC_USUAL_OBSTACLE_MAX_VISIBLE_COL = 12;
+const WASTELAND_USUAL_OBSTACLE_MAX_VISIBLE_COL = 13;
 
 export function obstacleBlockedHexes(grid, obstacle, anchorHexId = obstacle?.anchorHexId) {
   if (!obstacle) return [];
@@ -42,11 +42,14 @@ export function canPlaceObstacle(grid, state, definition, anchorHexId = null) {
   if (!definition.absolute) {
     const anchor = grid.hexes.find((hex) => hex.id === anchorHexId);
     if (!isValidUsualObstacleAnchor(anchor, definition)) return false;
+    const maxVisibleCol = isWastelandObstacle(definition)
+      ? WASTELAND_USUAL_OBSTACLE_MAX_VISIBLE_COL
+      : CLASSIC_USUAL_OBSTACLE_MAX_VISIBLE_COL;
     if (!blockedHexIds.every((hexId) => {
       const hex = grid.hexes.find((candidate) => candidate.id === hexId);
       return hex
         && hex.col >= USUAL_OBSTACLE_MIN_VISIBLE_COL
-        && hex.col <= USUAL_OBSTACLE_MAX_VISIBLE_COL;
+        && hex.col <= maxVisibleCol;
     })) return false;
   }
   const occupied = new Set();
@@ -71,32 +74,18 @@ export function createObstacleInstance(grid, definition, anchorHexId = null) {
 
 export function obstacleRenderPosition(grid, obstacle) {
   if (obstacle?.absolute) {
-    // Fixed battlefield graphics have no grid anchor, so their detected pixel
-    // position is authoritative. Usual obstacles below are deliberately
-    // snapped to their canonical anchor instead of retaining sub-hex image
-    // matching drift from the source screenshot.
-    if (Number.isFinite(obstacle.detectedLeft) && Number.isFinite(obstacle.detectedTop)) {
-      return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
-    }
-    return { left: obstacle.width, top: obstacle.height };
+    // Fixed battlefield graphics have fixed catalog coordinates and fixed
+    // engine cells. Matcher refinement is evidence for selecting the asset,
+    // not a second render position that may drift away from those cells.
+    return {
+      left: Number.isFinite(obstacle.placementOffsetX) ? obstacle.placementOffsetX : obstacle.width,
+      top: Number.isFinite(obstacle.placementOffsetY) ? obstacle.placementOffsetY : obstacle.height
+    };
   }
-  // An imported obstacle has already been matched against the normalized
-  // native battlefield. Preserve that exact position: snapping it a second
-  // time can move a wide DEF frame onto the neighbouring visual hex.
-  if (Number.isFinite(obstacle?.detectedLeft) && Number.isFinite(obstacle?.detectedTop)) {
-    return { left: obstacle.detectedLeft, top: obstacle.detectedTop };
-  }
-  const nativePosition = obstacleNativePosition(grid, obstacle);
-  if (!nativePosition) return null;
-  const manualCenter = grid.hexes.find((hex) => hex.id === obstacle?.manualCenterHexId);
-  if (!manualCenter || !Number.isFinite(obstacle.visualCenterX)) return nativePosition;
-  return {
-    // DEF frames contain asymmetric transparent padding and shadows. Center
-    // the alpha-weighted visible graphic, not the full PNG rectangle, on the
-    // hex explicitly chosen by the user.
-    left: manualCenter.centerX - obstacle.visualCenterX,
-    top: nativePosition.top
-  };
+  // Imported and manual usual obstacles share the native game contract. The
+  // screenshot matcher only chooses the logical anchor; it never becomes a
+  // second visual coordinate system.
+  return obstacleNativePosition(grid, obstacle);
 }
 
 export function manualObstaclePlacement(grid, state, definition, clickedHexId) {
@@ -123,21 +112,13 @@ export function manualObstaclePlacement(grid, state, definition, clickedHexId) {
 }
 
 // Heroes III/VCMI positions usual obstacle frames from the bottom-left of
-// their logical `pos` hex. Screenshot matching must use this native contract;
-// manual placement keeps this vertical contract while centering the visible
-// pixels horizontally on the explicitly selected occupied hex.
+// their logical `pos` cell raster. Shadows and transparent padding are part of
+// the DEF and must not be used to recenter the image.
 export function obstacleNativePosition(grid, obstacle) {
   if (obstacle?.absolute) return obstacleRenderPosition(grid, obstacle);
   const anchor = grid.hexes.find((hex) => hex.id === obstacle?.anchorHexId);
   if (!anchor) return null;
-  const polygonX = anchor.polygonPoints?.map(([x]) => x) || [];
-  const polygonY = anchor.polygonPoints?.map(([, y]) => y) || [];
-  const bottomLeftX = polygonX.length ? Math.min(...polygonX) : anchor.centerX - 22;
-  const bottomY = polygonY.length ? Math.max(...polygonY) : anchor.centerY + 28;
-  return {
-    left: bottomLeftX,
-    top: bottomY - (HEX_ROW_STEP * definitionHeight(obstacle) + OBSTACLE_Y_OFFSET)
-  };
+  return nativeUsualObstaclePosition(anchor, definitionHeight(obstacle), obstacle.renderYOffset);
 }
 
 export function generateObstacleLayout(grid, state, definitions, category, rng = Math.random) {
@@ -176,7 +157,18 @@ function isValidUsualObstacleAnchor(anchor, definition) {
   const originalCol = Number.isFinite(anchor.engineId)
     ? anchor.engineId % ORIGINAL_COLS
     : anchor.col + VISIBLE_COL_OFFSET;
-  return anchor.row > height && originalCol !== 0 && originalCol + width <= 15;
+  // VCMI uses a strict `pos.y > height` boundary for classic DEF obstacles.
+  // HotA's Wasteland placement accepts the boundary row itself (visible in
+  // real Factory captures), so keep that compatibility exception scoped to
+  // this terrain instead of widening every battlefield.
+  const wasteland = isWastelandObstacle(definition);
+  const validRow = wasteland ? anchor.row >= height : anchor.row > height;
+  return validRow && originalCol !== 0 && originalCol + width <= 15;
+}
+
+function isWastelandObstacle(definition) {
+  return definition?.category === "wasteland"
+    || definition?.allowedTerrains?.includes("wasteland");
 }
 
 function definitionHeight(definition) {

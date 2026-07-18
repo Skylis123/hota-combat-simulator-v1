@@ -2,13 +2,63 @@ import assert from "node:assert/strict";
 import {
   applyRosterCounts,
   assignStackCandidatesToRoster,
+  completeTurnRosterOwners,
   completeStacksFromTurnRoster,
+  hasCompleteTurnRoster,
   mergeRosterAssignmentsWithFallback
 } from "../src/engine/screenshotAnalyzer.js";
 
 function candidate(label, owner, creatureId, quality) {
   return { label, owner, creature: { creatureId }, quality };
 }
+
+const completeRoster = {
+  lowerBoundRoster: [
+    ...Array.from({ length: 7 }, (_, creatureId) => ({ owner: "player", creatureId, instances: 1 })),
+    { owner: "ai", creatureId: 5, instances: 7 }
+  ]
+};
+assert.equal(hasCompleteTurnRoster(completeRoster), true, "A proven 7+7 queue must be treated as an exact army inventory.");
+assert.equal(hasCompleteTurnRoster({
+  lowerBoundRoster: completeRoster.lowerBoundRoster.filter((entry) => entry.owner !== "player" || entry.creatureId !== 6)
+}), false, "A queue missing even one player stack must remain a conservative lower bound.");
+assert.deepEqual(
+  [...completeTurnRosterOwners({ lowerBoundRoster: completeRoster.lowerBoundRoster.slice(0, 7) })],
+  ["player"],
+  "A complete player queue must be usable even if faster enemy stacks already left the visible current-round segment."
+);
+assert.deepEqual(
+  [...completeTurnRosterOwners({ lowerBoundRoster: [{ owner: "ai", creatureId: null, instances: 7 }] })],
+  [],
+  "Seven unidentified queue cards must not become a complete Pikeman roster through null coercion."
+);
+assert.equal(
+  assignStackCandidatesToRoster([], { lowerBoundRoster: [{ owner: "ai", creatureId: null, instances: 7 }] }),
+  null,
+  "Unknown queue identities must not create a creatureId 0 roster capacity."
+);
+
+const animatedBadge = { id: "animated-factory-stack", count: 1 };
+const wrongAnimatedVisual = {
+  ...candidate("animation-lookalike-griffin", "player", 4, 0.74),
+  badge: animatedBadge
+};
+const exactAnimatedRoster = {
+  ...candidate("queue-proven-automaton", "player", 176, 0.62),
+  badge: animatedBadge
+};
+assert.deepEqual(
+  assignStackCandidatesToRoster([{
+    badge: animatedBadge,
+    best: wrongAnimatedVisual,
+    alternatives: [wrongAnimatedVisual, exactAnimatedRoster]
+  }], [{ owner: "player", creatureId: 176, instances: 1 }], {
+    maxVisualQualityDrop: 0.04,
+    allowMaterialVisualDrop: (entry) => entry.owner === "player"
+  }).map((entry) => entry.label),
+  ["queue-proven-automaton"],
+  "An exact owner inventory must survive a different idle-animation frame."
+);
 
 const globallyAmbiguous = [
   {
@@ -91,6 +141,103 @@ const thresholdResult = assignStackCandidatesToRoster([
   { alternatives: [candidate("usable", "player", 0, 0.2)] }
 ], [{ owner: "player", creatureId: 0, instances: 2 }], { minimumQuality: 0.2 });
 assert.deepEqual(thresholdResult.map((entry) => entry.label), ["usable"]);
+
+const strongPikemanBadge = { id: "strong-pikeman", count: 19 };
+const strongVisualPikeman = {
+  ...candidate("strong-visual-pikeman", "ai", 0, 0.668),
+  rawQuality: 0.668,
+  badge: strongPikemanBadge,
+  correlation: 0.55,
+  chroma: 0.95
+};
+const weakerRosterHalberdier = {
+  ...candidate("weaker-roster-halberdier", "ai", 1, 0.606),
+  rawQuality: 0.606,
+  badge: strongPikemanBadge,
+  correlation: 0.45,
+  chroma: 0.95
+};
+const conservativeRoster = {
+  lowerBoundRoster: [{ owner: "ai", creatureId: 1, count: 18, instances: 1 }]
+};
+const conservativeAssignment = assignStackCandidatesToRoster([{
+  badge: strongPikemanBadge,
+  best: strongVisualPikeman,
+  alternatives: [strongVisualPikeman, weakerRosterHalberdier]
+}], conservativeRoster, {
+  minimumQuality: -0.15,
+  maxVisualQualityDrop: 0.04
+});
+assert.deepEqual(
+  conservativeAssignment,
+  [],
+  "A roster capacity must not relabel a materially stronger visual creature when its count also disagrees."
+);
+assert.deepEqual(
+  mergeRosterAssignmentsWithFallback([{
+    badge: strongPikemanBadge,
+    best: strongVisualPikeman,
+    alternatives: [strongVisualPikeman, weakerRosterHalberdier]
+  }], conservativeAssignment, conservativeRoster).map((entry) => entry.label),
+  ["strong-visual-pikeman"],
+  "The unmatched visual stack must remain available while the hidden roster stack is recovered separately."
+);
+
+const aiCountBadge = { id: "ai-count-owner", count: 18 };
+const wrongSideMechanic = {
+  ...candidate("wrong-side-player-mechanic", "player", 172, 0.678),
+  rawQuality: 0.85,
+  badge: aiCountBadge,
+  correlation: 0.4,
+  chroma: 0.95
+};
+const correctSidePikeman = {
+  ...candidate("count-supported-ai-pikeman", "ai", 0, 0.667),
+  rawQuality: 0.669,
+  badge: aiCountBadge,
+  correlation: 0.31,
+  chroma: 0.98
+};
+assert.deepEqual(
+  mergeRosterAssignmentsWithFallback([{
+    badge: aiCountBadge,
+    best: wrongSideMechanic,
+    alternatives: [wrongSideMechanic, correctSidePikeman]
+  }], [], {
+    entries: [{ owner: "ai", creatureId: null, count: 18 }],
+    lowerBoundRoster: [{ owner: "player", creatureId: 172, count: 8, instances: 1 }]
+  }).map((entry) => entry.label),
+  ["count-supported-ai-pikeman"],
+  "An unidentified queue card may still disambiguate the owner of a strong battlefield match by count."
+);
+
+const unknownIdentityBadge = { id: "unknown-count-identity", count: 18 };
+const correctVisualRoyalGriffin = {
+  ...candidate("correct-visual-ai-royal-griffin", "ai", 5, 0.68),
+  rawQuality: 0.68,
+  badge: unknownIdentityBadge,
+  correlation: 0.31,
+  chroma: 0.98
+};
+const accidentalPikemanFromNull = {
+  ...candidate("accidental-pikeman-from-null", "ai", 0, 0.67),
+  rawQuality: 0.67,
+  badge: unknownIdentityBadge,
+  correlation: 0.31,
+  chroma: 0.98
+};
+assert.deepEqual(
+  mergeRosterAssignmentsWithFallback([{
+    badge: unknownIdentityBadge,
+    best: correctVisualRoyalGriffin,
+    alternatives: [correctVisualRoyalGriffin, accidentalPikemanFromNull]
+  }], [], {
+    entries: [{ owner: "ai", creatureId: null, count: 18 }],
+    lowerBoundRoster: []
+  }).map((entry) => entry.label),
+  ["correct-visual-ai-royal-griffin"],
+  "An unknown turn-bar identity must not be coerced from null into Pikeman creatureId 0."
+);
 
 const cardinalityResult = assignStackCandidatesToRoster([
   {
@@ -203,6 +350,10 @@ const higherRawMechanic = {
 const creatureCorrectedQueueMerge = mergeRosterAssignmentsWithFallback([
   { badge: visuallyBiasedBadge, best: falseMonk, alternatives: [falseMonk, higherRawMechanic, rosterSupportedWorm] }
 ], [], {
+  entries: [
+    { owner: "player", creatureId: 172, count: 6 },
+    { owner: "ai", creatureId: 178, count: 3 }
+  ],
   lowerBoundRoster: [
     { owner: "player", creatureId: 172, count: 6, instances: 1 },
     { owner: "ai", creatureId: 178, count: 3, instances: 1 }
@@ -212,6 +363,36 @@ assert.deepEqual(
   creatureCorrectedQueueMerge.map((entry) => entry.label),
   ["roster-supported-ai-worm"],
   "A strong roster-supported creature match must beat an unrelated side-biased fallback even after that queue stack already acted."
+);
+
+const sameOwnerFalseMonk = {
+  ...candidate("false-ai-monk", "ai", 8, 0.72),
+  badge: visuallyBiasedBadge,
+  correlation: 0.45,
+  chroma: 0.95,
+  rawQuality: 0.77
+};
+const sameOwnerExactWorm = {
+  ...candidate("exact-count-ai-worm", "ai", 178, 0.61),
+  badge: visuallyBiasedBadge,
+  correlation: 0.5,
+  chroma: 0.95,
+  rawQuality: 0.72
+};
+const sameOwnerCreatureCorrection = mergeRosterAssignmentsWithFallback([
+  {
+    badge: visuallyBiasedBadge,
+    best: sameOwnerFalseMonk,
+    alternatives: [sameOwnerFalseMonk, sameOwnerExactWorm]
+  }
+], [], {
+  entries: [{ owner: "ai", creatureId: 178, count: 3 }],
+  lowerBoundRoster: [{ owner: "ai", creatureId: 178, count: 3, instances: 1 }]
+});
+assert.deepEqual(
+  sameOwnerCreatureCorrection.map((entry) => entry.label),
+  ["exact-count-ai-worm"],
+  "An exact turn-bar count identity must correct a same-owner false Monk match to Sandworm before the owner early return."
 );
 
 const importedStack = {

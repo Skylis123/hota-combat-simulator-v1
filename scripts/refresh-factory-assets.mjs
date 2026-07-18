@@ -18,6 +18,9 @@ const OBSTACLE_CONFIG_RELATIVE = `${WASTELAND_ROOT}/config/hota/wasteland/obstac
 const OBSTACLE_SPRITES_RELATIVE = `${WASTELAND_ROOT}/sprites/hota/wasteland/obstacles`;
 const SOURCE_LABEL = "VCMI Horn of the Abyss Factory mod 1.1.6";
 const SOURCE_COMMIT = "de4db20b7ef3bd6941c2705c3b79f0458d3ba9b9";
+// HotA renders these two 168px PNG canvases from their full raster baseline.
+// All other usual obstacles retain the native 42 * logicalHeight + 10 offset.
+const WASTELAND_RENDER_Y_OFFSETS = new Map([[1, 178], [7, 178]]);
 
 const ability = (key, details, kind = "passive") => ({ key, kind, details });
 const stats = (attack, defense, minDamage, maxDamage, hp, speed, shots, growth, costGold, costCrystal = 0) => ({
@@ -768,6 +771,7 @@ async function exportWasteland(vcmiRoot) {
       imageWidth: image.width,
       imageHeight: image.height,
       visualCenterX: alphaWeightedCenterX(imagePixels),
+      ...(WASTELAND_RENDER_Y_OFFSETS.has(index) ? { renderYOffset: WASTELAND_RENDER_Y_OFFSETS.get(index) } : {}),
       ...(absolute ? { placementOffsetX: definition.width, placementOffsetY: definition.height } : {})
     };
     records.push(record);

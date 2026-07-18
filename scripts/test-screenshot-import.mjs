@@ -64,6 +64,7 @@ const summary = {
     blockedHexIds
   })),
   ...(includeDiagnostics ? { timings: result.timings } : {}),
+  ...(includeDiagnostics ? { turnRoster: result.turnRoster } : {}),
   ...((includeDiagnostics || includeObstacleDiagnostics) ? {
     obstacleDetectionDiagnostics: (result.obstacleDetectionDiagnostics || []).map((diagnostic) => ({
       definitionId: diagnostic.definitionId,
@@ -213,6 +214,64 @@ if (process.argv.includes("--assert-hota-halberdier-ai")) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`Unexpected HotA Halberdier stacks: ${actual.join(", ")}`);
   }
+}
+if (process.argv.includes("--assert-complete-wasteland-roster")) {
+  assertScene(summary, {
+    backgroundId: "wasteland_rocks",
+    stacks: [
+      "player:Halfling:1@0",
+      "player:Sandworm:1@31",
+      "player:Automaton:1@61",
+      "player:Juggernaut:1@76",
+      "player:Sentinel Automaton:1@91",
+      "player:Olgoi-Khorkhoi:1@121",
+      "player:Halfling Grenadier:1@150",
+      "ai:Royal Griffin:7@13",
+      "ai:Royal Griffin:7@43",
+      "ai:Royal Griffin:7@73",
+      "ai:Royal Griffin:7@88",
+      "ai:Royal Griffin:7@103",
+      "ai:Royal Griffin:7@133",
+      "ai:Royal Griffin:6@163"
+    ],
+    obstacles: ["212@null", "209@82", "201@101", "200@121"]
+  });
+  // These coordinates come from the real HotA screenshot, not from a
+  // synthetic scene generated with the same metadata as the renderer.
+  assertObstaclePlacement(summary, 201, 564, 212, 2);
+  assertObstaclePlacement(summary, 209, 366, 212, 2);
+  assertObstaclePlacement(summary, 200, 124, 338, 2);
+}
+if (process.argv.includes("--assert-full-window-crop")) {
+  const bounds = summary.battleWindow;
+  if (!bounds.detected || bounds.x !== 472 || bounds.y !== 73 || bounds.width !== 1615 || bounds.height !== 1288) {
+    throw new Error(`Unexpected full-screen battle-window crop: ${JSON.stringify(bounds)}`);
+  }
+}
+if (process.argv.includes("--assert-partial-wasteland-roster")) {
+  assertScene(summary, {
+    backgroundId: "wasteland_rocks",
+    stacks: [
+      "player:Halfling:1@0",
+      "player:Sandworm:1@31",
+      "player:Automaton:1@61",
+      "player:Juggernaut:1@76",
+      "player:Sentinel Automaton:1@91",
+      "player:Olgoi-Khorkhoi:1@121",
+      "player:Halfling Grenadier:1@150",
+      "ai:Sandworm:2@13",
+      "ai:Sandworm:2@43",
+      "ai:Olgoi-Khorkhoi:2@88",
+      "ai:Sandworm:2@133",
+      "ai:Sandworm:1@163"
+    ],
+    obstacles: ["209@63", "205@46", "207@108", "202@77", "201@144"]
+  });
+  assertObstaclePlacement(summary, 209, 212, 170, 2);
+  assertObstaclePlacement(summary, 205, 102, 128, 2);
+  assertObstaclePlacement(summary, 207, 190, 254, 2);
+  assertObstaclePlacement(summary, 202, 146, 254, 2);
+  assertObstaclePlacement(summary, 201, 454, 338, 2);
 }
 console.log(JSON.stringify(summary, null, 2));
 

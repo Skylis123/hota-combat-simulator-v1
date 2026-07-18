@@ -14,6 +14,8 @@ import { attackContactPair, selectPointerAttack } from "../src/engine/battleInte
 import { waitStack } from "../src/engine/actions.js";
 import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, manualObstaclePlacement, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
 import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
+import { nativeBattleHexRect, usualObstacleRenderYOffset } from "../src/engine/battleGeometry.js";
+import { canonicalBattlefieldContentBounds, inferTerrain } from "../src/engine/screenshotAnalyzer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -44,6 +46,9 @@ const fullScreenBattleWindow = battleWindowBoundsFromTurnBarGeometry({
 const offsetBattleWindow = battleWindowBoundsFromTurnBarGeometry({
   baselineWidth: 72, firstCardX: 1111, baselineY: 1593, cardCount: 14
 }, 3600, 2400);
+const nearEdgeBattleWindow = battleWindowBoundsFromTurnBarGeometry({
+  baselineWidth: 72, firstCardX: 233, baselineY: 1201, cardCount: 14
+}, 1700, 1308);
 if (croppedBattleWindow.detected || croppedBattleWindow.x !== 0 || croppedBattleWindow.y !== 0
     || croppedBattleWindow.width !== 1615 || croppedBattleWindow.height !== 1288) {
   failures.push("An already cropped Battlefield screenshot must retain its complete source bounds.");
@@ -56,9 +61,32 @@ if (!offsetBattleWindow.detected || offsetBattleWindow.x !== 900 || offsetBattle
     || offsetBattleWindow.width !== 1615 || offsetBattleWindow.height !== 1288) {
   failures.push("Battlefield detection must not depend on the combat window's position inside a larger partial screenshot.");
 }
+const nearEdgeContent = canonicalBattlefieldContentBounds(nearEdgeBattleWindow, 1700, 1308);
+if (!nearEdgeBattleWindow.detected || nearEdgeBattleWindow.x !== 22 || nearEdgeBattleWindow.y !== 8
+    || nearEdgeContent.x !== 30 || nearEdgeContent.y !== 15
+    || nearEdgeContent.width !== 1600 || nearEdgeContent.height !== 1112) {
+  failures.push("A combat window near an outer screenshot edge must retain its offset and normalize its 1600x1112 inner battlefield.");
+}
 const battlefieldCatalog = JSON.parse(fs.readFileSync(path.join(root, "public", "data", "battlefield-catalog.json"), "utf8"));
 if (battlefieldCatalog.obstacles.length !== 140 || battlefieldCatalog.backgrounds.length !== 26 || battlefieldCatalog.missingGraphics.length !== 0) {
   failures.push("Battlefield catalog must contain all 140 obstacles, all 26 backgrounds and no missing graphics.");
+}
+const expectedBackgroundTerrains = new Map([
+  ["cmbkbch", "sand_shore"], ["cmbkboat", "ship"], ["cmbkcf", "clover_field"],
+  ["cmbkcur", "cursed_ground"], ["cmbkdeck", "ship"], ["cmbkdes", "sand"],
+  ["cmbkdrdd", "dirt"], ["cmbkdrmt", "dirt"], ["cmbkdrtr", "dirt"],
+  ["cmbkef", "evil_fog"], ["cmbkff", "fiery_fields"], ["cmbkfw", "favorable_winds"],
+  ["cmbkgrmt", "grass"], ["cmbkgrtr", "grass"], ["cmbkhg", "holy_ground"],
+  ["cmbklp", "lucid_pools"], ["cmbklava", "lava"], ["cmbkmc", "magic_clouds"],
+  ["cmbkmag", "magic_plains"], ["cmbkrk", "rocklands"], ["cmbkrgh", "rough"],
+  ["cmbksnmt", "snow"], ["cmbksntr", "snow"], ["cmbksub", "subterra"],
+  ["cmbkswmp", "swamp"], ["wasteland_rocks", "wasteland"]
+]);
+for (const background of battlefieldCatalog.backgrounds) {
+  const expectedTerrain = expectedBackgroundTerrains.get(background.id);
+  if (!expectedTerrain || inferTerrain(background) !== expectedTerrain) {
+    failures.push(`Battlefield ${background.id} must route Import to ${expectedTerrain || "an explicit terrain"}, got ${inferTerrain(background)}.`);
+  }
 }
 for (const entry of [...battlefieldCatalog.obstacles, ...battlefieldCatalog.backgrounds]) {
   if (!fs.existsSync(path.join(root, "public", entry.image.replace(/^assets\//, "assets/")))) {
@@ -100,6 +128,12 @@ if (wastelandBackground?.town !== "Factory" || wastelandObstacles.length !== 15)
 }
 if (JSON.stringify(wastelandObstacles.map((obstacle) => obstacle.id)) !== JSON.stringify(Array.from({ length: 15 }, (_, index) => 200 + index))) {
   failures.push("Wasteland obstacle IDs must be the complete audited range 200-214.");
+}
+const explicitWastelandOffsets = wastelandObstacles
+  .filter((obstacle) => Object.hasOwn(obstacle, "renderYOffset"))
+  .map((obstacle) => [obstacle.id, obstacle.renderYOffset]);
+if (JSON.stringify(explicitWastelandOffsets) !== JSON.stringify([[201, 178], [207, 178]])) {
+  failures.push(`Only ObWLD01/07 may override the usual obstacle Y offset: ${JSON.stringify(explicitWastelandOffsets)}.`);
 }
 
 const detectionManifest = JSON.parse(fs.readFileSync(path.join(root, "public", "assets", "creatures", "detection", "manifest.json"), "utf8"));
@@ -151,11 +185,13 @@ if (!fs.existsSync(path.join(root, "public", data.battlefield.background.image))
 const topHex = data.battlefield.grid.hexes.find((hex) => hex.row === 0 && hex.col === 0);
 const lowerHex = data.battlefield.grid.hexes.find((hex) => hex.row === 1 && hex.col === 0);
 if (
-  Math.min(...topHex.polygonPoints.map((point) => point[1])) !== topHex.centerY - 28 ||
-  !topHex.polygonPoints.some((point) => point[0] === lowerHex.centerX && point[1] === lowerHex.centerY - 28) ||
-  !lowerHex.polygonPoints.some((point) => point[0] === topHex.centerX && point[1] === topHex.centerY + 28)
+  topHex.centerX !== 102 || topHex.centerY !== 112
+  || lowerHex.centerX !== 80 || lowerHex.centerY !== 154
+  || Math.min(...topHex.polygonPoints.map((point) => point[1])) !== 86
+  || Math.max(...topHex.polygonPoints.map((point) => point[1])) !== 137
+  || Math.min(...lowerHex.polygonPoints.map((point) => point[1])) !== 128
 ) {
-  failures.push("Battlefield hex polygons must share exact game-style edges without vertical gaps.");
+  failures.push("Battlefield hex polygons must reproduce the native 45x52 cell raster and 44x42 steps.");
 }
 if (JSON.stringify(topHex.neighbors) !== JSON.stringify([1, 15, 16])) {
   failures.push(`Top-left battlefield corner must expose three contact hexes with game parity: ${topHex.neighbors}`);
@@ -428,20 +464,32 @@ const battlefieldHex = (row, col) => battlefieldGrid.hexes.find((hex) => hex.row
 const marginObstacle = { id: 1000, name: "Margin test", blockedTiles: [0], absolute: false, width: 1, height: 1, image: "" };
 const offsetMarginObstacle = { ...marginObstacle, id: 1001, blockedTiles: [1], width: 2 };
 const wideMarginObstacle = { ...marginObstacle, id: 1002, blockedTiles: [0, 1], width: 2 };
+const wastelandMarginObstacle = { ...marginObstacle, id: 1003, category: "wasteland", allowedTerrains: ["wasteland"] };
+const wastelandWideMarginObstacle = { ...wideMarginObstacle, id: 1004, category: "wasteland", allowedTerrains: ["wasteland"] };
+const classicTopBoundaryObstacle = { ...marginObstacle, id: 1005, height: 3, category: "grass", allowedTerrains: ["grass"] };
+const wastelandTopBoundaryObstacle = { ...classicTopBoundaryObstacle, id: 1006, category: "wasteland", allowedTerrains: ["wasteland"] };
 const emptyBattlefieldState = { stacks: [], obstacles: [] };
 if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 1).id)
     || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 2).id)
     || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 12).id)
     || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 13).id)) {
-  failures.push("Usual obstacles must keep every blocked footprint hex inside visible columns 2 through 12.");
+  failures.push("Classic usual obstacles must keep every blocked footprint hex inside visible columns 2 through 12.");
 }
 if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, offsetMarginObstacle, battlefieldHex(5, 1).id)
     || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wideMarginObstacle, battlefieldHex(5, 12).id)) {
   failures.push("Obstacle margin validation must inspect blockedTiles rather than rejecting or accepting an anchor alone.");
 }
+if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandMarginObstacle, battlefieldHex(5, 13).id)
+    || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandWideMarginObstacle, battlefieldHex(5, 12).id)) {
+  failures.push("Wasteland usual obstacles must preserve HotA's observed visible-column-13 boundary.");
+}
+if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(3, 5).id)
+    || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandTopBoundaryObstacle, battlefieldHex(3, 5).id)) {
+  failures.push("Only Wasteland usual obstacles may use the height boundary row accepted by HotA.");
+}
 const absoluteMarginObstacle = {
   ...marginObstacle,
-  id: 1003,
+  id: 1007,
   absolute: true,
   blockedTiles: [battlefieldHex(5, 0).engineId],
   width: 17,
@@ -453,8 +501,9 @@ if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, absoluteMarginObst
 const renderAnchor = battlefieldHex(5, 5);
 const manualRenderObstacle = { ...marginObstacle, anchorHexId: renderAnchor.id, height: 2 };
 const manualRenderPosition = obstacleRenderPosition(battlefieldGrid, manualRenderObstacle);
-const expectedBottomLeftX = Math.min(...renderAnchor.polygonPoints.map(([x]) => x));
-const expectedBottomY = Math.max(...renderAnchor.polygonPoints.map(([, y]) => y));
+const renderAnchorRect = nativeBattleHexRect(renderAnchor);
+const expectedBottomLeftX = renderAnchorRect.left;
+const expectedBottomY = renderAnchorRect.top + renderAnchorRect.height;
 if (manualRenderPosition?.left !== expectedBottomLeftX || manualRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
   failures.push("Manual usual obstacles must render from the hex bottom-left with the original 42 * height + 10 Y offset.");
 }
@@ -463,25 +512,48 @@ const detectedRenderPosition = obstacleRenderPosition(battlefieldGrid, {
   detectedLeft: 123.5,
   detectedTop: 77.25
 });
-if (detectedRenderPosition?.left !== 123.5 || detectedRenderPosition?.top !== 77.25) {
-  failures.push("Screenshot-detected usual obstacles must preserve their normalized source coordinates.");
+if (detectedRenderPosition?.left !== manualRenderPosition?.left || detectedRenderPosition?.top !== manualRenderPosition?.top) {
+  failures.push("Screenshot-detected usual obstacles must snap to their native logical anchor.");
 }
 const nativeRenderPosition = obstacleNativePosition(battlefieldGrid, manualRenderObstacle);
 if (nativeRenderPosition?.left !== expectedBottomLeftX || nativeRenderPosition?.top !== expectedBottomY - (42 * 2 + 10)) {
   failures.push("Native obstacle matching must retain the bottom-left game anchor contract.");
 }
+if (usualObstacleRenderYOffset(3) !== 136
+    || usualObstacleRenderYOffset(3, 178) !== 178
+    || usualObstacleRenderYOffset(3, 136) !== 136) {
+  failures.push("Usual obstacles must default to 42 * height + 10 and honor only explicit renderYOffset metadata.");
+}
 const centeredManualObstacle = { ...manualRenderObstacle, imageWidth: 96, visualCenterX: 64.4, manualCenterHexId: renderAnchor.id };
 const centeredManualPosition = obstacleRenderPosition(battlefieldGrid, centeredManualObstacle);
-if (centeredManualPosition?.left !== renderAnchor.centerX - 64.4 || centeredManualPosition?.top !== nativeRenderPosition?.top) {
-  failures.push("Manual obstacles must center their alpha-weighted visible pixels on the clicked hex.");
+if (centeredManualPosition?.left !== nativeRenderPosition?.left || centeredManualPosition?.top !== nativeRenderPosition?.top) {
+  failures.push("Alpha centroids must not override the native usual-obstacle anchor.");
 }
 for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obstacle.absolute)) {
-  const seedAnchor = battlefieldGrid.hexes.find((hex) => (
+  const legalAnchors = battlefieldGrid.hexes.filter((hex) => (
     canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, definition, hex.id)
   ));
+  const seedAnchor = legalAnchors[0];
   if (!seedAnchor) {
     failures.push(`${definition.name} must have at least one legal manual anchor.`);
     continue;
+  }
+  for (const anchor of legalAnchors) {
+    const rect = nativeBattleHexRect(anchor);
+    const expectedPosition = {
+      left: rect.left,
+      top: rect.top + rect.height - usualObstacleRenderYOffset(definition.height, definition.renderYOffset)
+    };
+    const rendered = obstacleRenderPosition(battlefieldGrid, { ...definition, anchorHexId: anchor.id });
+    if (rendered?.left !== expectedPosition.left || rendered?.top !== expectedPosition.top) {
+      failures.push(`${definition.name} drifts from its native raster at legal anchor ${anchor.id}.`);
+      break;
+    }
+    const blocked = obstacleBlockedHexes(battlefieldGrid, definition, anchor.id);
+    if (blocked.length !== definition.blockedTiles.length) {
+      failures.push(`${definition.name} loses footprint cells at legal edge/parity anchor ${anchor.id}.`);
+      break;
+    }
   }
   const clickedHexId = obstacleBlockedHexes(battlefieldGrid, definition, seedAnchor.id)[0];
   const placement = manualObstaclePlacement(battlefieldGrid, emptyBattlefieldState, definition, clickedHexId);
@@ -489,7 +561,6 @@ for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obst
     failures.push(`${definition.name} could not be placed on one of its legal occupied hexes.`);
     continue;
   }
-  const clickedHex = battlefieldGrid.hexes.find((hex) => hex.id === clickedHexId);
   const position = obstacleRenderPosition(battlefieldGrid, {
     ...definition,
     anchorHexId: placement.anchorHexId,
@@ -499,8 +570,12 @@ for (const definition of battlefieldCatalog.obstacles.filter((obstacle) => !obst
   if (!placedBlockedHexes.includes(clickedHexId)) {
     failures.push(`${definition.name} does not block the manually clicked hex.`);
   }
-  if (Math.abs(position.left + definition.visualCenterX - clickedHex.centerX) > 0.001) {
-    failures.push(`${definition.name} visible pixels are not centered on the clicked occupied hex.`);
+  const nativePosition = obstacleNativePosition(battlefieldGrid, {
+    ...definition,
+    anchorHexId: placement.anchorHexId
+  });
+  if (position.left !== nativePosition.left || position.top !== nativePosition.top) {
+    failures.push(`${definition.name} does not use its native raster anchor.`);
   }
 }
 const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
@@ -508,8 +583,9 @@ const detectedAbsolutePosition = obstacleRenderPosition(battlefieldGrid, {
   detectedLeft: 123.5,
   detectedTop: 77.25
 });
-if (detectedAbsolutePosition?.left !== 123.5 || detectedAbsolutePosition?.top !== 77.25) {
-  failures.push("Screenshot-detected absolute obstacles must preserve their fixed image coordinates.");
+if (detectedAbsolutePosition?.left !== absoluteMarginObstacle.width
+    || detectedAbsolutePosition?.top !== absoluteMarginObstacle.height) {
+  failures.push("Screenshot-detected absolute obstacles must snap to their fixed catalog coordinates.");
 }
 const negativeRowObstacle = { ...marginObstacle, height: 3, blockedTiles: [-33, -34] };
 const detectedBaseFootprint = detectedObstacleBlockedHexes(battlefieldGrid, negativeRowObstacle, renderAnchor.id);
@@ -520,6 +596,10 @@ if (JSON.stringify(detectedBaseFootprint) !== JSON.stringify(canonicalBaseFootpr
 const appCss = fs.readFileSync(path.join(root, "src", "styles", "app.css"), "utf8");
 if (/\.battle-obstacle\.usual\s*\{[^}]*translateY\(-100%\)/s.test(appCss)) {
   failures.push("Usual obstacle placement must not depend on image-height CSS translation.");
+}
+if (!/\.obstacle-layer\s*\{[^}]*z-index:\s*1\b/s.test(appCss)
+    || !/\.hex-layer\s*\{[^}]*z-index:\s*2\b/s.test(appCss)) {
+  failures.push("Normal obstacles must render below the native shade/grid overlay.");
 }
 const battleAnimatorSource = fs.readFileSync(path.join(root, "src", "components", "BattleAnimator.js"), "utf8");
 if (!/inferAbilityFlags\(stack\.creature\)\.underground/.test(battleAnimatorSource) || !/moveActorUnderground/.test(battleAnimatorSource) || !/\.burrowed/.test(appCss)) {
@@ -618,7 +698,7 @@ if (stackInfoSource.includes("data-stack-count")) {
 const joustingChampion = createBattleStack({ creature: byCreatureId.get(11), owner: "player", hexId: 76, count: 20, createdAt: 0 });
 const playerChampionVisual = stackVisualPosition(data.battlefield.grid, joustingChampion);
 const aiChampionVisual = stackVisualPosition(data.battlefield.grid, { ...joustingChampion, owner: "ai" });
-if (playerChampionVisual?.centerX !== 110 || aiChampionVisual?.centerX !== 154) {
+if (playerChampionVisual?.centerX !== 102 || aiChampionVisual?.centerX !== 146) {
   failures.push(`Two-hex visual anchor mismatch: Player=${playerChampionVisual?.centerX}, AI=${aiChampionVisual?.centerX}.`);
 }
 const parityGriffin = createBattleStack({ creature: byCreatureId.get(4), owner: "player", hexId: 31, count: 10, createdAt: 0 });

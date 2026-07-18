@@ -3,9 +3,46 @@ import { canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes,
 import { inferAbilityFlags } from "./abilities.js";
 import { footprintHexes } from "./footprint.js";
 import { detectBattleWindowBounds, detectTurnBarRoster } from "./turnBarAnalyzer.js";
+import { assignImportedArmySlots } from "./importArmyOrder.js";
+import { templateEmbeddingRatio } from "./templateOverlap.js";
 
 const WIDTH = 800;
 const HEIGHT = 556;
+const BATTLE_CONTENT_OFFSET_X = 8;
+const BATTLE_CONTENT_OFFSET_Y = 7;
+const BATTLE_CONTENT_REFERENCE_WIDTH = 1600;
+const BATTLE_CONTENT_REFERENCE_HEIGHT = 1112;
+const CREATURE_CANVAS_ANCHOR_X = 196;
+const CREATURE_CANVAS_ANCHOR_Y = 251;
+const ROSTER_VISUAL_QUALITY_TOLERANCE = 0.04;
+const BACKGROUND_TERRAIN_BY_ID = new Map([
+  ["cmbkbch", "sand_shore"],
+  ["cmbkboat", "ship"],
+  ["cmbkcf", "clover_field"],
+  ["cmbkcur", "cursed_ground"],
+  ["cmbkdeck", "ship"],
+  ["cmbkdes", "sand"],
+  ["cmbkdrdd", "dirt"],
+  ["cmbkdrmt", "dirt"],
+  ["cmbkdrtr", "dirt"],
+  ["cmbkef", "evil_fog"],
+  ["cmbkff", "fiery_fields"],
+  ["cmbkfw", "favorable_winds"],
+  ["cmbkgrmt", "grass"],
+  ["cmbkgrtr", "grass"],
+  ["cmbkhg", "holy_ground"],
+  ["cmbklp", "lucid_pools"],
+  ["cmbklava", "lava"],
+  ["cmbkmc", "magic_clouds"],
+  ["cmbkmag", "magic_plains"],
+  ["cmbkrk", "rocklands"],
+  ["cmbkrgh", "rough"],
+  ["cmbksnmt", "snow"],
+  ["cmbksntr", "snow"],
+  ["cmbksub", "subterra"],
+  ["cmbkswmp", "swamp"],
+  ["wasteland_rocks", "wasteland"]
+]);
 const BACKGROUND_FINGERPRINT = { x: 96, y: 0, width: 704, height: 104, sampleWidth: 64, sampleHeight: 8 };
 const contextPixelCache = new WeakMap();
 const templatePixelCache = new WeakMap();
@@ -56,6 +93,7 @@ export async function analyzeBattlefieldScreenshot(file, data) {
   const obstacles = detectedObstacles;
   applyRosterCounts(stacks, turnRoster);
   const rosterCompletedStacks = completeStacksFromTurnRoster(stacks, turnRoster, data);
+  assignImportedArmySlots(data.battlefield.grid, stacks);
   const stacksAt = performance.now();
   // Native TextDetector OCR is intentionally not used for Heroes III badges:
   // its general-purpose glyph model confuses the game's tiny bitmap 5/6/1.
@@ -94,11 +132,11 @@ export function completeStacksFromTurnRoster(stacks, turnRoster, data) {
   const matched = new Set();
   const entries = roster.filter((entry) => (
     ["player", "ai"].includes(entry.owner)
-    && Number.isInteger(Number(entry.creatureId))
+    && integerCreatureId(entry.creatureId) !== null
   ));
 
   for (const entry of entries) {
-    const creatureId = Number(entry.creatureId);
+    const creatureId = integerCreatureId(entry.creatureId);
     const expectedCount = Math.trunc(Number(entry.count));
     const expectedInstances = Math.max(1, Math.trunc(Number(entry.instances) || 1));
     const sameCreature = stacks.filter((stack) => (
@@ -233,13 +271,23 @@ function setImportedStackCount(stack, count) {
 }
 
 export function normalizeBattlefield(image, smoothing = true, bounds = null) {
+  const imageWidth = image.naturalWidth || image.videoWidth || image.width;
+  const imageHeight = image.naturalHeight || image.videoHeight || image.height;
   const targetRatio = WIDTH / HEIGHT;
-  const sourceBounds = bounds || { x: 0, y: 0, width: image.width, height: image.height };
+  const sourceBounds = canonicalBattlefieldContentBounds(
+    bounds || { x: 0, y: 0, width: imageWidth, height: imageHeight },
+    imageWidth,
+    imageHeight
+  );
   const sourceRatio = sourceBounds.width / sourceBounds.height;
   let sw = sourceBounds.width;
   let sh = sourceBounds.height;
-  if (sourceRatio > targetRatio) sw = sourceBounds.height * targetRatio;
-  else if (sourceRatio < targetRatio) sh = sourceBounds.width / targetRatio;
+  // A turn-bar-derived window has an exact inner battlefield rectangle. The
+  // aspect fallback remains only for legacy screenshots without that marker.
+  if (!sourceBounds.canonical) {
+    if (sourceRatio > targetRatio) sw = sourceBounds.height * targetRatio;
+    else if (sourceRatio < targetRatio) sh = sourceBounds.width / targetRatio;
+  }
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
@@ -249,14 +297,41 @@ export function normalizeBattlefield(image, smoothing = true, bounds = null) {
   return canvas;
 }
 
-function identifyBackground(canvas, backgrounds) {
+export function canonicalBattlefieldContentBounds(bounds, sourceWidth, sourceHeight) {
+  if (bounds?.method !== "turn-bar") return { ...bounds, canonical: false };
+  const scale = Number(bounds.scale) || 1;
+  const estimatedX = Number.isFinite(bounds.estimatedX) ? bounds.estimatedX : bounds.x;
+  const estimatedY = Number.isFinite(bounds.estimatedY) ? bounds.estimatedY : bounds.y;
+  const expected = {
+    x: estimatedX + BATTLE_CONTENT_OFFSET_X * scale,
+    y: estimatedY + BATTLE_CONTENT_OFFSET_Y * scale,
+    width: BATTLE_CONTENT_REFERENCE_WIDTH * scale,
+    height: BATTLE_CONTENT_REFERENCE_HEIGHT * scale
+  };
+  const x = Math.max(0, expected.x);
+  const y = Math.max(0, expected.y);
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.min(expected.width - (x - expected.x), sourceWidth - x)),
+    height: Math.max(1, Math.min(expected.height - (y - expected.y), sourceHeight - y)),
+    canonical: true
+  };
+}
+
+export function identifyBackground(canvas, backgrounds) {
   const { x, y, width, height, sampleWidth, sampleHeight } = BACKGROUND_FINGERPRINT;
   const sampleCanvas = document.createElement("canvas");
   sampleCanvas.width = sampleWidth;
   sampleCanvas.height = sampleHeight;
   sampleCanvas.getContext("2d").drawImage(canvas, x, y, width, height, 0, 0, sampleWidth, sampleHeight);
   const pixels = sampleCanvas.getContext("2d").getImageData(0, 0, sampleWidth, sampleHeight).data;
-  let best = null;
+  const fullCanvas = document.createElement("canvas");
+  fullCanvas.width = 16;
+  fullCanvas.height = 11;
+  fullCanvas.getContext("2d").drawImage(canvas, 0, 0, 16, 11);
+  const fullPixels = fullCanvas.getContext("2d").getImageData(0, 0, 16, 11).data;
+  const horizonScores = [];
   for (const background of backgrounds) {
     const fingerprint = background.horizonFingerprint;
     if (!fingerprint?.length) continue;
@@ -272,23 +347,68 @@ function identifyBackground(canvas, backgrounds) {
     // those local outliers from turning desert into dirt or grass into rough.
     pixelErrors.sort((left, right) => left - right);
     const inlierCount = Math.max(1, Math.floor(pixelErrors.length * 0.8));
-    const error = pixelErrors.slice(0, inlierCount).reduce((sum, value) => sum + value, 0) / inlierCount;
-    if (!best || error < best.error) best = { id: background.id, error };
+    const horizonError = pixelErrors.slice(0, inlierCount).reduce((sum, value) => sum + value, 0) / inlierCount;
+    horizonScores.push({ background, horizonError });
   }
-  if (best) return best.id;
+  horizonScores.sort((left, right) => left.horizonError - right.horizonError);
+  if (horizonScores.length) {
+    const closeCandidates = horizonScores.filter((candidate) => (
+      candidate.horizonError <= horizonScores[0].horizonError + 0.5
+    ));
+    if (closeCandidates.length > 1) {
+      // Some special fields intentionally reuse another battlefield's entire
+      // skyline. Compare only full-frame cells where those near-tied catalog
+      // candidates materially differ; common grass and screenshot occlusion
+      // cannot drown the actual overlay signal that way.
+      const discriminativeIndexes = [];
+      const fingerprintLength = Math.min(...closeCandidates.map(({ background }) => (
+        background.fingerprint?.length || 0
+      )));
+      for (let index = 0; index < fingerprintLength; index += 3) {
+        let maximumPairDelta = 0;
+        for (let left = 0; left < closeCandidates.length; left += 1) {
+          for (let right = left + 1; right < closeCandidates.length; right += 1) {
+            const leftFingerprint = closeCandidates[left].background.fingerprint;
+            const rightFingerprint = closeCandidates[right].background.fingerprint;
+            const delta = (
+              Math.abs(leftFingerprint[index] - rightFingerprint[index])
+              + Math.abs(leftFingerprint[index + 1] - rightFingerprint[index + 1])
+              + Math.abs(leftFingerprint[index + 2] - rightFingerprint[index + 2])
+            ) / 3;
+            maximumPairDelta = Math.max(maximumPairDelta, delta);
+          }
+        }
+        if (maximumPairDelta >= 10) discriminativeIndexes.push(index);
+      }
+      if (discriminativeIndexes.length) {
+        for (const candidate of closeCandidates) {
+          candidate.discriminatorError = discriminativeIndexes.reduce((sum, index) => {
+            const pixel = index / 3 * 4;
+            const fingerprint = candidate.background.fingerprint;
+            return sum + (
+              Math.abs(fingerprint[index] - fullPixels[pixel])
+              + Math.abs(fingerprint[index + 1] - fullPixels[pixel + 1])
+              + Math.abs(fingerprint[index + 2] - fullPixels[pixel + 2])
+            ) / 3;
+          }, 0) / discriminativeIndexes.length;
+        }
+        closeCandidates.sort((left, right) => (
+          left.discriminatorError - right.discriminatorError
+          || left.horizonError - right.horizonError
+        ));
+      }
+    }
+    return closeCandidates[0].background.id;
+  }
 
   // Backwards-compatible fallback for an older generated catalog.
-  const fallbackCanvas = document.createElement("canvas");
-  fallbackCanvas.width = 16;
-  fallbackCanvas.height = 11;
-  fallbackCanvas.getContext("2d").drawImage(canvas, 0, 0, 16, 11);
-  const fallbackPixels = fallbackCanvas.getContext("2d").getImageData(0, 0, 16, 11).data;
+  let best = null;
   for (const background of backgrounds) {
     let error = 0;
     for (let index = 0, pixel = 0; index < background.fingerprint.length; index += 3, pixel += 4) {
-      error += Math.abs(background.fingerprint[index] - fallbackPixels[pixel]);
-      error += Math.abs(background.fingerprint[index + 1] - fallbackPixels[pixel + 1]);
-      error += Math.abs(background.fingerprint[index + 2] - fallbackPixels[pixel + 2]);
+      error += Math.abs(background.fingerprint[index] - fullPixels[pixel]);
+      error += Math.abs(background.fingerprint[index + 1] - fullPixels[pixel + 1]);
+      error += Math.abs(background.fingerprint[index + 2] - fullPixels[pixel + 2]);
     }
     if (!best || error < best.error) best = { id: background.id, error };
   }
@@ -353,8 +473,16 @@ function prepareObstacleDetectionBackground(screenshotContext, backgroundContext
     }
   }
 
-  if (!adjustedHexes) return backgroundContext;
+  if (!adjustedHexes) {
+    backgroundContext.cleanCompositeBackground = backgroundContext;
+    return backgroundContext;
+  }
   adjustedContext.putImageData(adjustedImage, 0, 0);
+  // Reachability shading is painted after battlefield obstacles in the native
+  // renderer. Keep the clean terrain alongside the shade-matched background
+  // so template compositing can apply the same shade to opaque sprite pixels,
+  // instead of incorrectly treating the shaded terrain as a layer below them.
+  adjustedContext.cleanCompositeBackground = backgroundContext;
   return adjustedContext;
 }
 
@@ -387,9 +515,14 @@ async function detectObstacles(screenshot, background, data, terrain) {
 
   for (const definition of definitions.filter((candidate) => candidate.absolute)) {
     const image = images.get(definition.id);
-    const placement = bestCompositePlacement(screenshot, background, image, definition.width, definition.height, {
-      radiusX: 28, radiusY: 28, step: 4, allowFlip: true, sampleStep: 3, ignoreForegroundOcclusion: true
+    const originX = Number.isFinite(definition.placementOffsetX) ? definition.placementOffsetX : definition.width;
+    const originY = Number.isFinite(definition.placementOffsetY) ? definition.placementOffsetY : definition.height;
+    const placement = bestCompositePlacement(screenshot, background, image, originX, originY, {
+      radiusX: 5, radiusY: 5, step: 1, allowFlip: false, sampleStep: 3,
+      ignoreForegroundOcclusion: true, rankByObstacleQuality: true
     });
+    placement.anchorDistance = Math.hypot(placement.x - originX, placement.y - originY);
+    detectionDiagnostics.push({ definitionId: definition.id, anchorHexId: null, ...placement });
     if (placement.correlation > 0.45 && placement.gain > 0.08 && placement.match > 0.82) {
       candidates.push({ definition, anchorHexId: null, ...placement });
     }
@@ -397,9 +530,10 @@ async function detectObstacles(screenshot, background, data, terrain) {
 
   for (const definition of definitions.filter((candidate) => !candidate.absolute)) {
     const image = images.get(definition.id);
-    const sparseTemplate = templateAlphaDensity(image) < 0.3;
+    const alphaDensity = templateAlphaDensity(image);
+    const sparseTemplate = alphaDensity < 0.3;
+    const thinSingleCellTemplate = definition.blockedTiles.length === 1 && alphaDensity < 0.34;
     const smallTemplate = image.width * image.height < 3000;
-    const needsWideRefinement = sparseTemplate || smallTemplate;
     const coarseCandidates = [];
     for (const anchor of data.battlefield.grid.hexes) {
       if (!canPlaceObstacle(data.battlefield.grid, { stacks: [], obstacles: [] }, definition, anchor.id)) continue;
@@ -408,21 +542,17 @@ async function detectObstacles(screenshot, background, data, terrain) {
       const expectedPosition = obstacleNativePosition(data.battlefield.grid, { ...definition, anchorHexId: anchor.id });
       if (!expectedPosition) continue;
       const placement = bestCompositePlacement(screenshot, background, image, expectedPosition.left, expectedPosition.top, {
-        // DEF obstacle anchors vary by more than one quarter hex between
-        // graphics. Search the whole legal anchor neighbourhood coarsely,
-        // then refine only the best matches below.
-        // Keep the origin on both the three- and six-pixel coarse lattices;
-        // otherwise thin exact templates can be skipped before refinement.
-        radiusX: 30,
-        radiusY: 24,
-        step: smallTemplate ? 3 : 6,
+        // Every candidate is first scored at its legal native origin. A free
+        // half-hex search can match a real sprite while retaining the logical
+        // anchor of a neighbouring row, which was the source of the Wasteland
+        // one-hex displacement.
+        radiusX: 0,
+        radiusY: 0,
+        step: 1,
         allowFlip: false,
         ignoreForegroundOcclusion: true,
-        // A six-pixel placement/sampling lattice can skip most opaque pixels
-        // of small stumps, bones, and branches, so the right anchor never
-        // reaches the refinement shortlist. A three-pixel lattice for those
-        // templates is still cheap and is independent of any one fixture.
-        sampleStep: smallTemplate ? 3 : 6
+        rankByObstacleQuality: true,
+        sampleStep: smallTemplate || sparseTemplate ? 2 : 4
       });
       coarseCandidates.push({
         anchor,
@@ -433,49 +563,78 @@ async function detectObstacles(screenshot, background, data, terrain) {
       });
     }
     coarseCandidates.sort((left, right) => obstacleMatchQuality(right) - obstacleMatchQuality(left));
-    const shortlist = coarseCandidates.slice(0, needsWideRefinement ? 36 : 18);
+    const shortlist = coarseCandidates.slice(0, sparseTemplate || smallTemplate ? 18 : 10);
     let diagnosticBest = null;
     for (const coarse of shortlist) {
-      // Sparse graphics (bones, thin branches) alias badly on the six-pixel
-      // coarse lattice. Only those templates receive the wider intermediate
-      // refinement; dense rocks/ponds keep the fast direct path.
-      const intermediate = needsWideRefinement
-        ? bestCompositePlacement(screenshot, background, image, coarse.x, coarse.y, {
-          radiusX: 12, radiusY: 12, step: 3, fixedFlip: coarse.flip, sampleStep: 3, ignoreForegroundOcclusion: true
-        })
-        : coarse;
-      const placement = bestCompositePlacement(screenshot, background, image, intermediate.x, intermediate.y, {
-        radiusX: needsWideRefinement ? 2 : 3,
-        radiusY: needsWideRefinement ? 2 : 3,
+      const placement = bestCompositePlacement(screenshot, background, image, coarse.expectedLeft, coarse.expectedTop, {
+        // Only sub-pixel crop/rasterisation drift is refined. The winning
+        // logical anchor remains the one whose native origin is being tested.
+        radiusX: 5,
+        radiusY: 5,
         step: 1,
-        fixedFlip: intermediate.flip,
-        sampleStep: needsWideRefinement ? 2 : 3,
-        ignoreForegroundOcclusion: true
+        fixedFlip: false,
+        sampleStep: sparseTemplate || smallTemplate ? 2 : 3,
+        ignoreForegroundOcclusion: true,
+        rankByObstacleQuality: true
       });
       placement.anchorDistance = Math.hypot(
         placement.x - coarse.expectedLeft,
-        // The normalized native capture consistently retains the DEF frame
-        // about 16 px above our polygon-derived bottom edge. Compensating
-        // that fixed raster/grid offset prevents an exact template match
-        // from being attributed to the anchor one row above or below.
-        placement.y - coarse.expectedTop + 16
+        placement.y - coarse.expectedTop
       );
-      const normalMatch = placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72;
+      const closeToNativeAnchor = placement.anchorDistance <= 7.2;
+      const normalMatch = closeToNativeAnchor
+        && placement.correlation > 0.5 && placement.gain > 0.3 && placement.match > 0.72;
       // A tall creature can hide most of an obstacle while leaving a very
       // characteristic fragment visible. In that case the obstacle still
       // has excellent correlation/chroma, but its improvement over the
       // background is necessarily smaller. Accept only this much stricter
       // high-similarity signature so occluded rocks are preserved without
       // admitting generic battlefield noise.
-      const strongOccludedMatch = placement.correlation > 0.72
+      const strongOccludedMatch = closeToNativeAnchor
+        && placement.correlation > 0.72
         && placement.gain > 0.12
         && placement.match > 0.84
         && placement.chroma > 0.985;
+      // Thin cacti can cover only a small fraction of a dark movement-shaded
+      // hex. Their clean native color signature remains reliable even when
+      // replacing the adjusted terrain does not improve the aggregate error.
+      const sparseNativeColorMatch = closeToNativeAnchor
+        && thinSingleCellTemplate
+        && placement.correlation > 0.48
+        && placement.gain > -0.08
+        && placement.match > 0.87
+        && placement.chroma > 0.982;
+      // Tiny translucent field markers can be closer in raw RGB error to a
+      // similarly coloured special-field background than to their unshaded
+      // source PNG. Their shape/chroma correlation remains distinctive, so
+      // admit only this strict small-overlay signature when ordinary gain is
+      // unavailable.
+      const distinctSmallOverlayMatch = closeToNativeAnchor
+        && smallTemplate
+        && placement.gain <= 0.3
+        && placement.correlation > 0.84
+        && placement.match > 0.86
+        && placement.chroma > 0.96;
       const diagnostic = { definitionId: definition.id, anchorHexId: coarse.anchor.id, ...placement };
       if (!diagnosticBest
         || anchoredObstacleMatchQuality(diagnostic) > anchoredObstacleMatchQuality(diagnosticBest)) diagnosticBest = diagnostic;
-      if (normalMatch || strongOccludedMatch) {
-        candidates.push({ definition, anchorHexId: coarse.anchor.id, blockedHexIds: coarse.blockedHexIds, ...placement });
+      const matchMode = normalMatch
+        ? "normal"
+        : strongOccludedMatch
+          ? "occluded"
+          : sparseNativeColorMatch
+            ? "sparse"
+            : distinctSmallOverlayMatch
+              ? "overlay"
+              : null;
+      if (matchMode) {
+        candidates.push({
+          definition,
+          anchorHexId: coarse.anchor.id,
+          blockedHexIds: coarse.blockedHexIds,
+          matchMode,
+          ...placement
+        });
       }
     }
     if (diagnosticBest) detectionDiagnostics.push(diagnosticBest);
@@ -486,18 +645,46 @@ async function detectObstacles(screenshot, background, data, terrain) {
     || (anchoredObstacleMatchQuality(right) - anchoredObstacleMatchQuality(left))
   ));
   const accepted = [];
-  const occupied = new Set();
   for (const candidate of candidates) {
-    if (accepted.some((item) => (
-      item.id === candidate.definition.id
-      && Math.abs(item.detectedLeft - candidate.x) < candidate.definition.imageWidth * 0.35
-      && Math.abs(item.detectedTop - candidate.y) < candidate.definition.imageHeight * 0.35
-    ))) continue;
     const anchorHexId = candidate.anchorHexId;
     const blockedHexIds = candidate.definition.absolute
       ? (candidate.blockedHexIds || obstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId))
       : detectedObstacleBlockedHexes(data.battlefield.grid, candidate.definition, anchorHexId);
-    if (blockedHexIds.some((hexId) => occupied.has(hexId))) continue;
+    if (accepted.some((item) => (
+      (!item.absolute && !candidate.definition.absolute && item.anchorHexId === candidate.anchorHexId)
+      || (
+        Math.abs(item.detectedLeft - candidate.x) <= 8
+        && Math.abs(item.detectedTop - candidate.y) <= 8
+      )
+      || (() => {
+        const overlap = blockedHexIds.filter((hexId) => item.blockedHexIds?.includes(hexId)).length;
+        // A single native obstacle cannot occupy the same battlefield cells
+        // twice. Wide/tall sprites otherwise make their smaller catalog
+        // siblings look like additional obstacles at neighbouring anchors.
+        // Keep partially-overlapping adjacent HotA graphics (some catalog
+        // footprints share an edge cell), but suppress candidates whose own
+        // footprint is almost entirely explained by a stronger match.
+        if (!overlap) return false;
+        if (item.id === candidate.definition.id) return true;
+        // Broad native sprites are often assembled from smaller catalog art,
+        // so those component templates can also score at neighbouring
+        // anchors. Suppress a component only when a stronger candidate
+        // already explains at least 75% of its logical footprint. Sparse
+        // color-only and translucent-overlay matches are exempt: HotA scenes
+        // can contain those real graphics even when catalog footprints share
+        // an edge cell (notably narrow Wasteland cacti).
+        return ["normal", "occluded"].includes(candidate.matchMode)
+          && overlap / Math.max(1, blockedHexIds.length) >= 0.75;
+      })()
+      || templateEmbeddingRatio(
+        obstacleTemplateRecord(images.get(candidate.definition.id), candidate.x, candidate.y, candidate.flip),
+        obstacleTemplateRecord(images.get(item.id), item.detectedLeft, item.detectedTop, item.detectedFlip)
+      ) >= 0.25
+    ))) continue;
+    // Visual evidence is authoritative during import. HotA scenes can contain
+    // adjacent graphics whose catalog footprints share an edge cell; dropping
+    // the second strong template makes a visible obstacle disappear. The
+    // simulator safely stores the union of blocked cells.
     if (candidate.definition.absolute && accepted.some((item) => item.absolute)) continue;
     const instance = createObstacleInstance(data.battlefield.grid, candidate.definition, anchorHexId);
     instance.detectionConfidence = candidate.gain;
@@ -506,7 +693,6 @@ async function detectObstacles(screenshot, background, data, terrain) {
     instance.detectedTop = candidate.y;
     instance.blockedHexIds = blockedHexIds;
     accepted.push(instance);
-    blockedHexIds.forEach((hexId) => occupied.add(hexId));
     if (accepted.length >= 12) break;
   }
   accepted.detectionDiagnostics = detectionDiagnostics;
@@ -621,7 +807,19 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
   // multiplicities. Unassigned badges retain the strict legacy visual
   // fallback, so a clipped or unrecognized queue card cannot delete a real
   // battlefield stack.
-  const rosterAssignment = assignStackCandidatesToRoster(candidateGroups, roster, { minimumQuality: -0.15 });
+  const completeRosterOwners = completeTurnRosterOwners(roster);
+  const rosterAssignment = assignStackCandidatesToRoster(candidateGroups, roster, {
+    minimumQuality: -0.15,
+    // Seven recognized stacks make that side of the queue an exact army
+    // inventory, even when the other side has already acted and is only a
+    // partial lower bound. An idle, turn or underground animation frame may
+    // then look materially different from the extracted DEF reference: the
+    // global assignment must still consume every proven identity on that
+    // complete side. Partial sides keep the conservative visual guard, so one
+    // visible card cannot turn a strong Pikeman into a Halberdier.
+    maxVisualQualityDrop: ROSTER_VISUAL_QUALITY_TOLERANCE,
+    allowMaterialVisualDrop: (candidate) => completeRosterOwners.has(candidate.owner)
+  });
   const candidates = mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment, roster);
   const accepted = [];
   const usedHexes = new Set();
@@ -655,38 +853,234 @@ async function detectStacks(screenshot, background, data, blocked, countContext 
     };
     stack.screenshotCountDiagnostics = candidate.badge.countDiagnostics;
     stack.screenshotCountRecognized = Boolean(candidate.badge.count);
+    stack.screenshotSourceHexId = candidate.primaryHex.id;
+    stack.screenshotSourceRow = candidate.primaryHex.row;
     accepted.push(stack);
     for (const occupiedHexId of footprint) usedHexes.add(occupiedHexId);
   }
-  for (const owner of ["player", "ai"]) {
-    accepted
-      .filter((stack) => stack.owner === owner)
-      .sort((left, right) => {
-        const leftHex = data.battlefield.grid.hexes.find((hex) => hex.id === left.hexId);
-        const rightHex = data.battlefield.grid.hexes.find((hex) => hex.id === right.hexId);
-        return (leftHex?.row ?? 99) - (rightHex?.row ?? 99) || (leftHex?.col ?? 99) - (rightHex?.col ?? 99);
-      })
-      .forEach((stack, armySlot) => { stack.armySlot = armySlot; });
+  // A badge may be completely hidden by a tall overlapping creature or
+  // foreground obstacle. The turn bar tells us that the stack exists, but it
+  // cannot tell us the army slot because cards are ordered by initiative.
+  // Recover such stacks by scanning their known sprite identities over legal
+  // battlefield anchors before falling back to a roster-only placeholder.
+  const recovered = recoverUnbadgedRosterStacks(
+    screenshot,
+    background,
+    data,
+    blocked,
+    roster,
+    templatesByCreature,
+    accepted,
+    usedHexes
+  );
+  for (const stack of recovered) {
+    if (ownerCounts[stack.owner] >= 7) continue;
+    ownerCounts[stack.owner] += 1;
+    accepted.push(stack);
+    for (const occupiedHexId of footprintHexes(data.battlefield.grid, stack) || [stack.hexId]) usedHexes.add(occupiedHexId);
   }
   accepted.detectionDiagnostics = {
     badgeCount: badges.length,
     candidateGroupCount: candidateGroups.length,
+    rosterAssignments: (rosterAssignment || []).map((candidate) => ({
+      badgeY: candidate.badge?.minY,
+      owner: candidate.owner,
+      creatureId: candidate.creature?.creatureId,
+      name: candidate.creature?.name,
+      quality: candidate.quality
+    })),
+    mergedCandidates: candidates.map((candidate) => ({
+      badgeY: candidate.badge?.minY,
+      owner: candidate.owner,
+      creatureId: candidate.creature?.creatureId,
+      name: candidate.creature?.name,
+      quality: candidate.quality,
+      primaryHexId: candidate.primaryHex?.id
+    })),
     groups: candidateGroups.map((group) => ({
       badge: {
         minX: group.badge.minX,
         minY: group.badge.minY,
         count: group.badge.count
       },
-      alternatives: group.alternatives.slice(0, 8).map((candidate) => ({
-        owner: candidate.owner,
-        creatureId: candidate.creature.creatureId,
-        name: candidate.creature.name,
-        quality: candidate.quality,
-        primaryHexId: candidate.primaryHex.id
-      }))
+        alternatives: group.alternatives.slice(0, 8).map((candidate) => ({
+          owner: candidate.owner,
+          creatureId: candidate.creature.creatureId,
+          name: candidate.creature.name,
+          quality: candidate.quality,
+          rawQuality: candidate.rawQuality,
+          correlation: candidate.correlation,
+          chroma: candidate.chroma,
+          gain: candidate.gain,
+          match: candidate.match,
+          primaryHexId: candidate.primaryHex.id
+        }))
     }))
   };
   return accepted;
+}
+
+function recoverUnbadgedRosterStacks(screen, background, data, blocked, roster, templatesByCreature, accepted, usedHexes) {
+  const missing = missingRosterStackSpecs(roster, accepted);
+  const recovered = [];
+  const pending = [...missing];
+
+  // Resolve the strongest visual match globally on every pass. This avoids
+  // letting turn-bar card order decide which hidden stack receives the first
+  // available spatial position.
+  while (pending.length) {
+    const proposals = pending.map((spec, index) => ({
+      index,
+      spec,
+      placement: bestUnbadgedRosterPlacement(
+        screen,
+        background,
+        data.battlefield.grid,
+        blocked,
+        usedHexes,
+        spec,
+        templatesByCreature.get(spec.creatureId) || []
+      )
+    })).filter((proposal) => proposal.placement);
+    proposals.sort((left, right) => right.placement.quality - left.placement.quality);
+    const proposal = proposals[0];
+    if (!proposal) break;
+
+    const creature = data.creatures.find((candidate) => Number(candidate.creatureId) === proposal.spec.creatureId);
+    if (!creature) {
+      pending.splice(proposal.index, 1);
+      continue;
+    }
+    const stack = createBattleStack({
+      creature,
+      owner: proposal.spec.owner,
+      hexId: proposal.placement.primaryHex.id,
+      count: proposal.spec.count || 1,
+      armySlot: null,
+      createdAt: accepted.length + recovered.length
+    });
+    stack.detectionConfidence = proposal.placement.quality;
+    stack.screenshotCountRecognized = Number.isInteger(proposal.spec.count) && proposal.spec.count > 0;
+    stack.screenshotCountFromTurnBar = stack.screenshotCountRecognized;
+    stack.screenshotRecoveredWithoutBadge = true;
+    stack.screenshotSourceHexId = proposal.placement.primaryHex.id;
+    stack.screenshotSourceRow = proposal.placement.primaryHex.row;
+    stack.detectionAlternatives = [{
+      creatureId: creature.creatureId,
+      name: creature.name,
+      owner: stack.owner,
+      quality: proposal.placement.quality,
+      rawQuality: proposal.placement.rawQuality,
+      correlation: proposal.placement.correlation,
+      chroma: proposal.placement.chroma,
+      gain: proposal.placement.gain,
+      match: proposal.placement.match
+    }];
+    recovered.push(stack);
+    for (const occupiedHexId of footprintHexes(data.battlefield.grid, stack) || [stack.hexId]) usedHexes.add(occupiedHexId);
+    pending.splice(proposal.index, 1);
+  }
+  return recovered;
+}
+
+function missingRosterStackSpecs(roster, stacks) {
+  const entries = Array.isArray(roster?.lowerBoundRoster) ? roster.lowerBoundRoster : [];
+  const remaining = new Map();
+  for (const entry of entries) {
+    const owner = String(entry?.owner || "").toLowerCase();
+    const creatureId = integerCreatureId(entry?.creatureId);
+    if (!["player", "ai"].includes(owner) || creatureId === null) continue;
+    const key = `${owner}:${creatureId}`;
+    const list = remaining.get(key) || [];
+    for (let index = 0; index < Math.max(1, Math.trunc(Number(entry.instances) || 1)); index += 1) {
+      list.push({
+        owner,
+        creatureId,
+        count: Number.isInteger(Math.trunc(Number(entry.count))) && Number(entry.count) > 0
+          ? Math.trunc(Number(entry.count))
+          : null
+      });
+    }
+    remaining.set(key, list);
+  }
+  for (const stack of stacks || []) {
+    const key = `${stack.owner}:${Number(stack.creature?.creatureId)}`;
+    const list = remaining.get(key);
+    if (!list?.length) continue;
+    const exactIndex = list.findIndex((spec) => !spec.count || spec.count === stack.count);
+    list.splice(exactIndex >= 0 ? exactIndex : 0, 1);
+  }
+  return [...remaining.values()].flat();
+}
+
+function bestUnbadgedRosterPlacement(screen, background, grid, blocked, usedHexes, spec, templates) {
+  if (!templates.length) return null;
+  const creature = templates[0].creature;
+  const coarse = [];
+  const representative = representativeTemplates(templates).slice(0, 4);
+  for (const primaryHex of grid.hexes) {
+    // Mid-round movement may cross the center line, but scanning the distant
+    // third of the opponent's side adds many high-color false matches. Keep a
+    // generous two-thirds search region for each owner.
+    if (spec.owner === "player" && primaryHex.col > 10) continue;
+    if (spec.owner === "ai" && primaryHex.col < 4) continue;
+    const stackLike = { creature, owner: spec.owner, hexId: primaryHex.id };
+    const occupied = footprintHexes(grid, stackLike);
+    if (!occupied?.length || occupied.some((hexId) => usedHexes.has(hexId))) continue;
+    const placement = { owner: spec.owner, primaryHex, badgeAnchorHex: primaryHex, dx: 0, dy: 0 };
+    let best = null;
+    for (const template of representative) {
+      for (const scale of creatureTemplateScales(template)) {
+        const candidate = scoreCreatureTemplate(
+          screen,
+          background,
+          grid,
+          blocked,
+          placement,
+          scaledCreatureTemplate(template, scale),
+          true
+        );
+        if (candidate && (!best || candidate.quality > best.quality)) best = candidate;
+      }
+    }
+    if (best) coarse.push(best);
+  }
+  coarse.sort((left, right) => right.quality - left.quality);
+  let best = null;
+  for (const candidate of coarse.slice(0, 8)) {
+    const placement = {
+      owner: spec.owner,
+      primaryHex: candidate.primaryHex,
+      badgeAnchorHex: candidate.primaryHex,
+      creature: candidate.creature,
+      alignmentDx: candidate.alignmentDx,
+      alignmentDy: candidate.alignmentDy,
+      dx: 0,
+      dy: 0
+    };
+    for (const template of templates) {
+      const refined = scoreCreatureTemplate(
+        screen,
+        background,
+        grid,
+        blocked,
+        placement,
+        scaledCreatureTemplate(template, candidate.templateScale || 1),
+        false
+      );
+      if (refined && (!best || refined.quality > best.quality)) best = refined;
+    }
+  }
+  // This pass has no badge to protect it from colorful terrain fragments, so
+  // require a strong full-sprite signature. Uncertain stacks remain roster
+  // placeholders and are never silently assigned a fabricated source row.
+  return best
+    && best.quality >= 0.52
+    && best.correlation > 0.13
+    && best.chroma > 0.82
+    && best.match > 0.72
+    ? best
+    : null;
 }
 
 /**
@@ -706,15 +1100,25 @@ export function assignStackCandidatesToRoster(candidateGroups, roster, options =
   const capacities = rosterCapacities(roster);
   if (!capacities.size) return null;
   const countHints = rosterCountHints(roster);
+  const countIdentityHints = turnBarExactCountIdentityHints(roster);
 
   const capacityKeys = [...capacities.keys()].sort();
   const capacityValues = capacityKeys.map((key) => capacities.get(key));
   const capacityIndex = new Map(capacityKeys.map((key, index) => [key, index]));
   const minimumQuality = Number.isFinite(options.minimumQuality) ? options.minimumQuality : -Infinity;
+  const maxVisualQualityDrop = Number.isFinite(options.maxVisualQualityDrop)
+    ? Math.max(0, options.maxVisualQualityDrop)
+    : Infinity;
   const assignmentBonus = Number.isFinite(options.assignmentBonus) ? options.assignmentBonus : 0;
   const candidateFilter = typeof options.candidateFilter === "function" ? options.candidateFilter : () => true;
+  const allowMaterialVisualDrop = typeof options.allowMaterialVisualDrop === "function"
+    ? options.allowMaterialVisualDrop
+    : () => false;
   const groups = (candidateGroups || []).map((group, groupIndex) => {
     const alternatives = Array.isArray(group?.alternatives) ? group.alternatives : [];
+    const bestVisualQuality = alternatives.reduce((best, candidate) => (
+      Math.max(best, candidateQuality(candidate))
+    ), -Infinity);
     const bestByCapacity = new Map();
     for (const candidate of alternatives) {
       const creatureId = Number(candidate?.creature?.creatureId ?? candidate?.creatureId);
@@ -722,7 +1126,18 @@ export function assignStackCandidatesToRoster(candidateGroups, roster, options =
       const key = `${owner}:${creatureId}`;
       const index = capacityIndex.get(key);
       const quality = candidateQuality(candidate) + rosterCountEvidence(candidate, countHints.get(key));
-      if (index === undefined || !Number.isFinite(quality) || quality < minimumQuality || !candidateFilter(candidate)) continue;
+      const observedCount = Math.trunc(Number(group?.badge?.count));
+      const exactCountIdentity = Number.isInteger(observedCount)
+        && countIdentityHints.get(`${owner}:${observedCount}`) === creatureId;
+      const excessiveVisualDrop = Number.isFinite(bestVisualQuality)
+        && candidateQuality(candidate) < bestVisualQuality - maxVisualQualityDrop;
+      if (
+        index === undefined
+        || !Number.isFinite(quality)
+        || quality < minimumQuality
+        || (excessiveVisualDrop && !exactCountIdentity && !allowMaterialVisualDrop(candidate))
+        || !candidateFilter(candidate)
+      ) continue;
       const previous = bestByCapacity.get(index);
       if (!previous || quality > previous.quality) bestByCapacity.set(index, { candidate, quality });
     }
@@ -763,13 +1178,41 @@ export function assignStackCandidatesToRoster(candidateGroups, roster, options =
     .map((assignment) => assignment.candidate);
 }
 
+export function hasCompleteTurnRoster(roster) {
+  const completeOwners = completeTurnRosterOwners(roster);
+  return completeOwners.has("player") && completeOwners.has("ai");
+}
+
+export function completeTurnRosterOwners(roster) {
+  const entries = Array.isArray(roster?.lowerBoundRoster) ? roster.lowerBoundRoster : [];
+  const instances = { player: 0, ai: 0 };
+  for (const entry of entries) {
+    const owner = String(entry?.owner || "").toLowerCase();
+    const creatureId = integerCreatureId(entry?.creatureId);
+    const multiplicity = Math.max(0, Math.trunc(Number(entry?.instances) || 0));
+    if (!["player", "ai"].includes(owner) || creatureId === null || !multiplicity) continue;
+    instances[owner] += multiplicity;
+  }
+  // Heroes III armies have at most seven stacks. Reaching that cap on both
+  // sides means the recognized queue is no longer merely a lower bound.
+  return new Set(["player", "ai"].filter((owner) => instances[owner] === 7));
+}
+
 export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssignment, roster = null) {
   const assignedBadges = new Set((rosterAssignment || []).map((candidate) => candidate.badge));
   const uniqueRosterOwners = uniqueCreatureOwners(roster);
   const countHints = rosterCountHints(roster);
+  const countOwnerHints = turnBarCountOwnerHints(roster);
+  const countIdentityHints = turnBarExactCountIdentityHints(roster);
   const fallback = (candidateGroups || [])
     .filter((group) => rosterAssignment === null || !assignedBadges.has(group.badge))
-    .map((group) => rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints))
+    .map((group) => rosterAwareFallbackCandidate(
+      group,
+      uniqueRosterOwners,
+      countHints,
+      countOwnerHints,
+      countIdentityHints
+    ))
     .filter(isLegacyStackCandidate);
   if (rosterAssignment === null) return fallback.sort((left, right) => right.quality - left.quality);
 
@@ -780,9 +1223,36 @@ export function mergeRosterAssignmentsWithFallback(candidateGroups, rosterAssign
   );
 }
 
-function rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints) {
+function rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints, countOwnerHints, countIdentityHints) {
   const best = group?.best;
   const creatureId = Number(best?.creature?.creatureId ?? best?.creatureId);
+  const observedCount = Math.trunc(Number(group?.badge?.count));
+  const countOwner = Number.isInteger(observedCount) ? countOwnerHints.get(observedCount) : null;
+  const exactCountCreatureId = countOwner && Number.isInteger(observedCount)
+    ? countIdentityHints.get(`${countOwner}:${observedCount}`)
+    : null;
+  if (Number.isInteger(exactCountCreatureId)) {
+    const exactCountCandidate = (group?.alternatives || [])
+      .filter((candidate) => (
+        candidate.owner === countOwner
+        && Number(candidate?.creature?.creatureId ?? candidate?.creatureId) === exactCountCreatureId
+        && isLegacyVisualCandidate(candidate)
+      ))
+      .sort((left, right) => Number(right.quality) - Number(left.quality))[0];
+    if (exactCountCandidate) return exactCountCandidate;
+  }
+  if (countOwner && best?.owner === countOwner) return best;
+  if (countOwner) {
+    const bestQuality = Number(best?.quality);
+    const ownerSupported = (group?.alternatives || [])
+      .filter((candidate) => (
+        candidate.owner === countOwner
+        && isLegacyVisualCandidate(candidate)
+        && Number(candidate.quality) >= bestQuality - ROSTER_VISUAL_QUALITY_TOLERANCE
+      ))
+      .sort((left, right) => Number(right.quality) - Number(left.quality))[0];
+    if (ownerSupported) return ownerSupported;
+  }
   const expectedOwner = uniqueRosterOwners.get(creatureId);
   if (expectedOwner && best?.owner === expectedOwner) return best;
   const bestVisualQuality = Number(best?.rawQuality ?? best?.quality);
@@ -790,7 +1260,7 @@ function rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints) {
     .filter((candidate) => (
       uniqueRosterOwners.get(Number(candidate?.creature?.creatureId ?? candidate?.creatureId)) === candidate?.owner
       && isLegacyVisualCandidate(candidate)
-      && Number(candidate.rawQuality ?? candidate.quality) >= bestVisualQuality - 0.24
+      && Number(candidate.rawQuality ?? candidate.quality) >= bestVisualQuality - ROSTER_VISUAL_QUALITY_TOLERANCE
     ))
     .sort((left, right) => {
       const countMatchDifference = Number(rosterCandidateMatchesBadgeCount(right, group.badge, countHints))
@@ -805,6 +1275,46 @@ function rosterAwareFallbackCandidate(group, uniqueRosterOwners, countHints) {
   return rosterSupported
     ? { ...rosterSupported, quality: Number(rosterSupported.rawQuality ?? rosterSupported.quality) }
     : best;
+}
+
+function turnBarCountOwnerHints(roster) {
+  const entries = Array.isArray(roster?.entries)
+    ? roster.entries
+    : (Array.isArray(roster?.lowerBoundRoster) ? roster.lowerBoundRoster : []);
+  const ownersByCount = new Map();
+  for (const entry of entries) {
+    const owner = String(entry?.owner || "").toLowerCase();
+    const count = Math.trunc(Number(entry?.count));
+    if (!["player", "ai"].includes(owner) || !Number.isInteger(count) || count < 1) continue;
+    if (!ownersByCount.has(count)) ownersByCount.set(count, new Set());
+    ownersByCount.get(count).add(owner);
+  }
+  return new Map([...ownersByCount]
+    .filter(([, owners]) => owners.size === 1)
+    .map(([count, owners]) => [count, [...owners][0]]));
+}
+
+function turnBarExactCountIdentityHints(roster) {
+  if (!Array.isArray(roster?.entries)) return new Map();
+  const entriesByOwnerCount = new Map();
+  for (const entry of roster.entries) {
+    const owner = String(entry?.owner || "").toLowerCase();
+    const count = Math.trunc(Number(entry?.count));
+    if (!["player", "ai"].includes(owner) || !Number.isInteger(count) || count < 1) continue;
+    const key = `${owner}:${count}`;
+    if (!entriesByOwnerCount.has(key)) entriesByOwnerCount.set(key, []);
+    entriesByOwnerCount.get(key).push(entry);
+  }
+  const result = new Map();
+  for (const [key, entries] of entriesByOwnerCount) {
+    const creatureIds = entries.map((entry) => {
+      return integerCreatureId(entry?.creatureId);
+    });
+    if (creatureIds.every(Number.isInteger) && new Set(creatureIds).size === 1) {
+      result.set(key, creatureIds[0]);
+    }
+  }
+  return result;
 }
 
 function rosterCandidateMatchesBadgeCount(candidate, badge, countHints) {
@@ -844,9 +1354,9 @@ function rosterCountHints(roster) {
     : (Array.isArray(roster) ? roster : []);
   for (const entry of entries) {
     const owner = String(entry?.owner || "").toLowerCase();
-    const creatureId = Number(entry?.creatureId);
+    const creatureId = integerCreatureId(entry?.creatureId);
     const count = Math.trunc(Number(entry?.count));
-    if (!["player", "ai"].includes(owner) || !Number.isInteger(creatureId) || !Number.isInteger(count) || count < 1) continue;
+    if (!["player", "ai"].includes(owner) || creatureId === null || !Number.isInteger(count) || count < 1) continue;
     const key = `${owner}:${creatureId}`;
     if (!hints.has(key)) hints.set(key, new Set());
     hints.get(key).add(count);
@@ -865,9 +1375,9 @@ function rosterCapacities(roster) {
   const capacities = new Map();
   const add = (owner, creatureId, multiplicity = 1) => {
     const normalizedOwner = String(owner || "").toLowerCase();
-    const normalizedCreatureId = Number(creatureId);
+    const normalizedCreatureId = integerCreatureId(creatureId);
     const normalizedMultiplicity = Math.max(0, Math.floor(Number(multiplicity)));
-    if (!["player", "ai"].includes(normalizedOwner) || !Number.isInteger(normalizedCreatureId) || !normalizedMultiplicity) return;
+    if (!["player", "ai"].includes(normalizedOwner) || normalizedCreatureId === null || !normalizedMultiplicity) return;
     const key = `${normalizedOwner}:${normalizedCreatureId}`;
     capacities.set(key, (capacities.get(key) || 0) + normalizedMultiplicity);
   };
@@ -901,6 +1411,12 @@ function rosterCapacities(roster) {
 
 function candidateQuality(candidate) {
   return Number(candidate?.quality ?? candidate?.score ?? candidate?.confidence);
+}
+
+function integerCreatureId(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const creatureId = Number(value);
+  return Number.isInteger(creatureId) ? creatureId : null;
 }
 
 function usageKey(usage) {
@@ -965,8 +1481,8 @@ function scaledCreatureTemplate(template, scale) {
       ),
       record: {
         ...template.record,
-        left: 202 + (template.record.left - 202) * scale,
-        top: 226 + (template.record.top - 226) * scale
+        left: CREATURE_CANVAS_ANCHOR_X + (template.record.left - CREATURE_CANVAS_ANCHOR_X) * scale,
+        top: CREATURE_CANVAS_ANCHOR_Y + (template.record.top - CREATURE_CANVAS_ANCHOR_Y) * scale
       },
       templateScale: scale
     });
@@ -988,8 +1504,8 @@ function scoreCreatureTemplate(screen, background, grid, blocked, badgePlacement
     // Heroes III draws the 450x400 DEF canvas from a fixed battle-stack anchor.
     // Preserve the frame's internal left/top offsets; centering the cropped PNG
     // lets a large neighboring creature win the score for the wrong hex.
-    const baseX = Math.round(anchorHex.centerX - 202 + template.record.left);
-    const baseY = Math.round(anchorHex.centerY - 226 + template.record.top);
+    const baseX = Math.round(anchorHex.centerX - CREATURE_CANVAS_ANCHOR_X + template.record.left);
+    const baseY = Math.round(anchorHex.centerY - CREATURE_CANVAS_ANCHOR_Y + template.record.top);
     const inheritedAlignment = !coarse
       && badgePlacement.creature?.creatureId === template.creature.creatureId
       && badgePlacement.primaryHex?.id === primaryHex.id;
@@ -1028,8 +1544,11 @@ function scoreCreatureTemplate(screen, background, grid, blocked, badgePlacement
 }
 
 function locateBadgeOnGrid(badge, grid, owner) {
-  const badgeOffsetX = owner === "ai" ? -44 : 31;
-  const badgeOffsetY = owner === "ai" ? 16 : 32;
+  // Native count boxes are moved outside the battle edge: attacker boxes are
+  // one cell to the right, defender boxes one cell to the left. These offsets
+  // are measured from the exact 45x52 cell raster center after normalization.
+  const badgeOffsetX = owner === "ai" ? -37.5 : 37;
+  const badgeOffsetY = owner === "ai" ? -9 : 6;
   let best = null;
   for (const hex of grid.hexes) {
     const dx = badge.centerX - (hex.centerX + badgeOffsetX);
@@ -1078,6 +1597,27 @@ function obstacleMatchQuality(placement) {
 
 function anchoredObstacleMatchQuality(placement) {
   return obstacleMatchQuality(placement) - Math.min(100, placement.anchorDistance || 0) * 0.004;
+}
+
+function obstacleTemplateRecord(image, left, top, flip = false) {
+  if (!image) return null;
+  let variants = templatePixelCache.get(image);
+  if (!variants) {
+    variants = new Map();
+    templatePixelCache.set(image, variants);
+  }
+  if (!variants.has(Boolean(flip))) {
+    const templateCanvas = drawToCanvas(image, image.width, image.height, Boolean(flip));
+    variants.set(Boolean(flip), templateCanvas.getContext("2d", { willReadFrequently: true })
+      .getImageData(0, 0, image.width, image.height).data);
+  }
+  return {
+    pixels: variants.get(Boolean(flip)),
+    width: image.width,
+    height: image.height,
+    left,
+    top
+  };
 }
 
 function ownerSidePenalty(owner, primaryHex) {
@@ -1239,11 +1779,29 @@ function detectStackBadges(context) {
   // invariant without loosening the purple-fragment filter globally.
   for (const baseline of detectBadgeBaselines(pixels)) {
     const minY = baseline.minY - 10;
-    if (minY < 0 || badges.some((badge) => {
+    if (minY < 0) continue;
+    const overlappingBadge = badges.find((badge) => {
       const overlapX = Math.min(badge.minX + badge.width, baseline.minX + baseline.width)
         - Math.max(badge.minX, baseline.minX);
       return overlapX > 0 && Math.abs(badge.minY - minY) <= 3;
-    })) continue;
+    });
+    if (overlappingBadge) {
+      // A creature/obstacle can split the purple component while the green HP
+      // baseline remains intact. Keeping the short component crops the digit
+      // (the real Sandworm regression read a clipped 3 as 8). Expand only
+      // when the independent baseline is substantially wider, so ordinary
+      // one-pixel component/baseline differences remain untouched.
+      if (baseline.width >= overlappingBadge.width + 6
+          && baseline.width >= overlappingBadge.width * 1.35) {
+        overlappingBadge.minX = baseline.minX;
+        overlappingBadge.minY = minY;
+        overlappingBadge.width = baseline.width;
+        overlappingBadge.height = 9;
+        overlappingBadge.centerX = baseline.minX + (baseline.width - 1) / 2;
+        overlappingBadge.centerY = minY + 4;
+      }
+      continue;
+    }
     badges.push({
       minX: baseline.minX,
       minY,
@@ -1321,7 +1879,9 @@ function bestCompositePlacement(screen, background, image, originX, originY, opt
           options.sampleStep,
           options.ignoreForegroundOcclusion
         );
-        if (score.correlation > best.correlation || (score.correlation === best.correlation && score.gain > best.gain)) {
+        const scoreRank = options.rankByObstacleQuality ? obstacleMatchQuality(score) : score.correlation;
+        const bestRank = options.rankByObstacleQuality ? obstacleMatchQuality(best) : best.correlation;
+        if (scoreRank > bestRank || (scoreRank === bestRank && score.correlation > best.correlation)) {
           best = { ...score, x: orientedOriginX + dx, y: originY + dy, flip };
         }
       }
@@ -1346,6 +1906,7 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
   const template = variants.get(flip);
   const screen = contextPixels(screenContext);
   const background = contextPixels(backgroundContext);
+  const cleanBackground = contextPixels(backgroundContext.cleanCompositeBackground || backgroundContext);
   let baselineError = 0;
   let candidateError = 0;
   let samples = 0;
@@ -1373,7 +1934,9 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
       let pixelCandidateError = 0;
       for (let channel = 0; channel < 3; channel += 1) {
         const base = background[si + channel];
-        const expected = template[ti + channel] * alpha + base * (1 - alpha);
+        const cleanBase = cleanBackground[si + channel];
+        const shade = cleanBase >= 12 ? Math.max(0.2, Math.min(1.2, base / cleanBase)) : 1;
+        const expected = template[ti + channel] * alpha * shade + base * (1 - alpha);
         pixelBaselineError += Math.abs(screen[si + channel] - base);
         pixelCandidateError += Math.abs(screen[si + channel] - expected);
       }
@@ -1385,7 +1948,9 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
       retainedPixels += 1;
       for (let channel = 0; channel < 3; channel += 1) {
         const base = background[si + channel];
-        const expected = template[ti + channel] * alpha + base * (1 - alpha);
+        const cleanBase = cleanBackground[si + channel];
+        const shade = cleanBase >= 12 ? Math.max(0.2, Math.min(1.2, base / cleanBase)) : 1;
+        const expected = template[ti + channel] * alpha * shade + base * (1 - alpha);
         baselineError += Math.abs(screen[si + channel] - base);
         candidateError += Math.abs(screen[si + channel] - expected);
         const actual = screen[si + channel];
@@ -1404,7 +1969,10 @@ function compositeScore(screenContext, backgroundContext, image, x, y, flip, ste
   if (
     !samples
     || baselineError < samples * 2
-    || (ignoreForegroundOcclusion && retainedPixels < opaquePixels * 0.55)
+    // A large creature may hide most of an obstacle. Keep a conservative
+    // absolute sample floor, but allow the visible 22% consensus to identify
+    // the underlying native template.
+    || (ignoreForegroundOcclusion && (retainedPixels < 18 || retainedPixels < opaquePixels * 0.22))
   ) return { gain: -1, match: 0, correlation: -1, chroma: 0 };
   const covariance = productSum - screenSum * templateSum / samples;
   const screenVariance = screenSquareSum - screenSum * screenSum / samples;
@@ -1440,19 +2008,12 @@ function patchDifference(first, second, x, y, width, height) {
   return difference / (left.length / 4 * 3 * 255);
 }
 
-function inferTerrain(background) {
+export function inferTerrain(background) {
   if (background?.terrain) return String(background.terrain).trim().toLowerCase();
+  const exactTerrain = BACKGROUND_TERRAIN_BY_ID.get(String(background?.id || "").toLowerCase());
+  if (exactTerrain) return exactTerrain;
   const text = `${background.id} ${background.name}`.toLowerCase();
-  if (background.id === "wasteland_rocks" || text.includes("wasteland")) return "wasteland";
-  if (background.id === "cmbkcf") return "clover_field";
-  if (background.id === "cmbkef") return "evil_fog";
-  if (background.id === "cmbkff") return "fiery_fields";
-  if (background.id === "cmbkhg") return "holy_ground";
-  if (background.id === "cmbklp") return "lucid_pools";
-  if (background.id === "cmbkmag" || background.id === "cmbkmc") return "magic_clouds";
-  if (background.id === "cmbkrk") return "rocklands";
-  if (background.id === "cmbkbch") return "sand_shore";
-  if (background.id === "cmbkboat" || background.id === "cmbkdeck") return "ship";
+  if (text.includes("wasteland")) return "wasteland";
   if (text.includes("snow") || text.includes("sn")) return "snow";
   if (text.includes("swamp") || text.includes("swmp")) return "swamp";
   if (text.includes("lava") || text.includes("fiery")) return "lava";

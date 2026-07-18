@@ -125,6 +125,18 @@ export function renderBattlefield(container, data, state, handlers) {
       if (occupyingStack) handlers.onStackClick(occupyingStack.id);
       else handlers.onHexClick(hex.id);
     });
+    polygon.addEventListener("contextmenu", (event) => {
+      // Normal obstacles are rendered below the native shade/grid SVG. Route
+      // removal through their occupied cells so the overlay does not make the
+      // obstacle controls unreachable.
+      const obstacle = [...(state.obstacles || [])].reverse().find((candidate) => (
+        !candidate.foreground && candidate.blockedHexIds?.includes(hex.id)
+      ));
+      if (!obstacle) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handlers.onObstacleRemove?.(obstacle.instanceId);
+    });
     svg.appendChild(polygon);
   }
   container.appendChild(svg);
