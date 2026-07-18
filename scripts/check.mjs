@@ -15,7 +15,7 @@ import { waitStack } from "../src/engine/actions.js";
 import { allObstacleBlockedHexes, canPlaceObstacle, createObstacleInstance, detectedObstacleBlockedHexes, generateObstacleLayout, manualObstaclePlacement, obstacleBlockedHexes, obstacleNativePosition, obstacleRenderPosition } from "../src/engine/obstacles.js";
 import { battleWindowBoundsFromTurnBarGeometry } from "../src/engine/turnBarAnalyzer.js";
 import { nativeBattleHexRect, usualObstacleRenderYOffset } from "../src/engine/battleGeometry.js";
-import { canonicalBattlefieldContentBounds, inferTerrain } from "../src/engine/screenshotAnalyzer.js";
+import { canonicalBattlefieldContentBounds, inferTerrain, isLowContrastUpperDirtRockMatch } from "../src/engine/screenshotAnalyzer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -485,6 +485,7 @@ const wideMarginObstacle = { ...marginObstacle, id: 1002, blockedTiles: [0, 1], 
 const wastelandMarginObstacle = { ...marginObstacle, id: 1003, category: "wasteland", allowedTerrains: ["wasteland"] };
 const wastelandWideMarginObstacle = { ...wideMarginObstacle, id: 1004, category: "wasteland", allowedTerrains: ["wasteland"] };
 const classicTopBoundaryObstacle = { ...marginObstacle, id: 1005, height: 3, category: "grass", allowedTerrains: ["grass"] };
+const upperDirtRock = battlefieldCatalog.obstacles.find((obstacle) => obstacle.name === "ObDRk01");
 const emptyBattlefieldState = { stacks: [], obstacles: [] };
 if (canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 1).id)
     || !canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, marginObstacle, battlefieldHex(5, 2).id)
@@ -503,6 +504,21 @@ if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, wastelandMarginObs
 if (!canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(3, 5).id)
     || canPlaceObstacle(battlefieldGrid, emptyBattlefieldState, classicTopBoundaryObstacle, battlefieldHex(2, 5).id)) {
   failures.push("HotA usual obstacles must accept exactly the obstacle-height boundary row on every battlefield.");
+}
+const upperDirtRockRealA = {
+  anchorDistance: 5.83, correlation: 0.604448, gain: -0.461022, match: 0.856731, chroma: 0.995809
+};
+const upperDirtRockRealB = {
+  anchorDistance: 7.07, correlation: 0.611586, gain: -0.326633, match: 0.845286, chroma: 0.997295
+};
+const upperDirtRockFalseOverObDRk04 = {
+  anchorDistance: 6.4, correlation: 0.686776, gain: 0.017934, match: 0.883554, chroma: 0.993564
+};
+if (!isLowContrastUpperDirtRockMatch(upperDirtRock, battlefieldHex(1, 7), upperDirtRockRealA)
+    || !isLowContrastUpperDirtRockMatch(upperDirtRock, battlefieldHex(2, 10), upperDirtRockRealB)
+    || isLowContrastUpperDirtRockMatch(upperDirtRock, battlefieldHex(1, 9), upperDirtRockFalseOverObDRk04)
+    || isLowContrastUpperDirtRockMatch(upperDirtRock, battlefieldHex(3, 7), upperDirtRockRealA)) {
+  failures.push("Upper Dirt ObDRk01 matching must keep both real dark-overlay captures and reject the ObDRk04 lookalike.");
 }
 const absoluteMarginObstacle = {
   ...marginObstacle,

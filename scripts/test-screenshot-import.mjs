@@ -293,6 +293,14 @@ if (process.argv.includes("--assert-ai-pikeman-reference")) {
     throw new Error("AI Pikemen must not be replaced by Griffin or Monk.");
   }
 }
+if (process.argv.includes("--assert-upper-dirt-rock-reference-a")) {
+  assertObstacleScene(summary, "cmbkdrmt", ["6@22", "11@127", "14@62"]);
+  assertObstaclePlacement(summary, 6, 369, 123, 2);
+}
+if (process.argv.includes("--assert-upper-dirt-rock-reference-b")) {
+  assertObstacleScene(summary, "cmbkdrmt", ["1@55", "6@40", "103@null"]);
+  assertObstaclePlacement(summary, 6, 525, 165, 2);
+}
 console.log(JSON.stringify(summary, null, 2));
 
 function assertScene(actual, expectedScene) {
@@ -313,6 +321,16 @@ function assertArmySlots(actual, expectedSlots) {
   const expected = [...expectedSlots].sort();
   if (JSON.stringify(slots) !== JSON.stringify(expected)) {
     throw new Error(`Unexpected army slots: ${slots.join(", ")}`);
+  }
+}
+
+function assertObstacleScene(actual, expectedBackgroundId, expectedObstacles) {
+  if (actual.backgroundId !== expectedBackgroundId) {
+    throw new Error(`Unexpected background: ${actual.backgroundId}`);
+  }
+  const obstacleSignature = actual.obstacles.map(({ id, anchorHexId }) => `${id}@${anchorHexId}`).sort();
+  if (JSON.stringify(obstacleSignature) !== JSON.stringify([...expectedObstacles].sort())) {
+    throw new Error(`Unexpected obstacles: ${obstacleSignature.join(", ")}`);
   }
 }
 

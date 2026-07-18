@@ -502,6 +502,17 @@ function pointInPolygon(x, y, points) {
   return inside;
 }
 
+export function isLowContrastUpperDirtRockMatch(definition, anchor, placement) {
+  return placement.anchorDistance <= 7.2
+    && definition?.name === "ObDRk01"
+    && anchor?.row <= 2
+    && placement.correlation > 0.59
+    && placement.gain > -0.5
+    && placement.match > 0.84
+    && placement.chroma > 0.985
+    && (placement.correlation > 0.8 || placement.chroma > 0.995);
+}
+
 async function detectObstacles(screenshot, background, data, terrain) {
   const definitions = data.obstacles.filter((obstacle) =>
     obstacle.allowedTerrains.includes(terrain) || obstacle.specialBattlefields.includes(terrain) || obstacle.category === terrain
@@ -615,6 +626,17 @@ async function detectObstacles(screenshot, background, data, terrain) {
         && placement.correlation > 0.84
         && placement.match > 0.86
         && placement.chroma > 0.96;
+      // ObDRk01 becomes almost isoluminant with the native dark movement
+      // overlay on the first Dirt rows. The silhouette and colour ratios are
+      // still stable at the exact native anchor, but replacing the similarly
+      // coloured ground can have negative RGB gain. Keep this exception tied
+      // to the audited rock, the upper rows and a strict chroma/shape gate;
+      // relaxing gain globally creates a duplicate ObDRk01 over ObDRk04.
+      const lowContrastUpperDirtRockMatch = isLowContrastUpperDirtRockMatch(
+        definition,
+        coarse.anchor,
+        placement
+      );
       const diagnostic = { definitionId: definition.id, anchorHexId: coarse.anchor.id, ...placement };
       if (!diagnosticBest
         || anchoredObstacleMatchQuality(diagnostic) > anchoredObstacleMatchQuality(diagnosticBest)) diagnosticBest = diagnostic;
@@ -626,7 +648,9 @@ async function detectObstacles(screenshot, background, data, terrain) {
             ? "sparse"
             : distinctSmallOverlayMatch
               ? "overlay"
-              : null;
+              : lowContrastUpperDirtRockMatch
+                ? "low-contrast-upper-dirt-rock"
+                : null;
       if (matchMode) {
         candidates.push({
           definition,
@@ -676,6 +700,11 @@ async function detectObstacles(screenshot, background, data, terrain) {
         return ["normal", "occluded"].includes(candidate.matchMode)
           && overlap / Math.max(1, blockedHexIds.length) >= 0.75;
       })()
+      || (
+        candidate.matchMode === "low-contrast-upper-dirt-rock"
+        && String(item.name || "").startsWith("ObDRk")
+        && Math.hypot(item.detectedLeft - candidate.x, item.detectedTop - candidate.y) <= 30
+      )
       || templateEmbeddingRatio(
         obstacleTemplateRecord(images.get(candidate.definition.id), candidate.x, candidate.y, candidate.flip),
         obstacleTemplateRecord(images.get(item.id), item.detectedLeft, item.detectedTop, item.detectedFlip)
